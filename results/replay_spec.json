@@ -1,0 +1,169 @@
+{
+ "rooms": [
+  {
+   "name": "ledge",
+   "room": "rooms/ledge.txt",
+   "build": "build/ledge_view",
+   "lede": "A 7×6-tile room: the exit is up on the right, behind a two-tile ledge. The beam search found an 18-frame route in 2 seconds. The SAT solver then proved that once dash is pressed on frame 1, nothing beats 18 frames: no dash direction, super, hyper or later input sequence.",
+   "story": [
+    {
+     "f": 1,
+     "t": "Dash pressed. Holding left here changes nothing: facing and the dash direction are read again on frame 5."
+    },
+    {
+     "f": 2,
+     "t": "Three freeze frames: the game pauses for 0.05 s while inputs keep buffering."
+    },
+    {
+     "f": 5,
+     "t": "Jump on the first frame after the freeze. She is grounded and in the dash state, so it becomes a super: 260 px/s right, 105 px/s up. The dash itself never moves her."
+    },
+    {
+     "f": 10,
+     "t": "She hits the face of the ledge. Horizontal speed drops to 0, but the game remembers it for 4 frames (wall speed retention)."
+    },
+    {
+     "f": 14,
+     "t": "Her feet clear the ledge top inside that window, so the speed comes back: 234 px/s."
+    },
+    {
+     "f": 17,
+     "t": "Her head touches the top of the exit opening and vertical speed is cut to 0."
+    },
+    {
+     "f": 18,
+     "t": "Her hitbox crosses the room's right edge: level transition."
+    }
+   ],
+   "notes": {
+    "1": "Dash pressed. The direction is read after the freeze.",
+    "2": "Freeze frame 1 of 3.",
+    "3": "Freeze frame 2 of 3.",
+    "4": "Freeze frame 3 of 3.",
+    "5": "Super: jump on the first dash frame while grounded.",
+    "10": "Bonk on the ledge face; speed is stored for 4 frames.",
+    "11": "Rising along the wall, retention timer running.",
+    "12": "Rising along the wall, retention timer running.",
+    "13": "Rising along the wall, retention timer running.",
+    "14": "Clear of the wall: the stored speed is restored.",
+    "17": "Head bonk on the top of the opening.",
+    "18": "Exit."
+   },
+   "log": [
+    {
+     "q": "Beam search, 50,000 states per frame",
+     "free": "–",
+     "kind": "given",
+     "a": "18 frames",
+     "time": "2 s"
+    },
+    {
+     "q": "Leave by frame 17, frames 1–12 fixed?",
+     "free": 5,
+     "kind": "unsat",
+     "a": "no",
+     "time": "19 s"
+    },
+    {
+     "q": "Leave by frame 17, frames 1–8 fixed?",
+     "free": 9,
+     "kind": "unsat",
+     "a": "no",
+     "time": "86 s"
+    },
+    {
+     "q": "Leave by frame 17, frames 1–4 fixed?",
+     "free": 13,
+     "kind": "unsat",
+     "a": "no",
+     "time": "17 min"
+    },
+    {
+     "q": "Leave by frame 10, nothing fixed?",
+     "free": 10,
+     "kind": "unsat",
+     "a": "no",
+     "time": "4 min"
+    },
+    {
+     "q": "Leave by frame 17, nothing fixed?",
+     "free": 17,
+     "kind": "timeout",
+     "a": "running",
+     "time": "–"
+    }
+   ],
+   "status": "Proven: with dash pressed on frame 1, 18 frames is optimal, and no route of any kind leaves within 10 frames. The proof over every opening (17 free frames) was still running when this page was made."
+  },
+  {
+   "name": "hop",
+   "room": "rooms/hop.txt",
+   "build": "build/hop_view",
+   "lede": "A 10×8-tile room with a two-tile ledge in front of the exit. Beam search: 21 frames in 3 seconds. SAT proved that after the opening (dash, super, jump held to frame 8) nothing finishes faster.",
+   "story": [
+    {
+     "f": 1,
+     "t": "Dash pressed."
+    },
+    {
+     "f": 2,
+     "t": "Three freeze frames."
+    },
+    {
+     "f": 5,
+     "t": "Holding right on the first frame after the freeze sets the dash direction: 240 px/s along the floor."
+    },
+    {
+     "f": 6,
+     "t": "Jump while still grounded in the dash: a super, 260 px/s."
+    },
+    {
+     "f": 7,
+     "t": "Holding jump keeps the full 105 px/s rise for 12 frames of variable jump time; air drag bleeds 4.3 px/s per frame."
+    },
+    {
+     "f": 19,
+     "t": "Head bonk on the top of the exit opening."
+    },
+    {
+     "f": 21,
+     "t": "Exit."
+    }
+   ],
+   "notes": {
+    "1": "Dash pressed.",
+    "2": "Freeze frame 1 of 3.",
+    "3": "Freeze frame 2 of 3.",
+    "4": "Freeze frame 3 of 3.",
+    "5": "Dash direction read: right.",
+    "6": "Super.",
+    "19": "Head bonk.",
+    "21": "Exit."
+   },
+   "log": [
+    {
+     "q": "Beam search, 50,000 states per frame",
+     "free": "–",
+     "kind": "given",
+     "a": "21 frames",
+     "time": "3 s"
+    },
+    {
+     "q": "Leave by frame 20, frames 1–12 fixed?",
+     "free": 8,
+     "kind": "unsat",
+     "a": "no",
+     "time": "61 s"
+    },
+    {
+     "q": "Leave by frame 20, frames 1–8 fixed?",
+     "free": 12,
+     "kind": "unsat",
+     "a": "no",
+     "time": "4 min"
+    }
+   ],
+   "status": "Proven: once the first 8 frames are fixed, 21 frames is optimal."
+  }
+ ]
+}

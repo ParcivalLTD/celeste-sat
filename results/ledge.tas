@@ -1,0 +1,5 @@
+# room ledge: exits on frame 18
+# SAT: optimal once dash is pressed on frame 1 (frames 1-4 fixed)
+   1,L,X
+   3
+  14,R,J

@@ -1,0 +1,6 @@
+build/
+*.cnf
+*.smt2
+__pycache__/
+# rooms extracted from your own copy of the game stay local
+rooms/vanilla/

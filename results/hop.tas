@@ -1,0 +1,8 @@
+# room hop: exits on frame 21
+# SAT: optimal given frames 1-8
+   1,L,X
+   3
+   1,R
+   1,J
+   9,R,J
+   6,R

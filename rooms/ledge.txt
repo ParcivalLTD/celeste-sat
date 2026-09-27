@@ -1,0 +1,8 @@
+; demo room "ledge": 7 x 6 tiles (56 x 48 px). Exit is up on the right,
+; behind a 2-tile ledge.
+#######
+#......
+#......
+#....##
+#S...##
+#######

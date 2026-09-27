@@ -1,0 +1,10 @@
+; demo room "hop": 10 x 8 tiles (80 x 64 px). A 2-tile ledge sits in front
+; of the exit, so Madeline has to get up and over it.
+##########
+#........#
+#........#
+#.........
+#.........
+#......###
+#S.....###
+##########

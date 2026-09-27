@@ -1,0 +1,18 @@
+beam: exit on frame 18 -> /home/claude/celeste-sat/build/ledge_k4/beam.tas (2.2s)
+upper bound: 18 frames (beam search)
+keeping frames 1..4 fixed; the solver optimises frames 5..
+SAT: can she leave by frame 17? (13 free frames) ... no -> 18 is optimal (1041s)
+
+optimal: no route leaves by frame 17 -- given frames 1..4
+route: /home/claude/celeste-sat/build/ledge_k4/best.tas
+# room ledge: exits on frame 18
+# optimal: no route leaves by frame 17 -- given frames 1..4
+   1,L,X
+   3
+   1,R,U,J
+   4,R,J
+   1,L,J
+   2,J
+   1
+   5,L
+

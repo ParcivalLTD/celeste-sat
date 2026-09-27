@@ -1,0 +1,15 @@
+upper bound: 21 frames (build/hop_k12/best.tas)
+keeping frames 1..8 fixed; the solver optimises frames 9..
+SAT: can she leave by frame 20? (12 free frames) ... no -> 21 is optimal (229s)
+
+optimal: no route leaves by frame 20 -- given frames 1..8
+route: /home/claude/celeste-sat/build/hop_k8/best.tas
+# room hop: exits on frame 21
+# optimal: no route leaves by frame 20 -- given frames 1..8
+   1,L,X
+   3
+   1,R
+   1,J
+   9,R,J
+   6,R
+
