@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Random enclosed room with an exit opening on the right, for fuzzing."""
+"""Random enclosed room for fuzzing: blocks, spikes, and one or two exits
+(right edge as before, or left/up/down)."""
 import random, sys
 seed = int(sys.argv[1]); random.seed(seed)
 W, H = random.randint(12, 28), random.randint(8, 18)
@@ -12,10 +13,62 @@ for _ in range(random.randint(3, W * H // 8)):          # random blocks
     for y in range(by, min(by + bh, H - 1)):
         for x in range(bx, min(bx + bw, W - 1)):
             g[y][x] = '#'
-ey = random.randint(2, H - 3)                            # exit: 2-3 tiles tall
-for y in range(ey, min(ey + random.randint(2, 3), H - 1)): g[y][W-1] = '.'
-g[H-2][1] = g[H-3][1] = g[H-4][1] = '.'                  # spawn column clear
-g[H-2][1] = 'S'
-if random.random() < 0.3:                                 # sometimes a pit
+
+exits = []
+sides = ["right"] if seed % 3 == 0 else random.sample(["right", "left", "up", "down"], random.randint(1, 2))
+for k, side in enumerate(sides):
+    kind = "leave" if k > 0 and random.random() < 0.5 else "exit"   # sometimes the second room is not the goal
+    if side in ("right", "left"):                       # opening 2-3 tiles tall
+        ey = random.randint(2, H - 4)
+        x = W - 1 if side == "right" else 0
+        for y in range(ey, min(ey + random.randint(2, 3), H - 1)): g[y][x] = '.'
+        a = 0 if random.random() < 0.5 else ey * 8      # neighbour: whole edge or from the opening down
+        exits.append(f"; {kind} {side} {a} {H * 8}")
+    else:                                               # opening 2-4 tiles wide
+        ex = random.randint(2, W - 5)
+        y = 0 if side == "up" else H - 1
+        for x in range(ex, min(ex + random.randint(2, 4), W - 1)): g[y][x] = '.'
+        # the neighbour covers the whole opening, or only its right part (the rest is a dead end)
+        exits.append(f"; {kind} {side} {ex * 8 + 8 * random.randint(-1, 1)} {W * 8}")
+if "up" not in sides and random.random() < 0.3:       # sometimes a skylight with no room above
+    sx = random.randint(2, W - 5)
+    for x in range(sx, sx + random.randint(2, 3)): g[0][x] = '.'
+if "down" not in sides and random.random() < 0.3:     # sometimes a pit (death)
     px = random.randint(3, W - 4); g[H-1][px] = '.'
-print("\n".join("".join(r) for r in g))
+
+spawn_col = 1 if "left" not in sides else W - 2
+for y in (H - 2, H - 3, H - 4): g[y][spawn_col] = '.'   # spawn column clear
+g[H-1][spawn_col] = '#'
+
+# spikes on random free faces (tile-aligned, drawn as ^ v < >)
+for _ in range(random.randint(0, W * H // 20)):
+    x, y = random.randint(1, W - 2), random.randint(1, H - 2)
+    if g[y][x] != '.' or x == spawn_col:
+        continue
+    faces = []
+    if g[y + 1][x] == '#': faces.append('^')
+    if g[y - 1][x] == '#': faces.append('v')
+    if g[y][x + 1] == '#': faces.append('<')
+    if g[y][x - 1] == '#': faces.append('>')
+    if faces:
+        g[y][x] = random.choice(faces)
+g[H-2][spawn_col] = 'S'
+
+# jump-through platforms (drawn as -) and floor springs
+for _ in range(random.randint(0, 3)):
+    y, x = random.randint(2, H - 3), random.randint(1, W - 3)
+    for dx in range(random.randint(1, 4)):
+        if x + dx < W - 1 and g[y][x + dx] == '.' and x + dx != spawn_col:
+            g[y][x + dx] = '-'
+springs = []
+for _ in range(random.randint(0, 2)):
+    x, y = random.randint(2, W - 3), random.randint(1, H - 2)
+    if g[y][x] == '.' and g[y][x - 1] == '.' and g[y][x + 1] == '.' and g[y + 1][x] == '#' and x != spawn_col:
+        springs.append(f"; spring {x * 8 + random.choice([0, 4])} {(y + 1) * 8}")
+
+extra = []
+for _ in range(random.randint(0, 2)):                   # a few spikes off the tile grid
+    d = random.choice(["up", "down", "left", "right"])
+    extra.append(f"; spikes {d} {random.randint(8, W * 8 - 16)} {random.randint(8, H * 8 - 16)} {random.choice([8, 12, 16])}")
+
+print("\n".join(exits + extra + springs + ["".join(r) for r in g]))
