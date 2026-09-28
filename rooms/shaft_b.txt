@@ -1,0 +1,9 @@
+; demo room "shaft_b": 8 x 4 tiles, above shaft_a. Exit up; falling back
+; into shaft_a counts as failing.
+; origin 0 0
+; exit up 16 48
+; leave down 16 48
+##....##
+#.S....#
+#......#
+##....##

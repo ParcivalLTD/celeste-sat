@@ -1,0 +1,24 @@
+# celeste-sat transition probe: 1a_lvl_1.tas then 90 frames of no input
+# records the room transition frame by frame (position, speed, state, room)
+console load 1 lvl_1
+ 300
+ExportGameInfo, celeste-sat-probe-1to2.txt
+   4,J,X
+   6
+   1,J
+   6,R,J
+   1
+  18,R,J,G
+   1
+   9,J,G
+   3,J
+   2,R,J
+   4,L,X
+  10,R
+   1,J
+  19,R,J
+   4,X
+  10,U
+   3,J
+  90
+EndExportGameInfo

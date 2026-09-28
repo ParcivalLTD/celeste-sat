@@ -4,7 +4,7 @@
    "name": "ledge",
    "room": "rooms/ledge.txt",
    "build": "build/ledge_view",
-   "lede": "A 7×6-tile room: the exit is up on the right, behind a two-tile ledge. The beam search found an 18-frame route in 2 seconds. The SAT solver then proved that once dash is pressed on frame 1, nothing beats 18 frames: no dash direction, super, hyper or later input sequence.",
+   "lede": "A 7×6-tile room: the exit is up on the right, behind a two-tile ledge. The beam search found an 18-frame route in a second. The SAT solver then proved that once dash is pressed on frame 1, nothing beats 18 frames: no dash direction, super, hyper or later input sequence.",
    "story": [
     {
      "f": 1,
@@ -51,55 +51,55 @@
    },
    "log": [
     {
-     "q": "Beam search, 50,000 states per frame",
+     "q": "Beam search, 100,000 states per frame",
      "free": "–",
      "kind": "given",
      "a": "18 frames",
-     "time": "2 s"
+     "time": "1 s"
     },
     {
      "q": "Leave by frame 17, frames 1–12 fixed?",
      "free": 5,
      "kind": "unsat",
      "a": "no",
-     "time": "19 s"
+     "time": "33 s"
     },
     {
      "q": "Leave by frame 17, frames 1–8 fixed?",
      "free": 9,
      "kind": "unsat",
      "a": "no",
-     "time": "86 s"
+     "time": "204 s"
     },
     {
-     "q": "Leave by frame 17, frames 1–4 fixed?",
+     "q": "Leave by frame 17, frames 1–4 fixed? (first model)",
      "free": 13,
      "kind": "unsat",
      "a": "no",
      "time": "17 min"
     },
     {
-     "q": "Leave by frame 10, nothing fixed?",
+     "q": "Leave by frame 10, nothing fixed? (first model)",
      "free": 10,
      "kind": "unsat",
      "a": "no",
      "time": "4 min"
     },
     {
-     "q": "Leave by frame 17, nothing fixed?",
+     "q": "Leave by frame 17, nothing fixed? (first model)",
      "free": 17,
      "kind": "timeout",
-     "a": "running",
-     "time": "–"
+     "a": "stopped",
+     "time": "25 min"
     }
    ],
-   "status": "Proven: with dash pressed on frame 1, 18 frames is optimal, and no route of any kind leaves within 10 frames. The proof over every opening (17 free frames) was still running when this page was made."
+   "status": "Proven with the full model: once frames 1–8 are fixed, 18 frames is optimal. With the first model (one key per button, no crouch dash) it was also proven for frames 1–4 fixed and that nothing leaves within 10 frames; the proof over every opening (17 free frames) was stopped after 25 minutes."
   },
   {
    "name": "hop",
    "room": "rooms/hop.txt",
    "build": "build/hop_view",
-   "lede": "A 10×8-tile room with a two-tile ledge in front of the exit. Beam search: 21 frames in 3 seconds. SAT proved that after the opening (dash, super, jump held to frame 8) nothing finishes faster.",
+   "lede": "A 10×8-tile room with a two-tile ledge in front of the exit. Beam search: 21 frames in 2 seconds. SAT proved that after the opening (dash, super, jump held to frame 8) nothing finishes faster.",
    "story": [
     {
      "f": 1,
@@ -142,25 +142,25 @@
    },
    "log": [
     {
-     "q": "Beam search, 50,000 states per frame",
+     "q": "Beam search, 100,000 states per frame",
      "free": "–",
      "kind": "given",
      "a": "21 frames",
-     "time": "3 s"
+     "time": "2 s"
     },
     {
      "q": "Leave by frame 20, frames 1–12 fixed?",
      "free": 8,
      "kind": "unsat",
      "a": "no",
-     "time": "61 s"
+     "time": "144 s"
     },
     {
      "q": "Leave by frame 20, frames 1–8 fixed?",
      "free": 12,
      "kind": "unsat",
      "a": "no",
-     "time": "4 min"
+     "time": "7 min"
     }
    ],
    "status": "Proven: once the first 8 frames are fixed, 21 frames is optimal."
