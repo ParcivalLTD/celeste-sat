@@ -47,6 +47,10 @@ int main(void)
     K(DASH_TIME);
     K(DASH_FREEZE_TIME);
     K(INPUT_BUFFER_TIME);
+    K(CLIMB_NO_MOVE_TIME);
+    K(CLIMB_HOP_FORCE_TIME);
+    K(CLIMB_JUMP_BOOST_TIME);
+    K(SUPER_BOUNCE_VAR_JUMP_TIME);
 
     /* varJumpTimer < VarJumpTime - CeilingVarJumpGrace  <=>  remaining <= VJ_* */
     const float thr = VAR_JUMP_TIME - CEILING_VAR_JUMP_GRACE;

@@ -9,7 +9,8 @@ solve.py -- find the fastest way out of a room, and prove it when possible.
 
 Pipeline:
   1. build the model for this room (room.h + exact timer tables)
-  2. beam search (fast, heuristic) -> an upper bound: a real route exiting on frame U
+  2. beam search (fast, heuristic) -> an upper bound: a real route exiting on frame U;
+     --polish restarts the beam from the middle of the best route to shorten the rest
   3. SAT descent: ask CBMC "can Madeline leave by frame U-1?"
        - counterexample  -> a faster route; replay it in the simulator, repeat
        - "no"            -> the current best is optimal (within the model; and,
@@ -26,7 +27,9 @@ def sh(cmd, **kw):
     return subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True, **kw)
 
 
-def build(room_path, bdir):
+def build(room_path, bdir, start=None):
+    """room.h, timer tables, sim and beam for a room; `start` is an optional
+    state header (START_STATE) to begin from instead of the spawn."""
     os.makedirs(bdir, exist_ok=True)
     r = sh([sys.executable, f"{ROOT}/tools/make_room.py", room_path, f"{bdir}/room.h"])
     if r.returncode: sys.exit(r.stderr)
@@ -35,41 +38,90 @@ def build(room_path, bdir):
         r = sh(cmd)
         if r.returncode: sys.exit(r.stderr)
     open(f"{bdir}/tables.h", "w").write(sh([gen]).stdout)
-    for name, src in (("sim", "sim/sim.c"), ("beam", "search/beam.c")):
-        r = sh(["gcc", "-O2", "-I", bdir, "-I", f"{ROOT}/model", "-o", f"{bdir}/{name}", f"{ROOT}/{src}"])
+    flags = []
+    if start:
+        shutil.copy(start, f"{bdir}/entry.h")
+        flags = ['-DSTART_STATE_FILE="entry.h"']
+    for name, src, extra in (("sim", "sim/sim.c", []), ("beam", "search/beam.c", ["-fopenmp"])):
+        r = sh(["gcc", "-O2", *extra, *flags, "-I", bdir, "-I", f"{ROOT}/model", "-o", f"{bdir}/{name}", f"{ROOT}/{src}"])
         if r.returncode: sys.exit(r.stderr)
     shutil.copy(f"{ROOT}/harness/solve.c", f"{bdir}/solve.c")
+    shutil.copy(f"{ROOT}/harness/input_rules.h", f"{bdir}/input_rules.h")
+
+
+REPRESS = 2   # jump/dash value: held, and pressed again with the other key (see model/celeste.h)
+
+
+def _button(now, prev):
+    """button value (0, 1 or REPRESS) from its two keys now and on the previous frame"""
+    held, was = now[0] or now[1], prev[0] or prev[1]
+    press = (now[0] and not prev[0]) or (now[1] and not prev[1])
+    return 0 if not held else (REPRESS if was and press else 1)
+
+
+NOTHING = (0, 0, 0, 0, False, 0)
 
 
 def read_tas(path):
-    frames = []
+    """frames of (mx, my, jump, dash, grab, cdash) from a CelesteTAS-style
+    file. J/K are the two jump keys, X/C the two dash keys and Z/V the two
+    crouch dash keys: these buttons are 0 (released), 1 (held; a press after
+    a release) or REPRESS (held and pressed again with the other key). G/H
+    are grab."""
+    frames, pj, pd, pz = [], (False, False), (False, False), (False, False)
     for line in open(path):
         line = line.strip()
         if not line or line.startswith("#"): continue
         parts = [p.strip().upper() for p in line.split(",")]
+        if not parts[0].isdigit(): continue
         n = int(parts[0])
-        inp = (-1 if "L" in parts else 1 if "R" in parts else 0,
-               -1 if "U" in parts else 1 if "D" in parts else 0,
-               "J" in parts or "K" in parts, "X" in parts or "C" in parts)
-        frames += [inp] * n
+        keys = set(parts[1:])
+        unknown = keys - set("LRUDJKXCZVGH")
+        if unknown:
+            sys.exit(f"{path}: input {sorted(unknown)} is not modelled (line: {line})")
+        j, d, z = ("J" in keys, "K" in keys), ("X" in keys, "C" in keys), ("Z" in keys, "V" in keys)
+        mx = -1 if "L" in keys else 1 if "R" in keys else 0
+        my = -1 if "U" in keys else 1 if "D" in keys else 0
+        g = "G" in keys or "H" in keys
+        for _ in range(n):
+            frames.append((mx, my, _button(j, pj), _button(d, pd), g, _button(z, pz)))
+            pj, pd, pz = j, d, z
     return frames
+
+
+def tas_keys(frames):
+    """the keys of each frame: a fresh press uses J (X), a press while the
+    button is held switches to the other key"""
+    out, jk, dk, zk = [], None, None, None
+
+    def nxt(b, cur, keys):
+        if not b: return None
+        if cur is None: return keys[0]
+        return (keys[1] if cur == keys[0] else keys[0]) if b == REPRESS else cur
+
+    for mx, my, jmp, dash, grab, cdash in frames:
+        jk, dk, zk = nxt(jmp, jk, "JK"), nxt(dash, dk, "XC"), nxt(cdash, zk, "ZV")
+        k = []
+        if mx < 0: k.append("L")
+        if mx > 0: k.append("R")
+        if my < 0: k.append("U")
+        if my > 0: k.append("D")
+        if jk: k.append(jk)
+        if dk: k.append(dk)
+        if zk: k.append(zk)
+        if grab: k.append("G")
+        out.append(tuple(k))
+    return out
 
 
 def write_tas(path, frames, header):
     out = [f"# {h}" for h in header]
+    keys = tas_keys(frames)
     i = 0
-    while i < len(frames):
+    while i < len(keys):
         j = i
-        while j < len(frames) and frames[j] == frames[i]: j += 1
-        mx, my, jmp, dash = frames[i]
-        toks = [f"{j - i:4d}"]
-        if mx < 0: toks.append("L")
-        if mx > 0: toks.append("R")
-        if my < 0: toks.append("U")
-        if my > 0: toks.append("D")
-        if jmp: toks.append("J")
-        if dash: toks.append("X")
-        out.append(",".join(toks))
+        while j < len(keys) and keys[j] == keys[i]: j += 1
+        out.append(",".join([f"{j - i:4d}", *keys[i]]))
         i = j
     open(path, "w").write("\n".join(out) + "\n")
 
@@ -105,36 +157,87 @@ def cbmc(bdir, horizon, start_file, timeout):
                 vals = {}
                 for st in res.get("trace", []):
                     if st.get("stepType") != "assignment": continue
-                    m = re.fullmatch(r"inputs\[(\d+)l?\]\.(mx|my|jump|dash)", st.get("lhs", ""))
+                    m = re.fullmatch(r"inputs\[(\d+)l?\]\.(mx|my|jump|dash|grab|cdash)", st.get("lhs", ""))
                     if m:
                         d = st["value"]["data"]
                         vals[(int(m.group(1)), m.group(2))] = (d == "TRUE") if d in ("TRUE", "FALSE") else int(d)
-                frames = [(vals.get((i, "mx"), 0), vals.get((i, "my"), 0),
-                           vals.get((i, "jump"), False), vals.get((i, "dash"), False)) for i in range(horizon)]
+                frames = [(vals.get((i, "mx"), 0), vals.get((i, "my"), 0), vals.get((i, "jump"), 0),
+                           vals.get((i, "dash"), 0), vals.get((i, "grab"), False), vals.get((i, "cdash"), 0))
+                          for i in range(horizon)]
                 return True, frames, dt
     sys.exit("unexpected CBMC output:\n" + r.stdout[-2000:] + r.stderr[-2000:])
 
 
-def tidy(bdir, frames, best, keep):
-    """Greedily replace inputs after frame `keep` with simpler ones (continue the
-    previous input, hold right, or nothing) whenever that does not make the
-    run any slower. Purely cosmetic: the result exits on the same frame."""
+def polish(bdir, inc, best, a):
+    """Restart the beam search from the state after the first K frames of the
+    best route, for K = best-15, best-25, ... A restart searches the rest of
+    the route with a full beam; any shorter route replaces the best one and
+    the schedule starts again."""
+    improved = True
+    while improved:
+        improved = False
+        for K in range(best - 15, 4, -10):
+            write_tas(f"{bdir}/polish_in.tas", inc, ["polish input"])
+            out = f"{bdir}/polish_out.tas"
+            if os.path.exists(out):
+                os.remove(out)
+            t0 = time.time()
+            sh([f"{bdir}/beam", "-k", str(a.beam_width), "-m", str(a.beam_cap), "-r", str(a.beam_rollout),
+                "-x", str(a.exit_x), "-p", f"{bdir}/polish_in.tas", "-n", str(K), out])
+            e = replay(bdir, out) if os.path.exists(out) else None
+            print(f"polish: beam restarted after frame {K}: "
+                  f"{e if e else 'no'} {'frames' if e else 'route'} ({time.time() - t0:.0f}s)", flush=True)
+            if e is not None and e < best:
+                inc, best = read_tas(out)[:e], e
+                improved = True
+                break
+    return inc, best
+
+
+def final_state(bdir, tas, frames):
+    """the simulator's exact state after `frames` frames of `tas` (sim -s), as text"""
+    out = f"{bdir}/tidy_state.h"
+    sh([f"{bdir}/sim", "-s", str(frames), out, tas])
+    return "".join(l for l in open(out) if not l.startswith("/*"))
+
+
+def tidy(bdir, frames, best, keep, keep_exit=False):
+    """Greedily replace inputs after frame `keep` with simpler ones whenever
+    that does not make the run any slower: continue the previous input,
+    nothing, or the same input with one button fewer. Frames up to `keep` are
+    left alone, so a proof "given frames 1..keep" still refers to this route.
+    Occasionally a simpler input is also faster; returns (inputs, frames).
+    With keep_exit, a change is kept only if Madeline leaves the room on the
+    same frame in exactly the same state (needed when the next room starts
+    from that state)."""
     cur = list(frames)
     tmp = f"{bdir}/tidy.tas"
-    for i in range(keep, len(cur)):
-        mx, my, j, d = cur[i]
-        opts = [(mx, 0, j, d)] if my != 0 else []          # drop an up/down that does nothing
-        opts += ([cur[i - 1]] if i > 0 else []) + [(1, 0, False, False), (0, 0, False, False)]
+    if keep_exit:
+        write_tas(tmp, cur, ["tidy"])
+        target = final_state(bdir, tmp, best)
+    i = keep
+    while i < len(cur):
+        mx, my, j, d, g, z = cur[i]
+        # "continue the previous input" holds its buttons (a press again would
+        # alternate the two keys, which is not simpler)
+        prev = [tuple(min(v, 1) if k in (2, 3, 5) else v for k, v in enumerate(cur[i - 1]))] if i > 0 else []
+        opts = prev + [NOTHING,
+                (mx, 0, j, d, g, z), (mx, my, j, d, False, z), (0, my, j, d, g, z),
+                (mx, my, 0, d, g, z), (mx, my, j, 0, g, z), (mx, my, j, d, g, 0),
+                (mx, my, min(j, 1), min(d, 1), g, min(z, 1))]
         for o in opts:
             if o == cur[i]:
-                break
+                continue
             trial = cur[:i] + [o] + cur[i + 1:]
             write_tas(tmp, trial, ["tidy"])
             e = replay(bdir, tmp)
+            if keep_exit and (e != best or final_state(bdir, tmp, best) != target):
+                continue
             if e is not None and e <= best:
-                cur = trial
+                cur, best = trial[:e], e
                 break
-    return cur
+        i += 1
+    return cur, best
 
 
 def main():
@@ -143,16 +246,28 @@ def main():
     ap.add_argument("--tas", help="start from this route instead of running the beam search")
     ap.add_argument("--from-frame", type=int, default=0,
                     help="keep the first K frames of the best route fixed and optimise the rest")
-    ap.add_argument("--beam-width", type=int, default=50000)
+    ap.add_argument("--beam-width", type=int, default=100000)
+    ap.add_argument("--beam-cap", type=int, default=4,
+                    help="beam: keep at most this many states per (position, state, dashes) cell (0 = no cap)")
+    ap.add_argument("--beam-rollout", type=int, default=8, help="beam: frames of lookahead when ranking states")
+    ap.add_argument("--exit-x", type=int, default=-1,
+                    help="beam: only count leaving the room at this x (to line up with the next room's route)")
+    ap.add_argument("--polish", action="store_true",
+                    help="restart the beam from the state after the first K frames of the best route "
+                         "(K = U-15, U-25, ...) until no restart finds a shorter route")
     ap.add_argument("--timeout", type=float, default=1800, help="seconds per SAT query")
     ap.add_argument("--out", help="output directory (default build/<room>)")
+    ap.add_argument("--keep-exit", action="store_true",
+                    help="tidy only where the exit state stays identical (for chaining rooms)")
+    ap.add_argument("--start", help="state header to start from instead of the spawn "
+                                    "(written by tools/chapter.py when entering from the previous room)")
     ap.add_argument("--no-sat", action="store_true",
                     help="skip the SAT descent (just replay, tidy and write outputs)")
     a = ap.parse_args()
 
     name = os.path.splitext(os.path.basename(a.room))[0]
     bdir = os.path.abspath(a.out or f"{ROOT}/build/{name}")
-    build(a.room, bdir)
+    build(a.room, bdir, a.start)
 
     # 1. upper bound
     if a.tas:
@@ -160,7 +275,8 @@ def main():
         src = a.tas
     else:
         t0 = time.time()
-        r = sh([f"{bdir}/beam", "-k", str(a.beam_width), f"{bdir}/beam.tas"])
+        r = sh([f"{bdir}/beam", "-k", str(a.beam_width), "-m", str(a.beam_cap), "-r", str(a.beam_rollout),
+                "-x", str(a.exit_x), f"{bdir}/beam.tas"])
         print(r.stdout.strip(), f"({time.time() - t0:.1f}s)")
         inc = read_tas(f"{bdir}/beam.tas")
         src = "beam search"
@@ -170,9 +286,13 @@ def main():
     inc = inc[:best]
     print(f"upper bound: {best} frames ({src})")
 
+    if a.polish:
+        inc, best = polish(bdir, inc, best, a)
+        write_tas(f"{bdir}/best.tas", inc, [f"from {src}, polished"])
+
     # 2. fixed prefix
     K = a.from_frame
-    start_file = None
+    start_file = "entry.h" if a.start else None
     if K:
         write_tas(f"{bdir}/prefix.tas", inc[:K], ["prefix"])
         sh([f"{bdir}/sim", "-s", str(K), f"{bdir}/start.h", f"{bdir}/prefix.tas"])
@@ -209,8 +329,16 @@ def main():
         best, inc = e, cand[:e]
         write_tas(f"{bdir}/best.tas", inc, [f"improved by SAT: {e} frames"])
 
-    # 4. tidy: simplify inputs frame by frame (same frame count, easier to read)
-    inc = tidy(bdir, inc, best, K)
+    # 4. tidy: simplify inputs frame by frame (easier to read, sometimes faster)
+    inc, tidied = tidy(bdir, inc, best, K, a.keep_exit)
+    if tidied < best:
+        if proven:
+            print(f"WARNING: tidy found a {tidied}-frame route after the SAT proof said {best - 1} is impossible "
+                  f"-- the model and the proof disagree")
+        else:
+            print(f"tidy: simpler inputs are also faster: {tidied} frames")
+            history.append(dict(kind="tidy", frames=tidied))
+        best = tidied
 
     # 5. outputs
     note = (f"optimal: no route leaves by frame {best - 1}" if proven else
