@@ -5,18 +5,23 @@
 #   bash tools/run_tests.sh --vanilla    also Chapter 1 rooms 1-3 (rooms/vanilla/*.txt, from your game): checks against
 #                                        the real game (downloaded recordings) and beam searches
 #   bash tools/run_tests.sh --sat        also short SAT checks, one of them across a room transition (needs cbmc)
+#   bash tools/run_tests.sh --vanilla --recordings DIR
+#                                        also the recordings CelesteTAS wrote into DIR (your Celeste folder, e.g.
+#                                        /mnt/r/SteamLibrary/steamapps/common/Celeste): every frame against the model
 #
 # Needs gcc and python3 (Ubuntu/WSL: sudo apt install -y gcc python3 cbmc).
 # When started from a Windows drive (/mnt/c/...), it works on a copy in
 # ~/celeste-sat-run, because WSL is much faster on its own file system.
 set -e
-VANILLA=0; SAT=0
-for a in "$@"; do
-    case "$a" in
+VANILLA=0; SAT=0; RECORDINGS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
         --vanilla) VANILLA=1 ;;
         --sat) SAT=1 ;;
-        *) echo "unknown option $a"; exit 2 ;;
+        --recordings) RECORDINGS="$(cd "$2" && pwd)" || { echo "no folder $2"; exit 2; }; shift ;;
+        *) echo "unknown option $1"; exit 2 ;;
     esac
+    shift
 done
 cd "$(dirname "$0")/.."
 for tool in gcc python3; do
@@ -72,6 +77,10 @@ if [ "$VANILLA" = 1 ] && [ -f rooms/vanilla/1a_lvl_1.txt ]; then
     python3 tests/real_game.py rooms/vanilla/1a_lvl_1.txt | sed "s/^/  /" || echo "  (needs internet access to github.com)"
     step "real game: the community TAS of Chapter 1 (downloaded), rooms 1-3 in sequence"
     python3 tests/community_tas.py rooms/vanilla | sed "s/^/  /" || echo "  (needs internet access to github.com, and rooms 1-3 exported)"
+fi
+if [ -n "$RECORDINGS" ] && [ -f rooms/vanilla/1a_lvl_1.txt ]; then
+    step "real game: recordings made with CelesteTAS ($RECORDINGS), every frame against the model"
+    python3 tests/recordings.py "$RECORDINGS" rooms/vanilla | sed "s/^/  /"
 fi
 
 step "beam search on the demo rooms (all cores)"

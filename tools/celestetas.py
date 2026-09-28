@@ -94,8 +94,17 @@ def show(a):
         print(f"{n:5d}  {cols[4]:>36}  {cols[5]:>28}  {cols[6]:10} {room}{mark}")
 
 
-def parse_dump(path):
-    """rows of (inputs, x, y, vx, vy, state) from an ExportGameInfo file"""
+def room_origin(room):
+    """the room's top-left corner in world coordinates (the recording's positions are world positions)"""
+    for line in open(room):
+        m = re.match(r";\s*origin\s+(-?\d+)\s+(-?\d+)", line)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+    return 0, 0
+
+
+def parse_dump(path, origin=(0, 0)):
+    """rows of (inputs, x, y, vx, vy, state, statuses) from an ExportGameInfo file, positions in room coordinates"""
     rows = []
     num = r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
     for line in open(path, encoding="utf-8", errors="replace"):
@@ -106,24 +115,35 @@ def parse_dump(path):
         spd = re.findall(num, cols[5])
         if len(pos) < 2 or len(spd) < 2:
             continue
-        rows.append(dict(line=cols[0], inputs=cols[1], x=float(pos[0]), y=float(pos[1]),
-                         vx=float(spd[0]), vy=float(spd[1]), state=cols[6].strip()))
+        rows.append(dict(line=cols[0], inputs=cols[1], x=float(pos[0]) - origin[0], y=float(pos[1]) - origin[1],
+                         vx=float(spd[0]), vy=float(spd[1]), state=cols[6].strip(),
+                         statuses=cols[7] if len(cols) > 7 else "",
+                         room=cols[8].strip() if len(cols) > 8 else ""))
     return rows
 
 
-def model_trace(room, route):
+def row_keys(inputs):
+    """the keys held on a recorded frame: "3/  10,R,J" -> "R,J" (the Inputs column shows the TAS line)"""
+    line = inputs.split("/", 1)[-1].strip()
+    return ",".join(k.strip() for k in line.split(",")[1:] if k.strip())
+
+
+def model_trace(room, route, start=None):
+    """per-frame model states, and the frame the route leaves the room on (or None)"""
     name = os.path.splitext(os.path.basename(room))[0]
-    bdir = os.path.join(ROOT, "build", f"check_{name}")
-    build(room, bdir)
+    bdir = os.path.join(ROOT, "build", f"check_{name}" + ("_entry" if start else ""))
+    build(room, bdir, start)
     tmp = os.path.join(bdir, "route.tas")
     write_tas(tmp, read_tas(route), ["route"])
     subprocess.run([os.path.join(bdir, "sim"), tmp, "-j", os.path.join(bdir, "trace.json")],
                    capture_output=True, text=True)
-    frames = json.load(open(os.path.join(bdir, "trace.json")))["frames"]
+    trace = json.load(open(os.path.join(bdir, "trace.json")))
+    frames = trace["frames"]
+    exit_frame = trace.get("exit_frame", -1)
     return [dict(x=f["x"] + f.get("rx", 0.0), y=f["y"] + f.get("ry", 0.0),
                  vx=f.get("vxe", f["vx"]), vy=f.get("vye", f["vy"]),
                  state="Freeze" if f["frz"] else STATE_NAMES.get(f["st"], str(f["st"])),
-                 inp=f["in"]) for f in frames[1:]]
+                 inp=f["in"]) for f in frames[1:]], (exit_frame if exit_frame and exit_frame > 0 else None)
 
 
 def same(m, g, tol_pos=2e-3, tol_spd=2e-3):
@@ -133,25 +153,41 @@ def same(m, g, tol_pos=2e-3, tol_spd=2e-3):
 
 
 def compare(a):
-    game = parse_dump(a.dump)
-    model = model_trace(a.room, a.route)
+    origin = room_origin(a.room)
+    game = parse_dump(a.dump, origin)
+    model, exit_frame = model_trace(a.room, a.route, a.start)
     if not game:
         sys.exit(f"{a.dump}: no player rows found (is it an ExportGameInfo file?)")
+    if exit_frame:
+        model = model[:exit_frame]
+
+    def agrees(i, j):
+        m, g = model[i], game[j]
+        if exit_frame and i + 1 == exit_frame:
+            # on the exit frame the game has already begun the room transition (speed and control
+            # taken over); the position after the frame's movement must still agree
+            return (abs(m["x"] - g["x"]) <= 2e-3 and abs(m["y"] - g["y"]) <= 2e-3
+                    and "NoControl" in g["statuses"])
+        return same(m, g)
+
     # the recording may start a frame early or late; use the offset that matches longest
     best = (-1, 0)
     for off in range(-3, 4):
         n = 0
-        for i, m in enumerate(model):
+        for i in range(len(model)):
             j = i + off
-            if j < 0 or j >= len(game) or not same(m, game[j]):
+            if j < 0 or j >= len(game) or not agrees(i, j):
                 break
             n += 1
         best = max(best, (n, off))
     n, off = best
     total = min(len(model), len(game) - max(off, 0))
-    print(f"model: {len(model)} frames, game dump: {len(game)} rows, alignment offset {off:+d}")
+    print(f"model: {len(model)} frames" + (f" (leaves the room on frame {exit_frame})" if exit_frame else "")
+          + f", game dump: {len(game)} rows, alignment offset {off:+d}"
+          + (f", room origin {origin[0]},{origin[1]}" if origin != (0, 0) else ""))
     if n >= len(model):
-        print(f"MATCH: all {len(model)} frames agree (position incl. subpixels, speed, state)")
+        print(f"MATCH: all {len(model)} frames agree (position incl. subpixels, speed, state)"
+              + (f"; the game starts the room transition on frame {exit_frame} too" if exit_frame else ""))
         return
     print(f"first {n} frames agree; first difference at route frame {n + 1}:")
     print(f"{'frame':>5}  {'in':6} {'model x':>14} {'game x':>14} {'model y':>14} {'game y':>14} "
@@ -160,7 +196,7 @@ def compare(a):
         m, g = model[i], game[i + off] if 0 <= i + off < len(game) else None
         if g is None:
             break
-        flag = "  " if same(m, g) else "<<"
+        flag = "  " if agrees(i, i + off) else "<<"
         print(f"{i + 1:5d}  {m['inp']:6} {m['x']:14.6f} {g['x']:14.6f} {m['y']:14.6f} {g['y']:14.6f} "
               f"{m['vx']:11.4f} {g['vx']:11.4f} {m['vy']:11.4f} {g['vy']:11.4f}  {m['state']}/{g['state']} {flag}")
 
@@ -191,6 +227,8 @@ def main():
     c.add_argument("room")
     c.add_argument("route")
     c.add_argument("dump")
+    c.add_argument("--start", help="state header the room starts from (default: its spawn), e.g. the entry "
+                   "state from the previous room written by tools/chapter.py or tests/community_tas.py")
     a = ap.parse_args()
     {"export": export, "probe": probe, "show": show, "compare": compare}[a.cmd](a)
 
