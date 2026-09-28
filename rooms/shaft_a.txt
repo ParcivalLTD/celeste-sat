@@ -1,0 +1,8 @@
+; demo room "shaft_a": 8 x 4 tiles, the lower of two rooms stacked in a
+; shaft (with shaft_b above it). Exit up into shaft_b.
+; origin 0 32
+; exit up 16 48
+##....##
+#......#
+#.S....#
+########

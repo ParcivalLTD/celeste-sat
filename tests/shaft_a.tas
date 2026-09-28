@@ -1,0 +1,4 @@
+# shaft_a: a deliberately slow route (one idle frame too many before the dash) for the cross-room check in tools/run_tests.sh --sat
+   2
+   1,U,X
+  12,U
