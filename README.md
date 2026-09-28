@@ -25,7 +25,9 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (204s)
 It also runs on rooms from the game itself, and it agrees with the game: the
 community TAS of Chapter 1 (played in the real game) replays in the model
 room after room, each room's inputs leaving that room on exactly their last
-frame (see "Checked against the real game"). A query can also span a room
+frame, and routes found here, recorded in Celeste 1.4 with CelesteTAS, match
+the model in every frame, subpixels included (see "Checked against the real
+game"). A query can also span a room
 transition, since the fastest way out of one room is not always the fastest
 way through the next (see "Across room boundaries").
 
@@ -249,6 +251,25 @@ Same pixels, same subpixels, same frame of the room transition after 285
 frames of random play. `python3 tests/real_game.py` downloads the recording
 and repeats the check.
 
+**Recordings of this project's routes.** Played in Celeste 1.4.0.0 (Everest
+1.6580.0, CelesteTAS 3.47.1) with the files in `results/celestetas/`, which
+record Madeline's position, speed and state on every frame. Each recording's
+own inputs, replayed in the model, give the same numbers on every frame:
+
+| recording | frames compared | what it settles |
+|---|---|---|
+| `results/1a_lvl_1.tas`, room 1 from the spawn | 99, identical; leaves on frame 99 in both | the 5 px ceiling correction while dashing straight up (frame 96, inferred) is real |
+| `results/1a_lvl_3.tas`, room 3 from the spawn | 126, identical; leaves on frame 126 | |
+| `probe_dash_cooldown.tas`: a super cancels a dash, then dash pressed every frame | 30, identical; dashes again on frame 16 | the dash cooldown is 0.2 s, not the 0.15 s of the 1.2.5.0 changelog |
+| `probe_1a_lvl_1_to_2.tas`: a 102-frame room 1 route, then nothing pressed | 102 in room 1, identical; then 50 in room 2 from the model's entry state, identical | the room transition upwards: where she stops, her speed and automatic jump, and that control returns 41 frames after the exit frame |
+| the community TAS's `#lvl_3`, entered as in the TAS | 107, identical | |
+| the same with the 106-frame ending (below) | 106, identical; leaves on frame 106 | the wallbounce reaches 5 px (v1.2.3.0, inferred); the TAS's room 3 can be a frame faster |
+
+`python3 tests/recordings.py DIR` repeats the check for every
+`celeste-sat-*.txt` and `community-*.txt` recording in DIR (the Celeste
+folder, where CelesteTAS writes them), room after room; `tools/run_tests.sh
+--vanilla --recordings DIR` includes it.
+
 ### Checking a route in the game
 
 `tools/celestetas.py` compares the model with the real game frame by frame,
@@ -263,30 +284,28 @@ using [CelesteTAS](https://github.com/EverestAPI/CelesteTAS-EverestInterop)
 2. Compare:
    `python3 tools/celestetas.py compare rooms/vanilla/1a_lvl_1.txt results/1a_lvl_1.tas celeste-sat-1a_lvl_1.txt`
 
-It reports how many frames agree and shows the first frame that differs.
-`probe_dash_cooldown.tas` settles the open question below: it cancels a
-ground dash with a super on frame 11 and then presses dash on every frame;
-the model dashes again on frame 16 (0.2 s cooldown), the 0.15 s of the 1.2.5.0
-changelog would give frame 13. For other routes:
-`tools/celestetas.py export ROOM ROUTE --load "1 lvl_2" -o check.tas`.
+It reports how many frames agree and shows the first frame that differs;
+`--start ENTRY.h` starts the room from an entry state instead of the spawn.
+For other routes: `tools/celestetas.py export ROOM ROUTE --load "1 lvl_2" -o
+check.tas`. `tests/recordings.py` (above) checks all recordings in a folder
+at once, from the inputs they record.
 
 ### Things to check against the real game
 
-What is still inferred rather than taken from code or checked against the game:
+What is still inferred rather than taken from code or checked against the game
+(settled by the recordings above: the 0.2 s dash cooldown, which the 1.2.5.0
+changelog gives as 0.15 s; the upward room transition):
 
-- The changelog of 1.2.5.0 says the dash cooldown went from 0.20 s to 0.15 s
-  ("the time after dashing before you can regain your dash"), while the
-  published code, the wiki's frame counts and `BeforeUpTransition` all say
-  0.2 s. The model uses 0.2 s (12 frames). It only matters when a dash ends
-  early (a super, a spring) and another dash follows within 15 frames.
 - The wallbounce reach: mods confirm a 5 px distance in `WallJumpCheck`
   besides the usual 3; that it applies while dash-attacking after a
-  straight-up dash (unless spikes face her there) is from memory. The 106-frame
-  `lvl_3` ending below depends on it.
+  straight-up dash is now confirmed by the 106-frame `lvl_3` ending. That
+  spikes facing her there turn it off is still from memory.
 - The ceiling corner correction reaches 5 px when she is dash-attacking with
   no horizontal speed (read as |Speed.X| < 0.01; left is tried when
   Speed.X ≤ 0.01, right when Speed.X ≥ −0.01). Mods confirm that the reach is a
-  variable (4 by default); the condition for 5 is from memory.
+  variable (4 by default); the recording of `results/1a_lvl_1.tas` confirms
+  a 5 px correction to the right during a straight-up dash. The exact
+  condition (and the left side) is from memory.
 - Spike checks for dash corrections use her normal hurtbox (8 × 9) at the
   corrected position, against spikes of any direction; the dash floor snap
   tests the full 3 px.
@@ -305,9 +324,10 @@ What is still inferred rather than taken from code or checked against the game:
   climb hop is blocked by up spikes more finely (by the spike sprites). The
   community TAS exercises most of this in rooms 1–3.
 - Room transitions (`tools/chapter.py`): the parts in `Player.cs`
-  (`BeforeUpTransition`, `TransitionTo`, `OnTransition`) are ported; where
-  she stops going up is measured (above); sideways and downwards it is inferred
-  (4 px inside the edge she crossed, 12 px when falling in).
+  (`BeforeUpTransition`, `TransitionTo`, `OnTransition`) are ported; going
+  up, the whole transition is checked against a recording (above); sideways
+  and downwards where she stops is inferred (4 px inside the edge she
+  crossed, 12 px when falling in).
 - Tiles outside the room count as air. In the game they belong to the
   neighbouring rooms; this only matters if Madeline's hitbox pokes out of the
   room somewhere other than an exit.
@@ -346,27 +366,29 @@ enters it (room 1 from the spawn):
 The project's own search is well behind the TAS: the beam search's rollouts
 steer towards the exit and do not discover lines like the climb jump out of a
 dash in room 1, or the speed the TAS carries into room 3. Its 99-frame room 1
-route (`results/1a_lvl_1.tas`) also relies on one of the inferred rules: a
-5 px ceiling correction while dashing straight up (frame 96). What the SAT
-solver adds is on the TAS's own routes:
+route (`results/1a_lvl_1.tas`) relies on a 5 px ceiling correction while
+dashing straight up (frame 96), a rule that was inferred and that the
+recording of the route in the game confirms. What the SAT solver adds is on
+the TAS's own routes:
 
-The two faster endings exist in the model only so far (they need checking
-in the game), and neither makes the chapter faster as it stands:
-
-- `lvl_3`, 106: the TAS dashes up through the exit gap and leaves after the
-  dash ends (−120 px/s). A jump on the dash's last frame, 4–5 px from the
-  gap's left edge, is a wallbounce (−160 px/s): out one frame sooner. This
-  relies on the wallbounce reaching 5 px (v1.2.3.0); at 3 px it does not
-  exist. It also changes how she enters `lvl_4` (a zip mover room, not
-  modelled). To try it in the game: in the community `1A.tas`, replace the
-  last line of `#lvl_3` (`16,U,X`) by `4,U,X` / `1,U` / `9` / `1,J`.
-- `lvl_2`, 117: wallbounce one frame later and go straight up. But the TAS's
-  slower-looking ending is deliberate: it ends with a wall jump that leaves
-  211 px/s of wall speed retention pending, which carries through the
-  transition, so `lvl_3` starts with two climb jumps at full speed. The
-  117-frame ending loses that, and the TAS's `lvl_3` inputs no longer work.
-  Likewise the beam search found a 114-frame `lvl_2` (dash up the shaft 20
-  frames earlier), after which our best `lvl_3` is 127 frames.
+- `lvl_3`, 106, **confirmed in the game**: the TAS dashes up through the
+  exit gap and leaves after the dash ends (−120 px/s). A jump on the dash's
+  last frame, 4–5 px from the gap's left edge, is a wallbounce (−160 px/s):
+  out one frame sooner. The community `1A.tas` with the last line of
+  `#lvl_3` (`16,U,X`) replaced by `4,U,X` / `1,U` / `9` / `1,J`, recorded in
+  Celeste 1.4, leaves `lvl_3` on frame 106, every frame as the model says. It
+  relies on the wallbounce reaching 5 px (v1.2.3.0); at 3 px it would not
+  exist. It changes how she enters `lvl_4` (3 px further right; a zip mover
+  room, not modelled), so whether the chapter gets a frame faster depends on
+  `lvl_4`.
+- `lvl_2`, 117 (model only so far): wallbounce one frame later and go
+  straight up. But the TAS's slower-looking ending is deliberate: it ends
+  with a wall jump that leaves 211 px/s of wall speed retention pending,
+  which carries through the transition, so `lvl_3` starts with two climb
+  jumps at full speed. The 117-frame ending loses that, and the TAS's
+  `lvl_3` inputs no longer work. Likewise the beam search found a 114-frame
+  `lvl_2` (dash up the shaft 20 frames earlier), after which our best
+  `lvl_3` is 127 frames.
 
 So rooms have to be optimised together; see "Across room boundaries" below.
 
