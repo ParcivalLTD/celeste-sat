@@ -1,0 +1,20 @@
+# celeste-sat route probe_dash_cooldown.tas (30 frames), written by tools/celestetas.py
+# loads the room, waits until Madeline stands at the spawn in control,
+# then plays the route while recording every frame to celeste-sat-probe-cooldown.txt
+console load 1 lvl_1
+ 300
+ExportGameInfo, celeste-sat-probe-cooldown.txt
+   1,R,X
+   9,R
+   1,R,J
+   1,R,X
+   1,R,C
+   1,R,X
+   1,R,C
+   1,R,X
+   1,R,C
+   1,R,X
+   1,R,C
+   1,R,X
+  10,R
+EndExportGameInfo

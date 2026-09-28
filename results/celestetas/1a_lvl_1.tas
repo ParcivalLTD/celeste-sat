@@ -1,0 +1,28 @@
+# celeste-sat route 1a_lvl_1.tas (99 frames), written by tools/celestetas.py
+# loads the room, waits until Madeline stands at the spawn in control,
+# then plays the route while recording every frame to celeste-sat-1a_lvl_1.txt
+console load 1 lvl_1
+ 300
+ExportGameInfo, celeste-sat-1a_lvl_1.txt
+   1,X
+   9
+   2,J
+   4,R,J
+   1,J
+   1,R,J
+  19,R,K,G
+  11,J,G
+   1,X
+  13
+   2,J
+  10,R,J
+   5,R
+   2,J
+   1
+   1,D,X
+   3
+   1,U
+   9
+   2,J
+   1
+EndExportGameInfo
