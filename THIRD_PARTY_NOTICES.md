@@ -55,3 +55,15 @@ THE SOFTWARE.
 ```
 
 The MIT licence covers that source code only, not the commercial Celeste game or its assets.
+
+## References (nothing copied)
+
+- The official Celeste changelogs (celestegame.com/changelog.html) for the
+  movement changes after the published `Player.cs`.
+- Extended Variant Mode (github.com/maddie480/ExtendedVariantMode) and
+  GravityHelper (github.com/swoolcock/GravityHelper), whose patches of the
+  current game's `Player` methods show the shape of those changes (wall
+  bounce reach, corner correction reach, spike checks on dash corrections).
+- VampireFlower/CelesteTAS (community TAS inputs) and celeste-rl (a recording
+  from the real game) are downloaded by `tests/community_tas.py` and
+  `tests/real_game.py` when the checks run; neither is included here.

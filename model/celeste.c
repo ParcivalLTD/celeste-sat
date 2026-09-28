@@ -18,8 +18,20 @@
  *     diagonals are normalised, so float components come from constants.
  */
 #include "celeste.h"
+#ifdef ROOM_HEADER
+#include ROOM_HEADER
+#else
 #include "room.h"
+#endif
 #include "tables.h"
+
+/* One room per build, or (MODEL_PREFIX) one of several rooms in the same
+ * program: then the API is static and exported under prefixed names. */
+#ifdef MODEL_PREFIX
+#define MODEL_API static
+#else
+#define MODEL_API
+#endif
 
 #define ROOM_PX_W (ROOM_W * 8)
 #define ROOM_PX_H (ROOM_H * 8)
@@ -28,11 +40,23 @@
 #ifdef COVERAGE
 enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLIDE, C_LANDSLIDE,
        C_DASHCORNER_H, C_DASHCORNER_V, C_UPCORNER, C_CEILINGCUT, C_RETAIN, C_DUCKCORRECT,
-       C_FLOORSNAP, C_WALLSLIDE, C_FASTFALL, C_DUCKDASH, C_NCOV };
+       C_FLOORSNAP, C_WALLSLIDE, C_FASTFALL, C_DUCKDASH,
+       C_EXIT_L, C_EXIT_R, C_EXIT_U, C_EXIT_D, C_TOPCLAMP, C_FELL,
+       C_SPIKE_U, C_SPIKE_D, C_SPIKE_L, C_SPIKE_R,
+       C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
+       C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
+       C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
-       "dash floor snap", "wall slide", "fast fall", "dash into low gap (duck)" };
+       "dash floor snap", "wall slide", "fast fall", "dash into low gap (duck)",
+       "exit left", "exit right", "exit up", "exit down", "top clamp (-24 px)", "fell out (death)",
+       "spikes up (death)", "spikes down (death)", "spikes left (death)", "spikes right (death)",
+       "grab (climb begin)", "climbing up", "climbing down", "climb slip", "climb jump", "wall boost",
+       "climb hop", "hop wait", "out of stamina", "no refill (on spikes)", "hop blocked (spikes)",
+       "jump-through landing", "jump-through assist", "dash jump-through nudge", "floor snap onto jump-through",
+       "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -42,6 +66,11 @@ static long COVC[C_NCOV];
 /* The simulator checks these; the solver harness assumes them. */
 #ifndef MODEL_ASSUME
 #define MODEL_ASSUME(c) ((void)0)
+#endif
+/* Called at the start of every non-frozen frame, after the collision window
+ * is loaded; the solver harness uses it for symmetry breaking. */
+#ifndef FRAME_HOOK
+#define FRAME_HOOK(s, in) ((void)0)
 #endif
 
 /* ------------------------------------------------------------------------ */
@@ -53,6 +82,7 @@ static long COVC[C_NCOV];
 #define TPOS(t)     ((t) > 0)
 #define TDEC(t)     ((t) -= DT)              /* only while TPOS(t) */
 #define TLESS(t, C) ((t) < (C))              /* t < C for a timer counting down from its set value */
+#define TDEC_FREE(t) ((t) -= DT)             /* decremented every frame, may go below 0 */
 /* wallSlideTimer */
 #define WS_SET(s)   ((s)->wallSlideTimer = WALL_SLIDE_TIME)
 #define WS_DEC(s)   ((s)->wallSlideTimer = maxf((s)->wallSlideTimer - DT, 0))
@@ -64,6 +94,7 @@ static long COVC[C_NCOV];
 #define TPOS(t)     ((t) > 0)
 #define TDEC(t)     ((t) -= 1)
 #define TLESS(t, C) ((t) < K_##C)
+#define TDEC_FREE(t) ((t) > 0 ? ((t) -= 1) : 0)  /* only "<= 0" is ever tested */
 #define WS_SET(s)   ((s)->wallSlideTimer = 0)
 #define WS_DEC(s)   ((s)->wallSlideTimer = (s)->wallSlideTimer < WS_KZ ? (s)->wallSlideTimer + 1 : WS_KZ)
 #define WS_POS(s)   ((s)->wallSlideTimer < WS_KZ)
@@ -175,8 +206,13 @@ static bool collide_box(int x, int y, int h)
  * <= 4 px), so each frame first copies an 8x8-tile window of the room around
  * the player and all checks read that window instead of the whole room.
  * MODEL_ASSUME guards the bounds (the simulator asserts them). */
-static int WX0, WY0;                 /* window origin, in tiles */
-static unsigned char WCOL[8];        /* WCOL[i] bit j: tile (WX0+i, WY0+j) solid */
+#ifdef MODEL_THREADS                 /* the beam search steps states on several threads */
+#define MODEL_TLS _Thread_local
+#else
+#define MODEL_TLS
+#endif
+static MODEL_TLS int WX0, WY0;                 /* window origin, in tiles */
+static MODEL_TLS unsigned char WCOL[8];        /* WCOL[i] bit j: tile (WX0+i, WY0+j) solid */
 
 static void load_window(const State *s)
 {
@@ -213,6 +249,75 @@ static int collider_h(const State *s) { return s->ducking ? HB_DUCK_H : HB_NORMA
 /* CollideCheck<Solid>(at) with the current collider */
 static bool collide_at(const State *s, int x, int y) { return collide_box(x, y, collider_h(s)); }
 
+/* Scene.CollideCheck<Solid>(point) */
+static bool solid_point(int px, int py)
+{
+#ifdef REFERENCE
+    if (py < 0 || py >= ROOM_PX_H) return false;
+    return (col_bits(floor8(px)) >> (py >> 3)) & 1u;
+#else
+    int r = floor8(py) - WY0;
+    MODEL_ASSUME(r >= 0 && r < 8);
+    return (wcol(floor8(px)) >> r) & 1u;
+#endif
+}
+
+/* CollideCheck<Spikes>(at) with an 8 x h box: does it touch a spike strip
+ * whose direction bit (1 << SPIKE_*) is in `mask`? */
+static bool box_touches_spikes(int x, int y, int h, int mask)
+{
+#if NSPIKES > 0
+    for (int i = 0; i < NPCOL; i++)
+        if (PCOL[i][0] == PC_SPIKES && ((mask >> PCOL[i][1]) & 1) && x + 4 > PCOL[i][2] && x - 4 < PCOL[i][4]
+            && y > PCOL[i][3] && y - h < PCOL[i][5])
+            return true;
+#else
+    (void)x; (void)y; (void)h; (void)mask;
+#endif
+    return false;
+}
+
+/* Jump-through platforms: JumpThru hitbox W x 5 below the top edge. They only
+ * stop downward moves, and only when Madeline is not already inside them
+ * (CollideFirstOutside). */
+#if NJUMPTHRUS > 0
+static bool jt_overlap(int i, int x, int y, int h)
+{
+    return x + 4 > JUMPTHRUS[i][0] && x - 4 < JUMPTHRUS[i][2]
+        && y > JUMPTHRUS[i][1] && y - h < JUMPTHRUS[i][1] + JUMPTHRU_H;
+}
+#endif
+
+/* CollideCheckOutside<JumpThru>(at) for an 8 x h box that is now at (xn, yn) */
+static bool jumpthru_outside(int h, int xn, int yn, int xa, int ya)
+{
+#if NJUMPTHRUS > 0
+    for (int i = 0; i < NJUMPTHRUS; i++)
+        if (jt_overlap(i, xa, ya, h) && !jt_overlap(i, xn, yn, h)) return true;
+#else
+    (void)h; (void)xn; (void)yn; (void)xa; (void)ya;
+#endif
+    return false;
+}
+
+/* CollideCheck<JumpThru>() at the current position */
+static bool jumpthru_inside(const State *s)
+{
+#if NJUMPTHRUS > 0
+    for (int i = 0; i < NJUMPTHRUS; i++)
+        if (jt_overlap(i, s->x, s->y, collider_h(s))) return true;
+#else
+    (void)s;
+#endif
+    return false;
+}
+
+/* Actor.OnGround(at): a solid, or a jump-through entered from outside, 1 px below */
+static bool on_ground_at(const State *s, int x, int y)
+{
+    return collide_at(s, x, y + 1) || jumpthru_outside(collider_h(s), x, y, x, y + 1);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Actor movement                                                           */
 /* ------------------------------------------------------------------------ */
@@ -246,6 +351,7 @@ static bool move_v_exact_plain(State *s, int move)
     for (int i = 0; i < MAX_PIXELS_V; i++) {
         if (move == 0 || hit) break;
         if (collide_at(s, s->x, s->y + dir)) hit = true;
+        else if (dir > 0 && jumpthru_outside(collider_h(s), s->x, s->y, s->x, s->y + 1)) { hit = true; COV(C_JTLAND); }
         else { s->y += dir; move -= dir; }
     }
     if (hit) s->remY = 0.0f;
@@ -292,8 +398,21 @@ static bool move_v_exact_plain(State *s, int move)
     if (move > 0) {
         int r = (s->y + 7) >> 3;                     /* first tile row at/below the feet */
         MODEL_ASSUME(r - WY0 >= 0 && r - WY0 < 8);
-        if ((r << 3) < s->y + move && ((cols >> (r - WY0)) & 1u)) {
-            s->y = r << 3;
+        int stop = s->y + move;
+        bool hit = false;
+        if ((r << 3) < s->y + move && ((cols >> (r - WY0)) & 1u)) { stop = r << 3; hit = true; }
+#if NJUMPTHRUS > 0
+        /* a jump-through whose top the feet reach (from at/above it) stops her there */
+        for (int i = 0; i < NJUMPTHRUS; i++) {
+            int jy = JUMPTHRUS[i][1];
+            if (s->x + 4 > JUMPTHRUS[i][0] && s->x - 4 < JUMPTHRUS[i][2] && jy >= s->y && jy < stop) {
+                stop = jy;
+                hit = true;
+            }
+        }
+#endif
+        if (hit) {
+            s->y = stop;
             s->remY = 0.0f;
             return true;
         }
@@ -333,6 +452,16 @@ static void move_v(State *s, float amount)
     if (move_v_exact_plain(s, move)) on_collide_v(s);
 }
 
+/* MoveV(float) with no callback (jump-through assist, springs) */
+static void move_v_plain(State *s, float amount)
+{
+    s->remY += amount;
+    int move = round_even(s->remY);
+    if (move == 0) return;
+    s->remY -= (float)move;
+    move_v_exact_plain(s, move);
+}
+
 /* MoveH(float) with no callback (used by duck correction) */
 static void move_h_plain(State *s, float amount)
 {
@@ -361,14 +490,77 @@ static bool climb_bounds_check(const State *s, int dir)
     return left + dir * CLIMB_CHECK_DIST >= 0 && right + dir * CLIMB_CHECK_DIST < ROOM_PX_W;
 }
 
+static bool dash_attacking(const State *s) { return TPOS(s->dashAttackTimer); }
+#define ALL_SPIKES ((1 << SPIKE_UP) | (1 << SPIKE_DOWN) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))
+
+/* WallJumpCheck. Since v1.2.3.0 a wall bounce (still dash-attacking after a
+ * straight-up dash) reaches 5 px instead of 3 -- unless spikes facing her
+ * are within those 5 px. */
 static bool wall_jump_check(const State *s, int dir)
 {
-    return climb_bounds_check(s, dir) && collide_at(s, s->x + dir * WALL_JUMP_CHECK_DIST, s->y);
+    int dist = WALL_JUMP_CHECK_DIST;
+    if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1
+        && !box_touches_spikes(s->x + dir * WALL_BOUNCE_CHECK_DIST, s->y, collider_h(s),
+                               1 << (dir <= 0 ? SPIKE_RIGHT : SPIKE_LEFT)))
+        dist = WALL_BOUNCE_CHECK_DIST;
+    return climb_bounds_check(s, dir) && collide_at(s, s->x + dir * dist, s->y);
+}
+
+/* DashCorrectCheck (v1.4): would her hurtbox (8 x 9, 2 px above her feet),
+ * moved by (ax, ay), touch spikes? Dash corner corrections, the dash
+ * jump-through nudge and the dash floor snap are skipped then. */
+static bool dash_correct_check(const State *s, int ax, int ay)
+{
+    return box_touches_spikes(s->x + ax, s->y + ay - 2, 9, ALL_SPIKES);
+}
+
+/* a solid within 3 px to either side, also after the dash jump-through
+ * nudge (up to 6 px up) that DashUpdate does before its wall checks */
+static bool wall_within_3(const State *s)
+{
+    return collide_box(s->x - 3, s->y, HB_NORMAL_H + DASH_H_JUMPTHRU_NUDGE)
+        || collide_box(s->x + 3, s->y, HB_NORMAL_H + DASH_H_JUMPTHRU_NUDGE);
+}
+
+static bool grab_near_wall(const State *s)
+{
+    return wall_within_3(s)
+        || collide_box(s->x - 2, s->y - 2, HB_NORMAL_H) || collide_box(s->x + 2, s->y - 2, HB_NORMAL_H)
+        || collide_box(s->x - WALL_BOUNCE_CHECK_DIST, s->y, HB_NORMAL_H)
+        || collide_box(s->x + WALL_BOUNCE_CHECK_DIST, s->y, HB_NORMAL_H);
+}
+
+/* Can holding Grab change anything this frame? In the normal state,
+ * climbing starts need a solid 2 px to the side (at most 2 px higher), grab
+ * wall slides one 1 px to the side, climb jumps one 3 px to the side (5 px
+ * after a straight-up dash). With the player's own box free, all of these
+ * touch one of the boxes in grab_near_wall (the beam search's cheap test).
+ * In the dash state Grab is read for a climb jump out of the dash (a jump
+ * press with a wall 3 px to the side, possibly after the jump-through nudge)
+ * and for holdables (not modelled). Used to prune the search; it never
+ * changes the outcome. Must be called after this frame's button update (it
+ * reads the jump press). */
+static bool jump_pressed(const State *s);
+static bool grab_can_matter(const State *s)
+{
+    if (s->state == ST_CLIMB) return true;
+    if (s->state == ST_DASH)
+        return jump_pressed(s) && wall_within_3(s);
+    /* after a straight-up dash WallJumpCheck (and so a climb jump) reaches 5 px */
+    if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1
+        && (collide_box(s->x - WALL_BOUNCE_CHECK_DIST, s->y, HB_NORMAL_H) || collide_box(s->x + WALL_BOUNCE_CHECK_DIST, s->y, HB_NORMAL_H)))
+        return true;
+    return grab_near_wall(s);
 }
 
 static bool jump_pressed(const State *s) { return TPOS(s->jumpBuf) || s->jumpEdge; }
 static bool dash_pressed(const State *s) { return TPOS(s->dashBuf) || s->dashEdge; }
-static bool dash_attacking(const State *s) { return TPOS(s->dashAttackTimer); }
+static bool cdash_pressed(const State *s) { return TPOS(s->cdashBuf) || s->cdashEdge; }
+/* CanDash: (Input.CrouchDashPressed || Input.DashPressed) && cooldown over && dashes left */
+static bool can_dash(const State *s)
+{
+    return (dash_pressed(s) || cdash_pressed(s)) && !TPOS(s->dashCooldownTimer) && s->dashes > 0;
+}
 
 /* ------------------------------------------------------------------------ */
 /* Jumps                                                                    */
@@ -383,6 +575,7 @@ static void jump(State *s)
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
+    TCLR(s->wallBoostTimer);
     /* Speed.X += JumpHBoost * moveX */
     s->spdX += (s->moveX > 0 ? JUMP_H_BOOST * 1.0f : (s->moveX < 0 ? JUMP_H_BOOST * -1.0f : JUMP_H_BOOST * 0.0f));
     s->spdY = JUMP_SPEED;
@@ -399,6 +592,7 @@ static void super_jump(State *s)
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
+    TCLR(s->wallBoostTimer);
     s->spdX = s->facing > 0 ? SUPER_JUMP_H : -SUPER_JUMP_H;
     s->spdY = JUMP_SPEED;
     if (s->ducking) {                     /* hyper */
@@ -422,6 +616,7 @@ static void wall_jump(State *s, int dir)
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
+    TCLR(s->wallBoostTimer);
     if (s->moveX != 0) {
         s->forceMoveX = dir;
         TSET(s->forceMoveXTimer, WALL_JUMP_FORCE_TIME);
@@ -442,9 +637,21 @@ static void super_wall_jump(State *s, int dir)
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
+    TCLR(s->wallBoostTimer);
     s->spdX = dir > 0 ? SUPER_WALL_JUMP_H : -SUPER_WALL_JUMP_H;
     s->spdY = SUPER_WALL_JUMP_SPEED;
     s->varJumpSpeed = s->spdY;
+}
+
+static void climb_jump(State *s)
+{
+    COV(C_CLIMBJUMP);
+    if (!s->onGround) s->stamina -= CLIMB_JUMP_COST;
+    jump(s);                                      /* Jump(false, false) */
+    if (s->moveX == 0) {
+        s->wallBoostDir = -s->facing;
+        TSET(s->wallBoostTimer, CLIMB_JUMP_BOOST_TIME);
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -460,13 +667,14 @@ static void on_collide_h(State *s)
             s->ducking = true;
             return;
         } else if (s->spdY == 0 && s->spdX != 0) {
-            /* for i in 1..4, j in {+1,-1}: first free (sx, i*j) */
+            /* for i in 1..4, j in {+1,-1}: at = Position + (sx, i*j) free,
+             * at - (0, j) solid, and (v1.4) no spikes there for her hurtbox */
             int dy = 0;
-            for (int i = 1; i <= DASH_CORNER_CORRECTION; i++) {
-                if (dy != 0) break;
-                if (!collide_at(s, s->x + sx, s->y + i)) dy = i;
-                else if (!collide_at(s, s->x + sx, s->y - i)) dy = -i;
-            }
+            for (int i = 1; i <= DASH_CORNER_CORRECTION && dy == 0; i++)
+                for (int j = 1; j >= -1 && dy == 0; j -= 2)
+                    if (!collide_at(s, s->x + sx, s->y + i * j) && collide_at(s, s->x + sx, s->y + i * j - j)
+                        && !dash_correct_check(s, sx, i * j))
+                        dy = i * j;
             if (dy != 0) {
                 move_v_exact_plain(s, dy);
                 COV(C_DASHCORNER_H);
@@ -495,13 +703,13 @@ static void on_collide_v(State *s)
             if (s->spdX <= 0) {
                 for (int i = 1; i <= DASH_CORNER_CORRECTION; i++) {
                     if (dx != 0) break;
-                    if (!collide_at(s, s->x - i, s->y + 1)) dx = -i;
+                    if (!on_ground_at(s, s->x - i, s->y)) dx = -i;
                 }
             }
             if (dx == 0 && s->spdX >= 0) {
                 for (int i = 1; i <= DASH_CORNER_CORRECTION; i++) {
                     if (dx != 0) break;
-                    if (!collide_at(s, s->x + i, s->y + 1)) dx = i;
+                    if (!on_ground_at(s, s->x + i, s->y)) dx = i;
                 }
             }
             if (dx != 0) {
@@ -523,17 +731,21 @@ static void on_collide_v(State *s)
         }
     } else {
         if (s->spdY < 0) {
-            /* upward corner correction */
+            /* upward corner correction: 4 px, 5 px while dash-attacking
+             * straight up (v1.2.3.0); left first when Speed.X <= 0.01,
+             * then right when Speed.X >= -0.01 */
             int dx = 0;
-            if (s->spdX <= 0) {
-                for (int i = 1; i <= UPWARD_CORNER_CORRECTION; i++) {
-                    if (dx != 0) break;
+            int reach = dash_attacking(s) && absf(s->spdX) < 0.01f ? UPWARD_CORNER_CORRECTION_DASH
+                                                                    : UPWARD_CORNER_CORRECTION;
+            if (s->spdX <= 0.01f) {
+                for (int i = 1; i <= UPWARD_CORNER_CORRECTION_DASH; i++) {
+                    if (dx != 0 || i > reach) break;
                     if (!collide_at(s, s->x - i, s->y - 1)) dx = -i;
                 }
             }
-            if (dx == 0 && s->spdX >= 0) {
-                for (int i = 1; i <= UPWARD_CORNER_CORRECTION; i++) {
-                    if (dx != 0) break;
+            if (dx == 0 && s->spdX >= -0.01f) {
+                for (int i = 1; i <= UPWARD_CORNER_CORRECTION_DASH; i++) {
+                    if (dx != 0 || i > reach) break;
                     if (!collide_at(s, s->x + i, s->y - 1)) dx = i;
                 }
             }
@@ -565,9 +777,33 @@ static void on_collide_v(State *s)
 /* State machine                                                            */
 /* ------------------------------------------------------------------------ */
 static void normal_begin(State *s) { s->maxFall = MAX_FALL; }
-static void normal_end(State *s)   { TCLR(s->wallSpeedRetentionTimer); /* wallBoostTimer, hopWaitX */ }
+static void normal_end(State *s)
+{
+    TCLR(s->wallBoostTimer);
+    TCLR(s->wallSpeedRetentionTimer);
+    s->hopWaitX = 0;
+}
 
-static void dash_begin(State *s)
+static void climb_begin(State *s)
+{
+    COV(C_CLIMB);
+    s->autoJump = false;
+    s->spdX = 0;
+    s->spdY *= CLIMB_GRAB_Y_MULT;
+    WS_SET(s);
+    TSET(s->climbNoMoveTimer, CLIMB_NO_MOVE_TIME);
+    TCLR(s->wallBoostTimer);
+    s->lastClimbMove = 0;
+    /* snap to the wall: up to ClimbCheckDist pixels (Position += UnitX * Facing) */
+    for (int i = 0; i < CLIMB_CHECK_DIST; i++) {
+        if (collide_at(s, s->x + s->facing, s->y)) break;
+        s->x += s->facing;
+    }
+}
+
+static void climb_end(State *s) { TCLR(s->wallSpeedRetentionTimer); }
+
+static void dash_begin(State *s, int moveY)
 {
     COV(C_DASH);
     s->dashStartedOnGround = s->onGround;
@@ -583,39 +819,79 @@ static void dash_begin(State *s)
     s->dashDirX = 0;
     s->dashDirY = 0;
     if (!s->onGround && s->ducking && can_unduck(s)) s->ducking = false;
+    else if (!s->ducking && (s->demoDashed || moveY == 1)) {   /* crouch dash, or Down held */
+        COV(C_CROUCHDASH);
+        s->ducking = true;
+    }
+    s->demoDashed = false;                                    /* (only read here) */
 }
 
-static void set_state(State *s, int next)
+/* moveY: Input.MoveY on this frame (read by DashBegin) */
+static void set_state(State *s, int next, int moveY)
 {
     if (s->state == next) return;
     int prev = s->state;
     s->state = next;
-    if (prev == ST_NORMAL) normal_end(s);        /* DashEnd only fires dash events */
-    if (next == ST_NORMAL) {
-        normal_begin(s);
-        s->coActive = false;                     /* currentCoroutine.Cancel() */
-        TCLR(s->coWait);
-    } else {
-        dash_begin(s);
+    if (prev == ST_NORMAL) normal_end(s);
+    else if (prev == ST_CLIMB) climb_end(s);     /* DashEnd only fires dash events */
+    if (next == ST_NORMAL) normal_begin(s);
+    else if (next == ST_CLIMB) climb_begin(s);
+    else dash_begin(s, moveY);
+    if (next == ST_DASH) {
         s->coActive = true;                      /* currentCoroutine.Replace(DashCoroutine()) */
         s->coStage = 0;
-        TCLR(s->coWait);
+    } else {
+        s->coActive = false;                     /* currentCoroutine.Cancel() */
     }
+    TCLR(s->coWait);
 }
 
 static int start_dash(State *s)
 {
     s->dashes = s->dashes - 1 > 0 ? s->dashes - 1 : 0;
+    s->demoDashed = cdash_pressed(s);            /* demoDashed = Input.CrouchDashPressed */
     TCLR(s->dashBuf);                            /* Input.Dash.ConsumeBuffer() */
+    TCLR(s->cdashBuf);                           /* Input.CrouchDash.ConsumeBuffer() */
     return ST_DASH;
+}
+
+static bool climb_check(const State *s, int dir, int yAdd)
+{
+    return climb_bounds_check(s, dir) && collide_at(s, s->x + dir * CLIMB_CHECK_DIST, s->y + yAdd);
+}
+
+/* IsTired: CheckStamina < ClimbTiredThreshold */
+static bool is_tired(const State *s)
+{
+    float check = TPOS(s->wallBoostTimer) ? s->stamina + CLIMB_JUMP_COST : s->stamina;
+    return check < CLIMB_TIRED_THRESHOLD;
 }
 
 static int normal_update(State *s, Input in)
 {
-    /* (lift boost, grabbing and climbing are not modelled) */
+    /* (no lift boost, holdables, wind or climb blockers) */
+
+    /* Climbing */
+    if (in.grab && !is_tired(s) && !s->ducking) {
+        if (s->spdY >= 0 && signf(s->spdX) != -s->facing) {
+            if (climb_check(s, s->facing, 0)) {
+                s->ducking = false;
+                return ST_CLIMB;
+            }
+            if (in.my < 1) {
+                for (int i = 1; i <= CLIMB_UP_CHECK_DIST; i++) {
+                    if (!collide_at(s, s->x, s->y - i) && climb_check(s, s->facing, -i)) {
+                        move_v_exact_plain(s, -i);
+                        s->ducking = false;
+                        return ST_CLIMB;
+                    }
+                }
+            }
+        }
+    }
 
     /* Dashing */
-    if (dash_pressed(s) && !TPOS(s->dashCooldownTimer) && s->dashes > 0)
+    if (can_dash(s))
         return start_dash(s);
 
     /* Ducking */
@@ -665,8 +941,8 @@ static int normal_update(State *s, Input in)
     if (!s->onGround) {
         float max = s->maxFall;
 
-        /* wall slide (grab is not modelled, so only moveX == Facing) */
-        if (s->moveX == s->facing && in.my != 1) {
+        /* wall slide */
+        if ((s->moveX == s->facing || (s->moveX == 0 && in.grab)) && in.my != 1) {
             if (s->spdY >= 0 && WS_POS(s) && climb_bounds_check(s, s->facing)
                 && collide_at(s, s->x + s->facing, s->y) && can_unduck(s)) {
                 s->ducking = false;
@@ -695,12 +971,16 @@ static int normal_update(State *s, Input in)
             jump(s);
         } else if (can_unduck(s)) {
             if (wall_jump_check(s, 1)) {
-                if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1)
+                if (s->facing > 0 && in.grab && s->stamina > 0)
+                    climb_jump(s);
+                else if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1)
                     super_wall_jump(s, -1);
                 else
                     wall_jump(s, -1);
             } else if (wall_jump_check(s, -1)) {
-                if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1)
+                if (s->facing < 0 && in.grab && s->stamina > 0)
+                    climb_jump(s);
+                else if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1)
                     super_wall_jump(s, 1);
                 else
                     wall_jump(s, 1);
@@ -711,9 +991,19 @@ static int normal_update(State *s, Input in)
     return ST_NORMAL;
 }
 
-static int dash_update(State *s)
+static int dash_update(State *s, Input in)
 {
     if (s->dashDirY == 0) {
+        /* JumpThru correction: dashing sideways with the feet just inside a
+         * jump-through (up to 6 px) puts her on top of it */
+#if NJUMPTHRUS > 0
+        for (int i = 0; i < NJUMPTHRUS; i++)
+            if (jt_overlap(i, s->x, s->y, collider_h(s)) && s->y - JUMPTHRUS[i][1] <= DASH_H_JUMPTHRU_NUDGE
+                && !dash_correct_check(s, 0, JUMPTHRUS[i][1] - s->y)) {            /* v1.4: not onto spikes */
+                COV(C_JTNUDGE);
+                move_v_exact_plain(s, JUMPTHRUS[i][1] - s->y);
+            }
+#endif
         /* Super jump */
         if (can_unduck(s) && jump_pressed(s) && TPOS(s->jumpGraceTimer)) {
             super_jump(s);
@@ -727,13 +1017,143 @@ static int dash_update(State *s)
             else if (wall_jump_check(s, -1)) { super_wall_jump(s, 1);  return ST_NORMAL; }
         }
     } else {
+        /* Since v1.2.2.4 a jump at a wall while holding Grab and facing it
+         * is a climb jump, as in the normal state (changelog: "You can now
+         * perform a climb jump from the Dash state"). */
         if (jump_pressed(s) && can_unduck(s)) {
-            if (wall_jump_check(s, 1))       { wall_jump(s, -1); return ST_NORMAL; }
-            else if (wall_jump_check(s, -1)) { wall_jump(s, 1);  return ST_NORMAL; }
+            if (wall_jump_check(s, 1)) {
+                if (s->facing > 0 && in.grab && s->stamina > 0) { COV(C_DASHCLIMBJUMP); climb_jump(s); }
+                else wall_jump(s, -1);
+                return ST_NORMAL;
+            } else if (wall_jump_check(s, -1)) {
+                if (s->facing < 0 && in.grab && s->stamina > 0) { COV(C_DASHCLIMBJUMP); climb_jump(s); }
+                else wall_jump(s, 1);
+                return ST_NORMAL;
+            }
         }
     }
 
     return ST_DASH;
+}
+
+/* SlipCheck: are Madeline's hands above the top of the wall? Two points
+ * beside the top of the hitbox; addY is (as in the game) applied twice to
+ * the upper point. */
+static bool slip_check(const State *s, int addY)
+{
+    int h = collider_h(s);
+    int ax = s->facing > 0 ? s->x + 4 : s->x - 5;   /* TopRight, or TopLeft - UnitX */
+    int ay = s->y - h + 4 + addY;
+    return !solid_point(ax, ay) && !solid_point(ax, ay - 4 + addY);
+}
+
+/* ClimbHopBlockedCheck: spikes (their LedgeBlocker) where the hop would
+ * land, or a solid 6 px above */
+static bool climb_hop_blocked_check(const State *s)
+{
+    if (box_touches_spikes(s->x + s->facing * 8, s->y, collider_h(s),
+                           (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
+        COV(C_HOPBLOCKED);
+        return true;
+    }
+    return collide_at(s, s->x, s->y - 6);
+}
+
+static void climb_hop(State *s)
+{
+    COV(C_CLIMBHOP);
+    if (collide_at(s, s->x + s->facing, s->y)) {   /* climbHopSolid != null: wait until clear */
+        s->hopWaitX = s->facing;
+    } else {
+        s->hopWaitX = 0;
+        s->spdX = s->facing > 0 ? CLIMB_HOP_X : -CLIMB_HOP_X;
+    }
+    s->spdY = minf(s->spdY, CLIMB_HOP_Y);
+    s->forceMoveX = 0;
+    TSET(s->forceMoveXTimer, CLIMB_HOP_FORCE_TIME);
+}
+
+static int climb_update(State *s, Input in)
+{
+    TDEC_FREE(s->climbNoMoveTimer);
+    bool noMove = TPOS(s->climbNoMoveTimer);   /* climbNoMoveTimer > 0 */
+
+    /* Refill stamina on ground */
+    if (s->onGround) s->stamina = CLIMB_MAX_STAMINA;
+
+    /* Wall jump */
+    if (jump_pressed(s) && (!s->ducking || can_unduck(s))) {
+        if (s->moveX == -s->facing) wall_jump(s, -s->facing);
+        else climb_jump(s);
+        return ST_NORMAL;
+    }
+
+    /* Dashing */
+    if (can_dash(s))
+        return start_dash(s);
+
+    /* Let go */
+    if (!in.grab) return ST_NORMAL;
+
+    /* No wall to hold */
+    if (!collide_at(s, s->x + s->facing, s->y)) {
+        if (s->spdY < 0) climb_hop(s);           /* climbed over the ledge */
+        return ST_NORMAL;
+    }
+
+    /* Climbing (no wall boosters or climb blockers) */
+    float target = 0.0f;
+    bool trySlip = false;
+    if (!noMove) {
+        if (in.my == -1) {
+            target = CLIMB_UP_SPEED;
+            /* up limit */
+            if (collide_at(s, s->x, s->y - 1) || (climb_hop_blocked_check(s) && slip_check(s, -1))) {
+                if (s->spdY < 0) s->spdY = 0;
+                target = 0.0f;
+                trySlip = true;
+            } else if (slip_check(s, 0)) {
+                climb_hop(s);                    /* hopping */
+                return ST_NORMAL;
+            }
+        } else if (in.my == 1) {
+            target = CLIMB_DOWN_SPEED;
+            if (s->onGround) {
+                if (s->spdY > 0) s->spdY = 0;
+                target = 0.0f;
+            }
+        } else {
+            trySlip = true;
+        }
+    } else {
+        trySlip = true;
+    }
+    s->lastClimbMove = target < 0 ? -1 : (target > 0 ? 1 : 0);   /* Math.Sign(target) */
+    if (s->lastClimbMove < 0) COV(C_CLIMBUP);
+    if (s->lastClimbMove > 0) COV(C_CLIMBDOWN);
+
+    /* slip down if the hands are above the ledge and there is no vertical input */
+    if (trySlip && slip_check(s, 0)) {
+        COV(C_SLIP);
+        target = CLIMB_SLIP_SPEED;
+    }
+    s->spdY = approach(s->spdY, target, CLIMB_ACCEL * DT);
+
+    /* down limit */
+    if (in.my != 1 && s->spdY > 0 && !collide_at(s, s->x + s->facing, s->y + 1)) s->spdY = 0;
+
+    /* stamina */
+    if (!noMove) {
+        if (s->lastClimbMove == -1) s->stamina -= CLIMB_UP_COST * DT;
+        else if (s->lastClimbMove == 0) s->stamina -= CLIMB_STILL_COST * DT;
+    }
+
+    /* too tired */
+    if (s->stamina <= 0) {
+        COV(C_TIRED);
+        return ST_NORMAL;
+    }
+    return ST_CLIMB;
 }
 
 /* body of DashCoroutine between 'yield return null' and 'yield return DashTime' */
@@ -777,7 +1197,7 @@ static void dash_coroutine_end(State *s)
     } else if (s->spdY < 0) {
         s->spdY *= END_DASH_UP_MULT;
     }
-    set_state(s, ST_NORMAL);
+    set_state(s, ST_NORMAL, 0);
 }
 
 /* Monocle Coroutine.Update for the dash coroutine */
@@ -799,14 +1219,165 @@ static void coroutine_update(State *s)
 }
 
 /* ------------------------------------------------------------------------ */
+/* Player colliders (Spikes, Spring) and room bounds (Level.EnforceBounds)  */
+/* ------------------------------------------------------------------------ */
+/* Spring.OnCollide -> Player.SuperBounce(spring top): back on top of the
+ * spring, dash and stamina refilled, Speed = (0, -185) with 0.2 s of
+ * automatic variable jump. (The game switches to the normal state before
+ * setting the timers; NormalBegin only resets maxFall, so the order here
+ * gives the same result.) */
+static void super_bounce(State *s, int fromY)
+{
+    COV(C_SPRING);
+    bool duck = s->ducking;
+    s->ducking = false;                          /* Collider = normalHitbox for the move */
+    /* MoveV(fromY - Bottom), no callback. The distance k is a whole number of
+     * pixels, up to 16 when she touches the side of a spring from below its
+     * base. movementCounter.Y += k rounds like the game; the solver build then
+     * rounds the sum without a general float->int conversion: sum - k is
+     * exact and within +-0.5, and a tie goes to the even neighbour. */
+    int k = fromY - s->y;
+    s->remY += (float)k;
+#ifdef REFERENCE
+    int move = round_even(s->remY);
+#else
+    float d = s->remY - (float)k;
+    int move = k;
+    if (d == 0.5f && (k & 1)) move = k + 1;
+    if (d == -0.5f && (k & 1)) move = k - 1;
+#endif
+    if (move != 0) {
+        s->remY -= (float)move;
+        /* MoveVExact in steps of at most 6 px; |move| <= 18, so 3 steps do
+         * (a fixed bound, so CBMC unrolls the loop finitely) */
+        bool hit = false;
+        for (int i = 0; i < 3 && move != 0 && !hit; i++) {
+            int step = move < -MAX_PIXELS_V ? -MAX_PIXELS_V : (move > MAX_PIXELS_V ? MAX_PIXELS_V : move);
+            hit = move_v_exact_plain(s, step);
+            if (!hit) move -= step;
+        }
+        MODEL_ASSUME(hit || move == 0);
+    }
+    s->ducking = duck;                           /* Collider = was */
+    if (s->dashes < MAX_DASHES) s->dashes = MAX_DASHES;
+    s->stamina = CLIMB_MAX_STAMINA;
+    TCLR(s->jumpGraceTimer);
+    TSET(s->varJumpTimer, SUPER_BOUNCE_VAR_JUMP_TIME);
+    s->varJumpLong = false;
+    s->autoJump = true;
+    TCLR(s->dashAttackTimer);
+    WS_SET(s);
+    TCLR(s->wallBoostTimer);
+    s->spdX = 0;
+    s->spdY = SUPER_BOUNCE_SPEED;
+    s->varJumpSpeed = s->spdY;
+    set_state(s, ST_NORMAL, 0);
+}
+
+/* The PlayerCollider loop of Player.Update, with the hurtbox (8x9 at (-4,-11),
+ * ducking 8x4 at (-4,-6)), in the order the entities were placed.
+ *   spikes (a 3 px strip [x0,x1) x [y0,y1)): up spikes kill when falling or
+ *     standing (Speed.Y >= 0) with the hurtbox bottom not below the spike
+ *     base, down spikes when Speed.Y <= 0, left spikes when Speed.X >= 0,
+ *     right spikes when Speed.X <= 0;
+ *   floor springs (16x6 above their base): bounce when Speed.Y >= 0. */
+static void player_colliders(State *s)
+{
+#if NPCOL > 0
+    for (int i = 0; i < NPCOL; i++) {
+        int hl = s->x - 4, hr = s->x + 4;
+        int ht = s->y - (s->ducking ? 6 : 11), hb = s->y - 2;
+        if (PCOL[i][0] == PC_SPIKES) {
+            if (hr > PCOL[i][2] && hl < PCOL[i][4] && hb > PCOL[i][3] && ht < PCOL[i][5]) {
+                int d = PCOL[i][1];
+                bool kill = false;
+                if (d == SPIKE_UP    && s->spdY >= 0 && hb <= PCOL[i][5]) { COV(C_SPIKE_U); kill = true; }
+                if (d == SPIKE_DOWN  && s->spdY <= 0) { COV(C_SPIKE_D); kill = true; }
+                if (d == SPIKE_LEFT  && s->spdX >= 0) { COV(C_SPIKE_L); kill = true; }
+                if (d == SPIKE_RIGHT && s->spdX <= 0) { COV(C_SPIKE_R); kill = true; }
+                if (kill) { s->dead = true; return; }
+            }
+        } else {
+            int sx = PCOL[i][1], sy = PCOL[i][2];
+            if (hr > sx - 8 && hl < sx + 8 && hb > sy - 6 && ht < sy && s->spdY >= 0)
+                super_bounce(s, sy - 6);
+        }
+    }
+#else
+    (void)s;
+#endif
+}
+
+/* MapData.CanTransitionTo(point just outside `side`): is there a neighbouring
+ * room there? EXITS[i] = { side, from, to, goal } in room pixels along that
+ * edge. v2 is twice the coordinate along the edge (Collider.CenterY can end
+ * in .5), so everything stays integer. Returns 0 (no room), 1 (the goal) or
+ * 2 (another room). */
+static int neighbour(int side, int v2)
+{
+    for (int i = 0; i < NEXITS; i++)
+        if (EXITS[i][0] == side && v2 >= 2 * EXITS[i][1] && v2 < 2 * EXITS[i][2]) return EXITS[i][3] ? 1 : 2;
+    return 0;
+}
+
+/* level transition: into the goal room, or into another one (a failed run) */
+static void leave_room(State *s, int n)
+{
+    if (n == 1) s->exited = true;
+    else { COV(C_LEAVE); s->dead = true; }
+}
+
+/* Level.EnforceBounds. Horizontal transitions test the point
+ * Center + (+-8, 0), vertical ones Center + (0, +-12); only the coordinate
+ * along the edge matters for which neighbour is hit. */
+static void enforce_bounds(State *s)
+{
+    int h = collider_h(s);
+    int cy2 = 2 * s->y - h;                                   /* 2 * Collider.CenterY = 2 * (Top + h / 2) */
+
+    if (s->x - 4 < 0) {
+        int n = (s->y - h >= 0 && s->y < ROOM_PX_H) ? neighbour(EXIT_SIDE_LEFT, cy2) : 0;
+        if (n) { if (n == 1) COV(C_EXIT_L); leave_room(s, n); return; }
+        s->x = 4;                                             /* player.Left = bounds.Left */
+        s->spdX = 0;                                          /* OnBoundsH */
+    } else if (s->x + 4 > ROOM_PX_W) {
+        int n = (s->y - h >= 0 && s->y < ROOM_PX_H) ? neighbour(EXIT_SIDE_RIGHT, cy2) : 0;
+        if (n) { if (n == 1) COV(C_EXIT_R); leave_room(s, n); return; }
+        s->x = ROOM_PX_W - 4;
+        s->spdX = 0;
+    }
+
+    if (cy2 < 0) {                                            /* CenterY < bounds.Top */
+        int n = neighbour(EXIT_SIDE_UP, 2 * s->x);
+        if (n) { if (n == 1) COV(C_EXIT_U); leave_room(s, n); return; }
+        if (s->y - h < -24) {                                 /* player.Top = bounds.Top - 24 */
+            COV(C_TOPCLAMP);
+            s->y = -24 + h;
+            s->spdY = 0;                                      /* OnBoundsV */
+        }
+    } else if (s->y > ROOM_PX_H && neighbour(EXIT_SIDE_DOWN, 2 * s->x)) {
+        if (!collide_at(s, s->x, s->y + 4)) {
+            int n = neighbour(EXIT_SIDE_DOWN, 2 * s->x);
+            if (n == 1) COV(C_EXIT_D);
+            leave_room(s, n);
+            return;
+        }
+    } else if (s->y - h > ROOM_PX_H + 4) {
+        COV(C_FELL);
+        s->dead = true;                                       /* fell out of the level */
+    }
+}
+
+/* ------------------------------------------------------------------------ */
 /* Player.Update                                                            */
 /* ------------------------------------------------------------------------ */
 static void player_update(State *s, Input in)
 {
     LOAD_WINDOW(s);
+    FRAME_HOOK(s, in);
 
-    /* Get ground */
-    if (s->spdY >= 0) s->onGround = collide_at(s, s->x, s->y + 1);
+    /* Get ground (a solid, or a jump-through from above) */
+    if (s->spdY >= 0) s->onGround = on_ground_at(s, s->x, s->y);
     else s->onGround = false;
 
     /* Wall slide */
@@ -815,9 +1386,21 @@ static void player_update(State *s, Input in)
         s->wallSlideDir = 0;
     }
 
+    /* Wall boost (uses last frame's moveX: moveX is read below) */
+    if (TPOS(s->wallBoostTimer)) {
+        TDEC(s->wallBoostTimer);
+        if (s->moveX == s->wallBoostDir) {
+            COV(C_WALLBOOST);
+            s->spdX = s->moveX > 0 ? WALL_JUMP_H_SPEED : -WALL_JUMP_H_SPEED;   /* WallJumpHSpeed * moveX */
+            s->stamina += CLIMB_JUMP_COST;
+            TCLR(s->wallBoostTimer);
+        }
+    }
+
     /* After dash */
-    if (s->onGround) {
+    if (s->onGround && s->state != ST_CLIMB) {
         s->autoJump = false;
+        s->stamina = CLIMB_MAX_STAMINA;
         WS_SET(s);
     }
 
@@ -831,7 +1414,10 @@ static void player_update(State *s, Input in)
     /* Dashes */
     if (TPOS(s->dashCooldownTimer)) TDEC(s->dashCooldownTimer);
     if (TPOS(s->dashRefillCooldownTimer)) TDEC(s->dashRefillCooldownTimer);
-    else if (s->onGround && s->dashes < MAX_DASHES) s->dashes = MAX_DASHES;
+    else if (s->onGround && s->dashes < MAX_DASHES) {
+        if (!box_touches_spikes(s->x, s->y, collider_h(s), 15)) s->dashes = MAX_DASHES;
+        else COV(C_NOSPIKEREFILL);
+    }
 
     /* Var jump */
     if (TPOS(s->varJumpTimer)) TDEC(s->varJumpTimer);
@@ -844,8 +1430,8 @@ static void player_update(State *s, Input in)
         s->moveX = in.mx;
     }
 
-    /* Facing */
-    if (s->moveX != 0) s->facing = s->moveX;
+    /* Facing (not while climbing) */
+    if (s->moveX != 0 && s->state != ST_CLIMB) s->facing = s->moveX;
 
     /* Aiming: Input.GetAimVector(Facing), 8-way digital */
     if (in.mx == 0 && in.my == 0) { s->aimX = s->facing; s->aimY = 0; }
@@ -864,15 +1450,40 @@ static void player_update(State *s, Input in)
             TDEC(s->wallSpeedRetentionTimer);
     }
 
+    /* Hop wait X (after a climb hop, until the wall is out of the way) */
+    if (s->hopWaitX != 0) {
+        if (signf(s->spdX) == -s->hopWaitX || s->spdY > 0) {
+            s->hopWaitX = 0;
+        } else if (!collide_at(s, s->x + s->hopWaitX, s->y)) {
+            COV(C_HOPWAIT);
+            s->spdX = s->hopWaitX > 0 ? CLIMB_HOP_X : -CLIMB_HOP_X;
+            s->hopWaitX = 0;
+        }
+    }
+
     /* base.Update() -> StateMachine.Update() */
-    int next = (s->state == ST_NORMAL) ? normal_update(s, in) : dash_update(s);
-    set_state(s, next);
+    int next = s->state == ST_NORMAL ? normal_update(s, in)
+             : s->state == ST_CLIMB  ? climb_update(s, in)
+             : dash_update(s, in);
+    set_state(s, next, in.my);
     if (s->coActive) coroutine_update(s);
+
+    /* Jump-through assist: rising inside a jump-through nudges her up
+     * (unless spikes would block the hop) */
+    if (!s->onGround && s->spdY <= 0 && (s->state != ST_CLIMB || s->lastClimbMove == -1)
+        && jumpthru_inside(s)
+        && !box_touches_spikes(s->x, s->y - 2, collider_h(s), (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
+        COV(C_JTASSIST);
+        move_v_plain(s, JUMPTHRU_ASSIST_SPEED * DT);
+    }
 
     /* Dash floor snapping */
     if (!s->onGround && dash_attacking(s) && s->dashDirY == 0) {
-        if (collide_at(s, s->x, s->y + DASH_V_FLOOR_SNAP_DIST)) {
+        bool jt = jumpthru_outside(collider_h(s), s->x, s->y, s->x, s->y + DASH_V_FLOOR_SNAP_DIST);
+        if ((collide_at(s, s->x, s->y + DASH_V_FLOOR_SNAP_DIST) || jt)
+            && !dash_correct_check(s, 0, DASH_V_FLOOR_SNAP_DIST)) {                /* v1.4: not onto spikes */
             COV(C_FLOORSNAP);
+            if (jt) COV(C_JTSNAP);
             move_v_exact_plain(s, DASH_V_FLOOR_SNAP_DIST);
         }
     }
@@ -884,31 +1495,18 @@ static void player_update(State *s, Input in)
     move_h(s, s->spdX * DT);
     move_v(s, s->spdY * DT);
 
+    /* Player colliders (spikes, springs), then the room bounds */
+    player_colliders(s);
+    if (s->dead) return;
+
     /* Level.EnforceBounds */
-    {
-        int left = s->x - 4, right = s->x + 4, top = s->y - collider_h(s), bottom = s->y;
-        if (left < 0) {                 /* no room to the left: clamp */
-            s->x = 4;
-            s->spdX = 0;
-        }
-        if (right > ROOM_PX_W) {
-            if (top >= 0 && bottom < ROOM_PX_H) { s->exited = true; return; } /* transition */
-            s->x = ROOM_PX_W - 4;
-            s->spdX = 0;
-        }
-        top = s->y - collider_h(s);
-        if (top < 0) {                  /* no room above: clamp */
-            s->y = collider_h(s);
-            s->spdY = 0;
-        }
-        if (top > ROOM_PX_H + 4) s->dead = true; /* fell out of the room */
-    }
+    enforce_bounds(s);
 }
 
 /* ------------------------------------------------------------------------ */
 /* Public API                                                               */
 /* ------------------------------------------------------------------------ */
-void celeste_init(State *s, int spawnX, int spawnY)
+MODEL_API void celeste_init(State *s, int spawnX, int spawnY)
 {
     State z = {0};
     *s = z;
@@ -918,29 +1516,42 @@ void celeste_init(State *s, int spawnX, int spawnY)
     s->facing = 1;
     s->dashes = MAX_DASHES;
     s->maxFall = MAX_FALL;
+    s->stamina = CLIMB_MAX_STAMINA;
     WS_SET(s);
     s->aimX = 1;
 }
 
+/* VirtualButton.Update for Jump, Dash and Crouch Dash (runs every frame,
+ * including freeze frames): bufferCounter -= dt; a key going down sets it to
+ * BufferTime; a released button clears it. */
+static void buttons_update(State *s, Input in)
+{
+    if (TPOS(s->jumpBuf)) TDEC(s->jumpBuf);
+    s->jumpEdge = in.jump && (!s->prevJump || in.jump == BTN_REPRESS);
+    if (s->jumpEdge) TSET(s->jumpBuf, INPUT_BUFFER_TIME);
+    if (!in.jump) TCLR(s->jumpBuf);
+    s->prevJump = in.jump != 0;
+
+    if (TPOS(s->dashBuf)) TDEC(s->dashBuf);
+    s->dashEdge = in.dash && (!s->prevDash || in.dash == BTN_REPRESS);
+    if (s->dashEdge) TSET(s->dashBuf, INPUT_BUFFER_TIME);
+    if (!in.dash) TCLR(s->dashBuf);
+    s->prevDash = in.dash != 0;
+
+    if (TPOS(s->cdashBuf)) TDEC(s->cdashBuf);
+    s->cdashEdge = in.cdash && (!s->prevCDash || in.cdash == BTN_REPRESS);
+    if (s->cdashEdge) TSET(s->cdashBuf, INPUT_BUFFER_TIME);
+    if (!in.cdash) TCLR(s->cdashBuf);
+    s->prevCDash = in.cdash != 0;
+}
+
 /* One frame: Engine.Update -> MInput.Update, then either a freeze frame or a
  * full scene update (only the player is simulated). */
-void celeste_step(State *s, Input in)
+MODEL_API void celeste_step(State *s, Input in)
 {
     if (s->exited || s->dead) return;
 
-    /* VirtualButton.Update (runs every frame, including freeze frames):
-     * bufferCounter -= dt; if (pressed) bufferCounter = BufferTime; if (!held) bufferCounter = 0 */
-    if (TPOS(s->jumpBuf)) TDEC(s->jumpBuf);
-    s->jumpEdge = in.jump && !s->prevJump;
-    if (s->jumpEdge) TSET(s->jumpBuf, INPUT_BUFFER_TIME);
-    if (!in.jump) TCLR(s->jumpBuf);
-    s->prevJump = in.jump;
-
-    if (TPOS(s->dashBuf)) TDEC(s->dashBuf);
-    s->dashEdge = in.dash && !s->prevDash;
-    if (s->dashEdge) TSET(s->dashBuf, INPUT_BUFFER_TIME);
-    if (!in.dash) TCLR(s->dashBuf);
-    s->prevDash = in.dash;
+    buttons_update(s, in);
 
     /* Engine freeze (dash freeze frames) */
     if (TPOS(s->freezeTimer)) {
@@ -954,3 +1565,10 @@ void celeste_step(State *s, Input in)
 
     player_update(s, in);
 }
+
+#ifdef MODEL_PREFIX
+#define MODEL_CAT2(p, n) p##_##n
+#define MODEL_CAT(p, n) MODEL_CAT2(p, n)
+void MODEL_CAT(MODEL_PREFIX, init)(State *s) { celeste_init(s, SPAWN_X, SPAWN_Y); }
+void MODEL_CAT(MODEL_PREFIX, step)(State *s, Input in) { celeste_step(s, in); }
+#endif

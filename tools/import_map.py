@@ -4,16 +4,18 @@ import_map.py -- read rooms from a Celeste map file (Content/Maps/*.bin).
 
     tools/import_map.py 1-ForsakenCity.bin                 # list rooms
     tools/import_map.py 1-ForsakenCity.bin 3 -o room.txt   # export room "3"
+    tools/import_map.py 1-ForsakenCity.bin lvl_2 --to lvl_3 -o room.txt
 
 Celeste stores maps with its BinaryPacker: a string table, then a tree of
 elements with typed attributes. Each room ("level") has pixel bounds and a
 "solids" child whose text holds one character per 8x8 tile ('0' = air).
 
-The export writes the ASCII format of tools/make_room.py. The model knows
-only solid tiles, so entities (spikes, springs, jump-throughs, ...) are
-listed as warnings. The player spawn becomes "; spawn X Y" (exact pixels).
-The exit is the right edge, which is what the model supports; for rooms left
-another way the export says so.
+The export writes the ASCII format of tools/make_room.py: solid tiles, the
+player spawn ("; spawn X Y", exact pixels), one "; exit" line per neighbouring
+room (with --to, only the rooms named there are goals; the others become
+"; leave" lines), spikes and springs as directives in the game's order (spikes
+are also drawn as ^ v < >), and jump-throughs (drawn as - when tile-aligned).
+Other entities are not modelled and are listed in a comment.
 """
 import argparse, struct, sys
 
@@ -134,6 +136,9 @@ def main():
     ap.add_argument("map")
     ap.add_argument("room", nargs="?")
     ap.add_argument("-o", "--out")
+    ap.add_argument("--to", action="append", metavar="ROOM",
+                    help="the room(s) to finish in (default: any neighbour); "
+                         "transitions into other rooms count as failing")
     a = ap.parse_args()
 
     package, root = read_map(a.map)
@@ -154,31 +159,101 @@ def main():
     level = next((l for l in lv if l.attrs["name"] == a.room), None)
     if level is None:
         sys.exit(f"no room named {a.room!r}")
-    rows = tile_rows(level)
+    print(export(package, level, lv, a.out, a.to), end="")
+
+
+SPIKES = {"spikesUp": ("up", "^"), "spikesDown": ("down", "v"),
+          "spikesLeft": ("left", "<"), "spikesRight": ("right", ">")}
+# entities that change nothing for the player's movement
+COSMETIC = {"wire", "lightbeam", "bgdecal", "fgdecal", "cliffside_flag", "flutterbird"}
+
+
+def neighbour_ranges(level, all_levels):
+    """[(side, from, to, name)]: the stretch of each edge that leads into another
+    room, in this room's pixel coordinates (MapData.CanTransitionTo)."""
+    x0, y0, x1, y1 = room_rect(level)
+    out = []
+    for other in all_levels:
+        if other is level:
+            continue
+        a0, b0, a1, b1 = room_rect(other)
+        name = other.attrs["name"]
+        if a1 == x0 and b0 < y1 and b1 > y0: out.append(("left", b0 - y0, b1 - y0, name))
+        if a0 == x1 and b0 < y1 and b1 > y0: out.append(("right", b0 - y0, b1 - y0, name))
+        if b1 == y0 and a0 < x1 and a1 > x0: out.append(("up", a0 - x0, a1 - x0, name))
+        if b0 == y1 and a0 < x1 and a1 > x0: out.append(("down", a0 - x0, a1 - x0, name))
+    return out
+
+
+def export(package, level, lv, path=None, goals=None):
+    rows = [list(r) for r in tile_rows(level)]
+    H, W = len(rows), len(rows[0])
     ents = entities(level)
     players = [e for e in ents if e.name == "player"]
-    others = sorted({e.name for e in ents if e.name != "player"})
-    nb = neighbours(level, lv)
-    out = [f"; room {level.attrs['name']} of {package} ({len(rows[0])}x{len(rows)} tiles), imported by tools/import_map.py",
-           f"; neighbours: " + ", ".join(f"{k} -> {'/'.join(v)}" for k, v in nb.items() if v)]
-    if others:
-        out.append("; NOT MODELLED (ignored): " + ", ".join(others))
-    if not nb["right"]:
-        out.append("; WARNING: no room to the right; the model can only solve exits through the right edge")
+    exits = neighbour_ranges(level, lv)
+    head = [f"; room {level.attrs['name']} of {package} ({W}x{H} tiles), imported by tools/import_map.py",
+            f"; origin {level.attrs['x']} {level.attrs['y']}   (world position of the room's top-left corner)"]
+    ignored, cosmetic, lines = set(), set(), []
+
+    def free(cells):
+        return all(0 <= cx < W and 0 <= cy < H and rows[cy][cx] == "." for cx, cy in cells)
+
+    for e in ents:                                   # in the map's order (= the game's)
+        a = e.attrs
+        if e.name in SPIKES:
+            d, ch = SPIKES[e.name]
+            n = a.get("width" if d in ("up", "down") else "height", 8)
+            lines.append(f"; spikes {d} {a['x']} {a['y']} {n}")
+            if a["x"] % 8 == 0 and a["y"] % 8 == 0 and n % 8 == 0:
+                x, y = a["x"] // 8, a["y"] // 8
+                cells = {"up": [(x + i, y - 1) for i in range(n // 8)], "down": [(x + i, y) for i in range(n // 8)],
+                         "left": [(x - 1, y + i) for i in range(n // 8)], "right": [(x, y + i) for i in range(n // 8)]}[d]
+                if free(cells):
+                    for cx, cy in cells:
+                        rows[cy][cx] = ch                # drawing only: the directive is what counts
+        elif e.name == "jumpThru":
+            x, y, w = a["x"], a["y"], a.get("width", 8)
+            cells = [(x // 8 + i, y // 8) for i in range(w // 8)]
+            if x % 8 == 0 and y % 8 == 0 and w % 8 == 0 and free(cells):
+                for cx, cy in cells:
+                    rows[cy][cx] = "-"
+            else:
+                lines.append(f"; jumpthru {x} {y} {w}")
+        elif e.name == "spring":
+            if a.get("playerCanUse", True):
+                lines.append(f"; spring {a['x']} {a['y']}")
+        elif e.name in ("player", "strawberry", "goldenBerry", "checkpoint") or e.name in COSMETIC:
+            if e.name not in ("player",):
+                cosmetic.add(e.name)
+        else:
+            ignored.add(e.name)
+
+    if ignored:
+        head.append("; NOT MODELLED (ignored): " + ", ".join(sorted(ignored)))
+    if cosmetic:
+        head.append("; no effect on movement: " + ", ".join(sorted(cosmetic)))
+    for side, a0, b0, name in exits:
+        goal = goals is None or name in goals
+        head.append(f"; {'exit' if goal else 'leave'} {side} {a0} {b0}   (-> {name})")
+    if not exits:
+        head.append("; WARNING: no neighbouring room, so there is no way out")
+    elif goals is not None and not any(name in goals for _, _, _, name in exits):
+        head.append(f"; WARNING: none of {', '.join(goals)} is a neighbour of this room")
+    head += lines
+
     if players:
         p = players[0]
-        out.append(f"; spawn {p.attrs['x']} {p.attrs['y']}")
+        head.append(f"; spawn {p.attrs['x']} {p.attrs['y']}")
         sx, sy = p.attrs["x"] // 8, (p.attrs["y"] - 1) // 8
-        r = list(rows[sy]); r[sx] = "S"; rows[sy] = "".join(r)
+        if rows[sy][sx] == ".":
+            rows[sy][sx] = "S"
     else:
-        out.append("; WARNING: no player spawn in this room; put an S where Madeline should start")
-    out += rows
-    text = "\n".join(out) + "\n"
-    if a.out:
-        open(a.out, "w").write(text)
-        print(f"wrote {a.out}")
-    else:
-        print(text)
+        head.append("; WARNING: no player spawn in this room; put an S where Madeline should start")
+    text = "\n".join(head + ["".join(r) for r in rows]) + "\n"
+    if path:
+        open(path, "w").write(text)
+        return f"wrote {path}\n"
+    return text
 
 
 if __name__ == "__main__":
