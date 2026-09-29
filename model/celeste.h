@@ -153,6 +153,10 @@ typedef struct {
     /* zip movers: 0 = waiting for a rider, else the number of ZipMover
      * updates since it started (its position comes from tables in room.h) */
     short zipTimer[MAX_ZIP_MOVERS];
+    /* climbHopSolid when it is a zip mover: its index + 1 (0: none or the
+     * tiles), and its zipTimer when she last moved with it */
+    signed char hopZip;
+    short hopZipT;
 
     /* Player */
     int   state;             /* ST_NORMAL, ST_CLIMB or ST_DASH */
