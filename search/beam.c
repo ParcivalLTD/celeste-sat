@@ -56,7 +56,7 @@ static short aheadX[GH][GW], aheadY[GH][GW];   /* point LOOK px further along th
 static bool solid_px(int px, int py)            /* tile solid at pixel; outside the grid is air */
 {
     if (px < 0 || py < 0 || px >= ROOM_PX_W || py >= ROOM_PX_H) return false;
-    return (ROOM_COLS[px >> 3] >> (py >> 3)) & 1u;
+    return (ROOM_COLS[px >> 3] >> (py >> 3)) & 1ULL;
 }
 
 static bool box_free(int x, int y, int h)       /* 8 x h hitbox at (x - 4, y - h) */
@@ -217,6 +217,12 @@ static uint64_t hash_state(const State *s)
     MIX(s->dashRefillCooldownTimer); MIX(s->dashAttackTimer); MIX(s->wallSlideTimer);
     MIX(s->wallSpeedRetentionTimer); MIX(s->forceMoveXTimer); MIX(s->coActive); MIX(s->coStage); MIX(s->coWait);
     MIX(s->freezeTimer); MIX(s->prevJump); MIX(s->prevDash); MIX(s->prevCDash);
+    MIXF(s->liftSpeedX); MIXF(s->liftSpeedY);
+#if NZIPMOVERS > 0
+    for (int i = 0; i < NZIPMOVERS; i++) {
+        MIX(s->zipTimer[i]);
+    }
+#endif
     MIX(s->jumpBuf); MIX(s->dashBuf); MIX(s->cdashBuf);
     return h;
 }

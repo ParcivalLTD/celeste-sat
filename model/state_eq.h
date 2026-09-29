@@ -25,12 +25,18 @@ static bool same_future(const State *a, const State *t)
           && EQ(state) && EQ(facing) && EQ(ducking) && EQ(onGround) && EQ(dashes) && EQ(moveX)
           && EQ(wallSlideDir) && EQ(autoJump) && EQ(dashDirX) && EQ(dashDirY)
           && EQ(maxFall) && EQ(stamina) && EQ(hopWaitX)
+          && EQ(liftSpeedX) && EQ(liftSpeedY)
           && EQ(jumpGraceTimer) && EQ(varJumpTimer) && EQ(dashCooldownTimer) && EQ(dashRefillCooldownTimer)
           && EQ(dashAttackTimer) && EQ(wallSlideTimer) && EQ(wallSpeedRetentionTimer) && EQ(forceMoveXTimer)
           && EQ(wallBoostTimer) && EQ(coActive) && EQ(freezeTimer)
           && EQ(prevJump) && EQ(prevDash) && EQ(prevCDash) && EQ(jumpBuf) && EQ(dashBuf) && EQ(cdashBuf)
           && EQ(exited) && EQ(dead)))
         return false;
+#if NZIPMOVERS > 0
+    for (int i = 0; i < NZIPMOVERS; i++) {
+        if (a->zipTimer[i] != t->zipTimer[i]) return false;
+    }
+#endif
     if (t->varJumpTimer > 0 && !(EQ(varJumpSpeed) && EQ(varJumpLong))) return false;
     if (t->wallSpeedRetentionTimer > 0 && !EQ(wallSpeedRetained)) return false;
     if (t->forceMoveXTimer > 0 && !EQ(forceMoveX)) return false;
