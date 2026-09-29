@@ -52,7 +52,7 @@ static State enter_room(State st)
         }
     }
     /* Level.TransitionRoutine: where she stops in the new room */
-    if (TR_SIDE == TR_UP)    { if (y > TR_NEW_H - 9) y = TR_NEW_H - 9; }
+    if (TR_SIDE == TR_UP)    { int stop = TR_NEW_H - (e.ducking ? 5 : 9); if (y > stop) y = stop; }  /* see tools/chapter.py */
     if (TR_SIDE == TR_DOWN)  { if (y < 12) y = 12; }
     if (TR_SIDE == TR_RIGHT) { if (x < 4) x = 4; }
     if (TR_SIDE == TR_LEFT)  { if (x > TR_NEW_W - 5) x = TR_NEW_W - 5; }
@@ -78,6 +78,7 @@ static State enter_room(State st)
     /* the new room's moving solids start over (her lift speed stays with her) */
     for (int i = 0; i < MAX_ZIP_MOVERS; i++) e.zipTimer[i] = 0;
     e.hopZip = 0; e.hopZipT = 0;
+    for (int i = 0; i < MAX_REFILLS; i++) e.refillTimer[i] = 0;
     return e;
 }
 

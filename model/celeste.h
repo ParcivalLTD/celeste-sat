@@ -100,6 +100,8 @@
 #define LIFT_Y_CAP               (-130.0f)
 #define LIFT_SPEED_GRACE_TIME      0.16f   /* Actor.LiftSpeedGraceTime */
 #define MAX_ZIP_MOVERS             4
+#define REFILL_RESPAWN_TIME        2.5f    /* Refill: respawnTimer */
+#define MAX_REFILLS                8
 
 /* (float)(1 / sqrt(2)) as produced by Vector2.Normalize on (1,1) */
 #define DIAG 0.70710677f
@@ -157,6 +159,8 @@ typedef struct {
      * tiles), and its zipTimer when she last moved with it */
     signed char hopZip;
     short hopZipT;
+    /* refills: time until each one is back (0: there) */
+    Timer refillTimer[MAX_REFILLS];
 
     /* Player */
     int   state;             /* ST_NORMAL, ST_CLIMB or ST_DASH */
