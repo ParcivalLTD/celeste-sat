@@ -20,11 +20,17 @@ Room entry, from Player.cs (published):
     subpixel remainders are zeroed and the speed rounded to whole numbers.
   - OnTransition: dash and stamina refilled, coyote time and forced move
     cleared, wall-slide timer reset.
-Where she stops (Level.cs is not published): going up, her feet end 9 px
-above the new room's bottom edge. That is measured, not guessed: the
-community 1A TAS (tests/community_tas.py) crosses lvl_1 -> lvl_2 -> lvl_3
-upwards, and each room's inputs leave that room on exactly their last frame
-only with this stop point (a search over entry positions found no other).
+Where she stops (Level.cs is not published): going up, 5 px above the new
+room's bottom edge (feet at H - 5, as a 4 px pad inside the room gives) --
+except in rooms 184 px tall (a screen plus 4 px, the usual height), where it
+is 9 px (H - 9). Both are measured with CelesteTAS recordings
+(recordings/celeste-sat-probe-up-*.txt: seven different ways of leaving
+lvl_1, from y = 0 to 5, dashing, ducking or not, all stop at H - 9 in lvl_2;
+recordings/celeste-sat-community-lvl4.txt: H - 9 in lvl_4 and lvl_3b, H - 5
+in lvl_5, which is 288 px tall), and the community TAS's lvl_7 (216 px) only
+works from H - 5. Why the short rooms differ is not known (the camera, which
+can only move 4 px there, is a guess), so heights other than 184, 216 and
+288 are a guess (H - 5).
 Sideways and downwards the stop point is still inferred: 4 px inside the
 edge she crossed (12 px when she falls in from above).
 The transition itself takes a fixed time (the TAS waits 40 frames) and is
@@ -94,6 +100,11 @@ def exit_side(st, room_w, room_h):
     return "down"
 
 
+def up_stop(new_h):
+    """where her feet stop after an upward transition into a room new_h px tall"""
+    return new_h - 9 if new_h <= 184 else new_h - 5
+
+
 def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     """the state after the transition into the next room (see the module doc)"""
     e = dict(st)
@@ -121,12 +132,11 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
         e["spdY"] = max(0.0, e["spdY"])
         e["autoJump"] = 0
         e["varJumpTimer"] = 0
-    # Level.TransitionRoutine target: going up, her feet stop 9 px above the bottom edge
-    # (measured), or 5 px when she is ducking (inferred: the only stop point from which the
-    # community TAS's lvl_5 works); the other sides inferred (4 px inside the edge crossed,
-    # 12 px when falling in)
+    # Level.TransitionRoutine target: going up, her feet stop 5 px above the bottom edge,
+    # 9 px in rooms 184 px tall (both measured, see above); the other sides inferred (4 px
+    # inside the edge crossed, 12 px when falling in)
     if side == "up":
-        y = min(y, new_h - (5 if e["ducking"] else 9))
+        y = min(y, up_stop(new_h))
     elif side == "down":
         y = max(y, 12)
     elif side == "right":
@@ -152,6 +162,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     # a new room: its moving solids start over; the lift speed stays with her
     # (Actor.LiftSpeed is not reset by the transition, only by her updates)
     e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
+    e["fbT"] = [0] * len(e.get("fbT", [0, 0, 0, 0]))
     e["hopZip"] = e["hopZipT"] = 0
     e["refillTimer"] = [0] * len(e.get("refillTimer", [0] * 8))
     return e

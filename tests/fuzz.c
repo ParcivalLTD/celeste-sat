@@ -184,9 +184,10 @@ int main(int argc, char **argv)
                                             s.remX, s.remY, s.spdX, s.spdY);
             }
 #endif
-            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d\n", r, s.x, s.y, s.remX, s.remY,
+            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d %d %d %d %d\n", r, s.x, s.y, s.remX, s.remY,
                    s.spdX, s.spdY, s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX,
-                   s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY, s.zipTimer[0], s.zipTimer[1]);
+                   s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY, s.zipTimer[0], s.zipTimer[1],
+                   s.fbT[0], s.fbT[1], s.hopZip, s.hopZipT);
             if (s.exited || s.dead) break;
         }
     }

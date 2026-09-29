@@ -100,6 +100,7 @@
 #define LIFT_Y_CAP               (-130.0f)
 #define LIFT_SPEED_GRACE_TIME      0.16f   /* Actor.LiftSpeedGraceTime */
 #define MAX_ZIP_MOVERS             4
+#define MAX_FALL_BLOCKS            4
 #define REFILL_RESPAWN_TIME        2.5f    /* Refill: respawnTimer */
 #define MAX_REFILLS                8
 
@@ -155,8 +156,12 @@ typedef struct {
     /* zip movers: 0 = waiting for a rider, else the number of ZipMover
      * updates since it started (its position comes from tables in room.h) */
     short zipTimer[MAX_ZIP_MOVERS];
-    /* climbHopSolid when it is a zip mover: its index + 1 (0: none or the
-     * tiles), and its zipTimer when she last moved with it */
+    /* falling blocks: 0 = waiting for her, else the number of FallingBlock
+     * updates since she set it off (shaking, waiting, falling; see celeste.c) */
+    short fbT[MAX_FALL_BLOCKS];
+    /* climbHopSolid when it is a moving solid: its index + 1 (zip movers
+     * first, then falling blocks; 0: none or the tiles), and its zipTimer /
+     * fbT when she last moved with it */
     signed char hopZip;
     short hopZipT;
     /* refills: time until each one is back (0: there) */

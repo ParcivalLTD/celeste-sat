@@ -45,6 +45,9 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "    .zipTimer = {");
     for (int z = 0; z < MAX_ZIP_MOVERS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->zipTimer[z]);
     fprintf(f, "},\n");
+    fprintf(f, "    .fbT = {");
+    for (int z = 0; z < MAX_FALL_BLOCKS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->fbT[z]);
+    fprintf(f, "},\n");
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);
@@ -95,7 +98,7 @@ int main(int argc, char **argv)
     if (verbose)
         printf("frame  in     st  x    y    remX        remY        spdX         spdY        flags  stamina\n");
 
-    int exitFrame = -1;
+    int exitFrame = -1, deathFrame = -1;
     if (dump && dumpAt == 0) dump_state(&s, dump, 0);
     for (int f = 0; f < n; f++) {
         Input in = frames[f];
@@ -119,6 +122,13 @@ int main(int argc, char **argv)
             if (s.liftSpeedX != 0 || s.liftSpeedY != 0 || s.liftLastX != 0 || s.liftLastY != 0)
                 printf("  lift (%.3f, %.3f) last (%.3f, %.3f)", s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY);
 #endif
+#if defined(NFALLBLOCKS) && NFALLBLOCKS > 0
+            for (int z = 0; z < NFALLBLOCKS; z++)
+                if (s.fbT[z])
+                    printf("  fb%d t=%3d y=%d%s", z, s.fbT[z], FB_Y[z][s.fbT[z]],
+                           s.fbT[z] == FB_T_END[z] ? (FB_GONE[z] ? " gone" : " landed")
+                           : s.fbT[z] < FB_SHAKE_END ? " shaking" : s.fbT[z] < FB_FALL0 ? " waiting" : " falling");
+#endif
             printf("\n");
         }
         if (jf) {
@@ -138,9 +148,9 @@ int main(int argc, char **argv)
         }
         if (dump && f + 1 == dumpAt) dump_state(&s, dump, dumpAt);
         if (s.exited) { exitFrame = f + 1; break; }
-        if (s.dead) { printf("died at frame %d\n", f + 1); break; }
+        if (s.dead) { printf("died at frame %d\n", f + 1); deathFrame = f + 1; break; }
     }
-    if (jf) { fprintf(jf, "\n],\"exit_frame\":%d}\n", exitFrame); fclose(jf); }
+    if (jf) { fprintf(jf, "\n],\"exit_frame\":%d,\"death_frame\":%d}\n", exitFrame, deathFrame); fclose(jf); }
 
     if (exitFrame > 0) printf("EXIT at frame %d\n", exitFrame);
     else printf("no exit within %d frames (x=%d y=%d)\n", n, s.x, s.y);

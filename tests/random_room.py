@@ -97,4 +97,29 @@ if seed % 3 == 1:
         if g[y][x] == '.' and abs(x - spawn_col) > 1:
             refills.append(f"; refill {x * 8 + random.choice([0, 4])} {y * 8 + random.choice([0, 4])}")
 
-print("\n".join(exits + extra + springs + zips + refills + ["".join(r) for r in g]))
+# falling blocks (odd rooms, which have no zip movers), sometimes with spikes on
+# them; each in its own columns, so none falls onto another
+falls = []
+if seed % 2 == 1:
+    used = set()
+    for _ in range(random.randint(1, 2)):
+        for _try in range(60):
+            fw, fh = random.randint(1, 4), random.randint(1, 3)          # tiles
+            fx, fy = random.randint(1, W - 1 - fw), random.randint(1, H - 2 - fh)
+            cells = [(x, y) for x in range(fx, fx + fw) for y in range(fy, fy + fh)]
+            if any(g[y][x] != '.' for x, y in cells) or any(abs(x - spawn_col) <= 1 for x, _ in cells) \
+                    or any(x in used for x, _ in cells):
+                continue
+            falls.append(f"; fallingblock {fx * 8} {fy * 8} {fw * 8} {fh * 8} {random.randint(0, 1)}")
+            used |= {x for x, _ in cells} | {fx - 1, fx + fw}
+            r = random.random()                                          # spikes riding on it
+            if r < 0.25:
+                falls.append(f"; spikes up {fx * 8} {fy * 8} {fw * 8}")
+            elif r < 0.4:
+                falls.append(f"; spikes down {fx * 8} {(fy + fh) * 8} {fw * 8}")
+            elif r < 0.55:
+                falls.append(f"; spikes {random.choice(['left', 'right'])} "
+                             f"{fx * 8 if random.random() < 0.5 else (fx + fw) * 8} {fy * 8} {fh * 8}")
+            break
+
+print("\n".join(exits + extra + springs + zips + refills + falls + ["".join(r) for r in g]))

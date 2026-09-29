@@ -57,6 +57,9 @@ def check(path, rdir, work):
         if m and m.group(1) != "1":
             start = os.path.join(ROOT, "build", "community_tas", f"entry_lvl_{m.group(1)}"
                                  + ("_edit" if "-edit" in name else "") + ".h")
+            chained = os.path.join(ROOT, "build", "chain_tas", f"entry_lvl_{m.group(1)}.h")
+            if not os.path.exists(start) and "-edit" not in name and os.path.exists(chained):
+                start = chained                  # entered as tests/chain_tas.py plays the TAS up to there
             if not os.path.exists(start):
                 return f"{name}: needs {start} (run tests/community_tas.py first)", None
     prev = None                                  # (room file, build dir, route file, exit frame)
@@ -96,10 +99,17 @@ def check(path, rdir, work):
             f"   1{',' + row_keys(r['inputs']) if row_keys(r['inputs']) else ''}\n" for r in rows))
         model, exit_frame = model_trace(room, route, start)
         n = len(model) if not exit_frame else exit_frame
-        bad = None
+        bad, died = None, None
         for f in range(n):
             g = dict(rows[f], x=rows[f]["x"] - ox, y=rows[f]["y"] - oy)
             m = model[f]
+            if "Dead" in g["statuses"] or m.get("dead"):
+                # the game zeroes her speed when she dies; the model stops where she died
+                if "Dead" in g["statuses"] and m.get("dead") and abs(m["x"] - g["x"]) <= TOL and abs(m["y"] - g["y"]) <= TOL:
+                    died = f + 1
+                else:
+                    bad = (f, m, g)
+                break
             if exit_frame and f + 1 == exit_frame:
                 if not (abs(m["x"] - g["x"]) <= TOL and abs(m["y"] - g["y"]) <= TOL and "NoControl" in g["statuses"]):
                     bad = (f, m, g)
@@ -122,6 +132,9 @@ def check(path, rdir, work):
                               f"v=({gq['vx']:.3f}, {gq['vy']:.3f}){gz} | model ({mq['x']:.4f}, {mq['y']:.4f}) "
                               f"v=({mq['vx']:.3f}, {mq['vy']:.3f}){mz}")
             ok = False
+            break
+        if died:
+            report.append(f"{where}: {died - 1} frames identical, dies on frame {died} in both")
             break
         if exit_frame:
             report.append(f"{where}: {n} frames identical, leaves on frame {exit_frame} in both")

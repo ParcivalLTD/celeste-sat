@@ -47,9 +47,9 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 
 | path | what it is |
 |---|---|
-| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, zip movers and lift boost, room transitions |
+| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, refills, zip movers, falling blocks and lift boost, room transitions |
 | `tools/gen_tables.c` | computes the exact timer frame counts with the game's float arithmetic |
-| `tools/make_room.py` | ASCII room → `room.h` (with each zip mover's path, computed in single precision) |
+| `tools/make_room.py` | ASCII room → `room.h` (with each zip mover's path and falling block's fall, computed in single precision) |
 | `tools/import_map.py` | lists the rooms in a Celeste map file (`Content/Maps/*.bin`) and exports one to ASCII |
 | `sim/sim.c` | replays a CelesteTAS-style file, prints a per-frame trace, dumps mid-run states |
 | `sim/tas_io.h` | reads and writes CelesteTAS-style input files (two keys per button) |
@@ -62,7 +62,10 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tools/solve.py` | the pipeline: build → beam → polish → SAT descent → replay check → tidy → `best.tas` |
 | `tools/render.py` | builds the replay page from solved rooms |
 | `tests/diff.sh` | differential fuzzing of the two builds, with mechanic coverage and symmetry checks |
-| `tests/community_tas.py` | replays the community TAS of Chapter 1 through the model, room after room |
+| `tests/community_tas.py` | replays the community TAS of Chapter 1 through the model, rooms 1–4 |
+| `tests/chain_tas.py` | the same through the whole chapter (rooms exported from the map as it goes), as far as the model goes |
+| `tests/recordings.py` | checks recordings from the game (CelesteTAS `ExportGameInfo`) frame by frame, room after room |
+| `tests/make_up_probes.py` | CelesteTAS files that record upward room transitions left in different ways |
 | `tests/real_game.py` | replays a recording from the real game (celeste-rl) and compares Madeline's state |
 | `tools/run_tests.sh` | builds and checks everything on your machine |
 | `tools/celestetas.py` | writes CelesteTAS files for routes and compares the game's recording with the model |
@@ -86,6 +89,7 @@ top of the tile. Directives:
 ; spring 120 144         a floor spring, base centre at (120, 144)
 ; zipmover 112 80 24 16 184 72   a zip mover: top-left (112, 80), 24 x 16, moving to (184, 72)
 ; refill 152 72         a dash refill centred at (152, 72)
+; fallingblock 152 160 32 24 1   a falling block: top-left (152, 160), 32 x 24; 1 = climbing it sets it off too
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -148,6 +152,10 @@ From `Player.cs` and the Monocle engine:
   way; the lift boost it leaves her (`Player.LiftBoost` in jumps, supers,
   wall jumps, wallbounces, dashes, letting go of a wall, walking off it),
   kept for 0.16 s after she leaves it
+- falling blocks (see "Falling blocks" below): a solid that shakes when she
+  stands on it or climbs it, waits while she stays, falls (carrying or
+  crushing her) and lands or drops out of the room; spikes on a zip mover or
+  falling block move with it
 
 Inputs are those of the game with its default bindings, as CelesteTAS writes
 them: directions, Grab (held), and Jump, Dash and Crouch Dash with **two keys
@@ -168,6 +176,7 @@ changelogs (celestegame.com/changelog.html):
 | 1.2.3.0 | ceiling corner correction 4 → 5 px | 5 px while dash-attacking with no horizontal speed, 4 px otherwise |
 | 1.4.0.0 | Crouch Dash button | a dash that starts ducked |
 | 1.4.0.0 | dash corner correction, the dash jump-through nudge and the dash floor snap no longer move her onto spikes | skipped when her hurtbox would touch spikes at the corrected spot; the horizontal dash corner correction also only moves around a corner (the tile behind the free spot must be solid) |
+| (not in a changelog) | falling unducking waits for the end of coyote time | found with a recording: in `lvl_4` the community TAS walks off a ledge ducked, jumps in coyote time and stays ducked under a wall; the published code would stand her up as she starts to fall |
 
 The exact form of these rules comes from three places: the community TAS,
 whose room 1 inputs only work with the climb jump out of a dash and the
@@ -176,9 +185,9 @@ code (Extended Variant Mode, GravityHelper), for the 5 px wallbounce reach,
 the variable ceiling correction reach and the spike checks; and memory of the
 current code for the rest, listed under "Things to check".
 
-Not modelled yet: every other entity (wall springs, crumble blocks, falling
-blocks, dash blocks, fake walls, two-dash refills, other moving platforms, …), wind, water, holdables, climb
-blockers, assist modes. `MAX_DASHES` is 1.
+Not modelled yet: every other entity (wall springs, crumble blocks, dash
+blocks, fake walls, two-dash refills, other moving platforms, …), wind,
+water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
 
 ### Fidelity details
 
@@ -201,9 +210,10 @@ blockers, assist modes. `MAX_DASHES` is 1.
   a ≤ 8 px move can cross instead of stepping pixel by pixel, and reads
   collisions from an 8×8-tile window around the player.
   `tests/diff.sh` runs both builds on 40 random rooms (with spikes, jump-throughs,
-  springs, exits on all sides, and zip movers in every other room) × 300
-  random input runs: **2.95 million frames, bit-identical**, with every
-  mechanic above exercised (riding, pushing and squishing included).
+  springs, exits on all sides, zip movers in every other room and falling
+  blocks, some with spikes on them, in the others) × 300 random input runs:
+  **2.92 million frames, bit-identical**, with every mechanic above exercised
+  (riding, pushing and squishing included; 397 falling blocks set off).
 - The harness never lets the solver choose an input that cannot matter, which
   keeps the formula small: directions and Grab during freeze frames, Up outside
   climbing and the dash-direction frame, Grab away from walls, a second-key
@@ -220,7 +230,7 @@ blockers, assist modes. `MAX_DASHES` is 1.
   value behind an expired timer, the previous frame's aim, …). The fuzzing
   checks that too: on every random frame it scrambles those fields in a copy,
   runs both on with the same random inputs for up to 40 frames, and they must
-  keep agreeing on everything `same_future` compares. 6.8 million checks, none
+  keep agreeing on everything `same_future` compares. 6.7 million checks, none
   broken.
 
 ### Zip movers
@@ -267,31 +277,58 @@ against a recording is listed under "Things to check".
   allow whole-pixel moves up to 16 px (the rounding comparisons and the
   movement split accordingly), and rooms up to 64 tiles tall.
 
+### Falling blocks
+
+`FallingBlock.cs` is not published either; this follows its decompiled
+behaviour as remembered. The zip mover's solid code (boxes, riding, pushing,
+squishing, lift speed, climb hops onto it) is shared: both are "moving
+solids" (`CUR_MS_BOX` in `model/celeste.c`).
+
+- **Sequence** (`FallingBlock.Sequence()`, one counter `fbT` per block):
+  it waits until she stands on it, or (climbFall, the default) climbs it;
+  shakes for 0.2 s (12 updates); then, for up to 0.4 s (24 updates), waits
+  while she still stands on it, climbs it or touches its sides; then falls:
+  `speed = Approach(speed, 160, 500 * dt)`, `MoveVCollideSolids(speed * dt)`,
+  until it lands on the tiles or a jump-through, or is 16 px below the room
+  (then it is no longer solid). `tools/make_room.py` replays the fall in
+  single precision and writes one table entry per update: its position, the
+  whole pixels moved and its `LiftSpeed` (a downward lift boosts nothing, so
+  without zip movers in the room it is not tracked). Blocks landing on other
+  moving solids are not modelled (the export refuses such rooms).
+- **Spikes on it** (`Spikes` attach to a solid they touch from outside,
+  `StaticMover`) move with it. This applies to zip movers too (`lvl_9` has
+  spikes on one).
+- **Cost.** The formula for `lvl_7` (two blocks) is about 28 % larger than
+  the same room without them.
+
+The community TAS's `lvl_7` sets both of its blocks off and plays exactly in
+the model (see "Real rooms").
+
 ### Checked against the real game
 
 **The community TAS.** [VampireFlower/CelesteTAS](https://github.com/VampireFlower/CelesteTAS)
 holds the tool-assisted speedrun inputs for every chapter; played in the
 real game with CelesteTAS, they finish it. `python3 tests/community_tas.py`
-downloads the Chapter 1 file (at a fixed commit; it is not copied here),
-takes the inputs of the first three rooms and plays them through the model,
-each room from the state the previous one left Madeline in:
+downloads the Chapter 1 file (at a fixed commit), takes the inputs of the
+first four rooms and plays them through the model, each room from the state
+the previous one left Madeline in:
 
 | room | community inputs | model leaves the room on frame |
 |---|---|---|
 | `lvl_1` (from the spawn) | 92 frames | 92 |
 | `lvl_2` (entered from `lvl_1`) | 118 frames | 118 |
 | `lvl_3` (entered from `lvl_2`) | 107 frames | 107 |
-| `lvl_4` (entered from `lvl_3`, a zip mover) | 91 frames | **never** (open, see below) |
+| `lvl_4` (entered from `lvl_3`, a zip mover) | 91 frames | 91 |
+
+`tests/chain_tas.py` goes on through the chapter as far as the model goes
+(14 rooms, see "Real rooms").
 
 A room's inputs only lead out of it on their last frame if every frame before
 agrees with the game: the routes use supers on the first dash frame, climb
 jumps out of dashes, crouch-dash hypers, the jump-through platforms, climbing,
 a corner correction and a wallbounce, and they press Jump again while holding
 it (two keys). Before this project's model had the two keys and the
-changes listed above, the first room's inputs did not even get out of it. The
-check also measured something no published code gives: where Madeline stops
-when she comes up into a new room (her feet 9 px above its bottom edge). No
-other stop point lets rooms 2 and 3 work.
+changes listed above, the first room's inputs did not even get out of it.
 
 **A recording.** The [celeste-rl](https://github.com/shihaab453/celeste-rl) project recorded
 a 376-frame input sequence (walking, grabbing, jumping, dashing) played in
@@ -323,6 +360,9 @@ own inputs, replayed in the model, give the same numbers on every frame:
 | `probe_1a_lvl_1_to_2.tas`: a 102-frame room 1 route, then nothing pressed | 102 in room 1, identical; then 50 in room 2 from the model's entry state, identical | the room transition upwards: where she stops, her speed and automatic jump, and that control returns 41 frames after the exit frame |
 | the community TAS's `#lvl_3`, entered as in the TAS | 107, identical | |
 | the same with the 106-frame ending (below) | 106, identical; leaves on frame 106 | the wallbounce reaches 5 px (v1.2.3.0, inferred); the TAS's room 3 can be a frame faster |
+| the community TAS from `#lvl_4` to `#lvl_5`, with the zip mover | `lvl_4` 91, identical, leaves on frame 91 in both; `lvl_3b` 98, identical, leaves on frame 98 | falling unducking waits for coyote time to end (`lvl_4`, frames 55–67); the upward stop point in `lvl_4`, `lvl_3b` (9 px) and `lvl_5` (5 px) |
+| the same after the 106-frame `#lvl_3` ending (below) | `lvl_4`: 59 identical, dies on spikes on frame 60 in both | after that ending the TAS's `lvl_4` inputs fail, in the game as in the model |
+| seven probes (`tests/make_up_probes.py`): room 1 left at y = 0–5, dashing, ducking or neither | 93–96 in room 1, identical; 17–22 in room 2 | going up into a 184 px room she always stops 9 px above its bottom edge |
 
 `python3 tests/recordings.py DIR` repeats the check for every
 `celeste-sat-*.txt` and `community-*.txt` recording in DIR (the Celeste
@@ -389,19 +429,27 @@ changelog gives as 0.15 s; the upward room transition):
   climb hop is blocked by up spikes more finely (by the spike sprites). The
   community TAS exercises most of this in rooms 1–3.
 - Room transitions (`tools/chapter.py`): the parts in `Player.cs`
-  (`BeforeUpTransition`, `TransitionTo`, `OnTransition`) are ported; going
-  up, the whole transition is checked against a recording (above); sideways
-  and downwards where she stops is inferred (4 px inside the edge she
-  crossed, 12 px when falling in).
+  (`BeforeUpTransition`, `TransitionTo`, `OnTransition`) are ported. Going
+  up, recordings settle where she stops: 9 px above the new room's bottom
+  edge in rooms 184 px tall (`lvl_2`, `lvl_4`, `lvl_3b`, with seven different
+  ways of leaving `lvl_1`), 5 px in `lvl_5` (288 px); the community TAS's
+  `lvl_7` (216 px) works only from 5 px. 5 px is what a 4 px pad inside the
+  room gives (the rule sideways and downwards too); why rooms one screen
+  plus 4 px tall get 9 is not known, so other heights (224, 232, 264 later in
+  Chapter 1) are a guess (5). Sideways and downwards the stop point is
+  inferred (4 px inside the edge she crossed, 12 px when falling in); the
+  chapter chain goes through three sideways transitions exactly.
 - Tiles outside the room count as air. In the game they belong to the
   neighbouring rooms; this only matters if Madeline's hitbox pokes out of the
   room somewhere other than an exit.
 - Float results can differ between the old 32-bit XNA build (x87 registers) and
   64-bit builds (SSE). The port matches strict IEEE single precision, which is
   what Everest's .NET Core builds use.
-- Zip movers (nothing checked in the game yet): the coroutine's waits and
-  moves as described under "Zip movers"; that the player updates before a
-  room's entities after a transition; that `Platform.Update` clears a
+- Zip movers and falling blocks (checked only through the community TAS
+  playing exactly: `lvl_5`, `lvl_6b`, `lvl_7`, `lvl_8`; the `lvl_4` recording
+  does not ride its zip mover): the coroutines' waits and moves as described
+  above; that the player updates before a room's entities after a
+  transition; that `Platform.Update` clears a
   platform's `LiftSpeed` after its coroutine has moved it, so a wall jump off
   a zip mover (`Player.WallJump` reads the wall's `LiftSpeed` when her own is
   zero) gets nothing from it (`-DZIP_WALL_LIFT` switches to the other
@@ -428,63 +476,58 @@ are listed in the export as "NOT MODELLED". `--to lvl_3` makes the room above
 the goal; going back down to `lvl_1` then counts as failing.
 
 Chapter 1's first three rooms need nothing beyond the model (spikes,
-jump-throughs, one spring); `lvl_4` adds a zip mover. The model has zip
-movers now, but the community TAS's `lvl_4` inputs do not get out of `lvl_4`
-in it: by frame 66 she reaches the pillar under the exit shaft too high, hits
-its side, and the dash up on frame 71 hits the ceiling. The states that let
-the rest of the TAS's inputs work put her some 60 px further right by frame
-55 than the model does, and no change of position and speed at frame 48 (the
-hyper) or 52 does it, so something in between differs. Two clues:
+jump-throughs, one spring); `lvl_4` adds a zip mover. For a while the
+community TAS's `lvl_4` inputs did not get out of `lvl_4` in the model. A
+recording of it in the game (`tools/celestetas.py community lvl_4 lvl_3b`,
+with the zip mover's position) showed where: on frame 55 she lands on a
+ledge holding Down (ducked), walks off it, and jumps in coyote time on
+frame 58; in the game she is still ducked on frame 66 and slips under a wall
+that the model, which had stood her up as she started to fall (the published
+"falling unducking"), ran into. The game waits for coyote time to end
+before standing her up. With that, all 91 frames of `lvl_4` and the 98 of
+`lvl_3b` match the recording, and the zip mover is never touched there.
 
-- Without the jump-through at (80, 72) the TAS's inputs almost work: she
-  falls onto the zip mover (frame 60), jumps off it, passes under the pillar,
-  dashes up the shaft at x = 173 and ends 17 px short of the exit. So in the
-  game she probably does not land on that jump-through at frame 54, and is on
-  the zip mover a few frames sooner than even this variant.
-- The room after, `lvl_3b`: its community inputs (98 frames, crumble blocks
-  never touched) leave it on exactly their last frame in the model when she
-  enters at x = 39–60 (in `lvl_4`: 175–196) with 170–290 px/s of wall speed
-  retention to the right pending; with no retention, only from x ≥ 70, which
-  the exit gap does not allow. So the game's `lvl_4` ends with her running
-  into the shaft's right wall.
+The same recording settled the upward transition's stop point: 9 px above
+the bottom edge in `lvl_4` and `lvl_3b` as in `lvl_2`, but 5 px in `lvl_5`,
+the first room of Chapter 1 that is taller than a screen plus 4 px. Seven
+probe recordings leaving `lvl_1` in different ways (y = 0 to 5, dashing,
+ducking or neither) all stop at 9 px in `lvl_2`, so it depends on the room,
+not on how she arrives. In `lvl_5` the TAS lands on the zip mover, jumps
+off it as it rises (−176 px/s), crouch-dashes into a hyper on it, jumps with
+the lift boost capped at −130 (−235 px/s), and climb-jumps up the wall with
+the lift still applying; the model plays all 139 frames and leaves on the
+last one. Nothing in the zip mover was fitted to this route (the version
+before it, and this one without the 0.16 s lift grace, do not get out), so
+this checks its timing, carrying, lift boost, caps and grace.
 
-`tools/celestetas.py community lvl_4 lvl_3b` writes the recording that
-settles it (with the zip mover's position).
-
-**`lvl_3b` and `lvl_5`, entered where `lvl_4` must end** (`tests/chain_3b_5.py`).
-All 112 entries into `lvl_3b` from which its community inputs work give the
-same exit, so `lvl_5` has a definite entry. There the TAS lands on the zip
-mover, jumps off it as it rises (−176 px/s), crouch-dashes into a hyper on
-it, jumps with the lift boost capped at −130 (−235 px/s), and climb-jumps up
-the wall with the lift still applying. The model plays all 139 frames of it
-and leaves `lvl_5` on exactly the last one, **provided the upward transition
-stops her 4–5 px above `lvl_5`'s bottom edge (y = 283 or 284) instead of
-9 px**. From 9 px, and from any other entry height or x tried, it does not
-get out. The zip mover version before this one does not get out from either
-height, and without the 0.16 s lift grace neither does this one. Nothing in
-the zip mover was fitted to this route, so this is a check of its timing,
-carrying, lift boost, caps and grace. What is still open is the transition's
-stop point. The difference from rooms 2–4 (9 px, measured): she leaves
-`lvl_3b` ducking (after a crouch dash), in a taller room. The recording above
-includes the `lvl_3b` → `lvl_5` transition. The model now uses 5 px for a
-ducking player (`tools/chapter.py`, `model/transition.h`).
-
-**The chapter from `lvl_3b` on** (`tests/chain_tas.py`): each room's
-community inputs from the state the previous one left her in, rooms exported
-from the map as the TAS goes:
+**The whole chapter** (`tests/chain_tas.py`): each room's community inputs
+from the state the previous one left her in, rooms exported from the map as
+the TAS goes, from the spawn in `lvl_1`:
 
 | room | inputs | model leaves on frame | modelled entities it uses |
 |---|---|---|---|
+| `lvl_1` | 92 | 92 | jump-throughs, spikes |
+| `lvl_2` | 118 | 118 | |
+| `lvl_3` | 107 | 107 | |
+| `lvl_4` | 91 | 91 | (zip mover not touched) |
 | `lvl_3b` | 98 | 98 | (crumble blocks not touched) |
-| `lvl_5` | 139 | 139 | zip mover, spring not used |
+| `lvl_5` | 139 | 139 | zip mover |
 | `lvl_6` | 117 | 117 | (refill, dash block, fake wall not touched) |
 | `lvl_6a` | 161 | 161 | refill |
 | `lvl_6b` | 110 | 110 | zip movers |
 | `lvl_6c` | 110 | 110 | |
-| `lvl_7` | 103 | never | falling blocks (not modelled) |
+| `lvl_7` | 103 | 103 | falling blocks (both fall during the route) |
+| `lvl_8` | 107 | 107 | (falling block, crumble blocks, fake wall not touched) |
+| `lvl_8b` | 99 | 99 | |
+| `lvl_9` | 97 | never | a zip mover with spikes on it |
 
-735 frames in a row, through three sideways transitions (whose stop rule was
-only inferred before) and four upward ones.
+1,452 frames of control in a row, through 14 rooms, three sideways and ten
+upward transitions. In `lvl_9` the TAS climbs the side of a zip mover and
+crouch-dashes up along it as it starts; in the model the dash stops under
+the ceiling and she falls. `results/celestetas/celeste-sat-community-1a.tas`
+is the whole community `1A.tas` recording every frame of the chapter (with
+zip movers, falling blocks, crumble and dash blocks); `tests/recordings.py`
+checks it room by room and shows the first frame that differs.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
@@ -514,9 +557,10 @@ the TAS's own routes:
   opens `lvl_4` with a wallbounce off the left wall on its first frame, which
   needs the `lvl_3` up-dash still dash-attacking and Madeline 4 px from that
   wall. The 106-frame ending spends the dash on its own wallbounce and enters
-  `lvl_4` 3 px further right with no dash attack left, and in the model the
-  TAS's `lvl_4` inputs go wrong from frame 1. Like `lvl_2` below, the TAS
-  gives up a frame in one room to set up the next.
+  `lvl_4` 3 px further right with no dash attack left, and the TAS's `lvl_4`
+  inputs then die on spikes on frame 60, in the game as in the model (a
+  recording). Like `lvl_2` below, the TAS gives up a frame in one room to set
+  up the next.
 - `lvl_2`, 117 (model only so far): wallbounce one frame later and go
   straight up. But the TAS's slower-looking ending is deliberate: it ends
   with a wall jump that leaves 211 px/s of wall speed retention pending,
@@ -559,7 +603,13 @@ can leave a buffer the target state has.
 On the demo room `ledge`, with one idle frame added at the start, the first
 window finds the wasted frame and the next one proves no saving (about 5 min
 each). Windows of 8 frames on the community TAS take about a minute each.
-(Results for rooms 1–3: see below once they are in.)
+
+On the community TAS's `lvl_1` (92 frames), all 83 windows of 8 frames
+(frames 1–9 up to 83–91) are "no": no stretch of 9 frames of the route can
+be done in 8 and end in the same state. About 2 hours on 2 cores. So the
+TAS's room 1 cannot be shortened by any local change of up to 8 frames;
+a faster room 1 would need a different state somewhere along the way (as
+the 106-frame `lvl_3` ending has).
 
 ### Rooms in sequence
 
@@ -567,7 +617,8 @@ In a real run each room starts the way the previous one ended. For an upward
 exit the game sets her speed to (0, −105) with an automatic full jump,
 refills dash and stamina, puts the dash on a 0.2 s cooldown, zeroes the
 subpixels and moves her up into the new room until her feet are 9 px above
-its bottom edge; her other state (facing, pending wall speed retention, …)
+its bottom edge (5 px in rooms taller than 184 px, see "Things to check");
+her other state (facing, pending wall speed retention, …)
 carries over. `tools/chapter.py` searches the rooms one after the other, each
 from the state the previous one left her in, for its fastest exit (or
 replays given routes with `--routes a.tas,-,-`):
