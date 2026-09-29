@@ -57,6 +57,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `harness/solve.c` | the CBMC harness |
 | `harness/input_rules.h` | the rules on free inputs shared by the harnesses (symmetry breaking, dominance) |
 | `harness/cross.c`, `sim/chain.c`, `tools/cross.py` | SAT across a room transition: two rooms in one query (see "Across room boundaries") |
+| `harness/window.c`, `tools/windows.py`, `sim/live.c` | SAT on every window of a known route: can that stretch be done a frame faster? (see "Windows inside a route") |
 | `model/transition.h`, `model/state_eq.h` | the room transition in C, and "these two states have the same future" |
 | `tools/solve.py` | the pipeline: build → beam → polish → SAT descent → replay check → tidy → `best.tas` |
 | `tools/render.py` | builds the replay page from solved rooms |
@@ -428,8 +429,39 @@ in it: by frame 66 she reaches the pillar under the exit shaft too high, hits
 its side, and the dash up on frame 71 hits the ceiling. The states that let
 the rest of the TAS's inputs work put her some 60 px further right by frame
 55 than the model does, and no change of position and speed at frame 48 (the
-hyper) or 52 does it, so something in between differs. That needs a
-recording of the TAS in the game to settle.
+hyper) or 52 does it, so something in between differs. Two clues:
+
+- Without the jump-through at (80, 72) the TAS's inputs almost work: she
+  falls onto the zip mover (frame 60), jumps off it, passes under the pillar,
+  dashes up the shaft at x = 173 and ends 17 px short of the exit. So in the
+  game she probably does not land on that jump-through at frame 54, and is on
+  the zip mover a few frames sooner than even this variant.
+- The room after, `lvl_3b`: its community inputs (98 frames, crumble blocks
+  never touched) leave it on exactly their last frame in the model when she
+  enters at x = 39–60 (in `lvl_4`: 175–196) with 170–290 px/s of wall speed
+  retention to the right pending; with no retention, only from x ≥ 70, which
+  the exit gap does not allow. So the game's `lvl_4` ends with her running
+  into the shaft's right wall.
+
+`tools/celestetas.py community lvl_4 lvl_3b` writes the recording that
+settles it (with the zip mover's position).
+
+**`lvl_3b` and `lvl_5`, entered where `lvl_4` must end** (`tests/chain_3b_5.py`).
+All 112 entries into `lvl_3b` from which its community inputs work give the
+same exit, so `lvl_5` has a definite entry. There the TAS lands on the zip
+mover, jumps off it as it rises (−176 px/s), crouch-dashes into a hyper on
+it, jumps with the lift boost capped at −130 (−235 px/s), and climb-jumps up
+the wall with the lift still applying. The model plays all 139 frames of it
+and leaves `lvl_5` on exactly the last one, **provided the upward transition
+stops her 4–5 px above `lvl_5`'s bottom edge (y = 283 or 284) instead of
+9 px**. From 9 px, and from any other entry height or x tried, it does not
+get out. The zip mover version before this one does not get out from either
+height, and without the 0.16 s lift grace neither does this one. Nothing in
+the zip mover was fitted to this route, so this is a check of its timing,
+carrying, lift boost, caps and grace. What is still open is the transition's
+stop point. The difference from rooms 2–4 (9 px, measured): she leaves
+`lvl_3b` ducking (after a crouch dash), in a taller room. The recording above
+includes the `lvl_3b` → `lvl_5` transition.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
@@ -455,9 +487,13 @@ the TAS's own routes:
   `#lvl_3` (`16,U,X`) replaced by `4,U,X` / `1,U` / `9` / `1,J`, recorded in
   Celeste 1.4, leaves `lvl_3` on frame 106, every frame as the model says. It
   relies on the wallbounce reaching 5 px (v1.2.3.0); at 3 px it would not
-  exist. It changes how she enters `lvl_4` (3 px further right; a zip mover
-  room, not modelled), so whether the chapter gets a frame faster depends on
-  `lvl_4`.
+  exist. But it is probably not a frame for the chapter: the community TAS
+  opens `lvl_4` with a wallbounce off the left wall on its first frame, which
+  needs the `lvl_3` up-dash still dash-attacking and Madeline 4 px from that
+  wall. The 106-frame ending spends the dash on its own wallbounce and enters
+  `lvl_4` 3 px further right with no dash attack left, and in the model the
+  TAS's `lvl_4` inputs go wrong from frame 1. Like `lvl_2` below, the TAS
+  gives up a frame in one room to set up the next.
 - `lvl_2`, 117 (model only so far): wallbounce one frame later and go
   straight up. But the TAS's slower-looking ending is deliberate: it ends
   with a wall jump that leaves 211 px/s of wall speed retention pending,
@@ -474,6 +510,33 @@ polish find 99, 115 and 126 frames (`results/1a_lvl_*.tas`). Before the model
 had two keys per button and the changes since the published `Player.cs`,
 they were 102, 144 and 126, and the first room's "proof" was about a weaker
 game.
+
+### Windows inside a route
+
+The SAT queries above free the end of a route. `tools/windows.py` frees
+every stretch of W frames inside it: for each K it starts CBMC from the
+route's exact state after K frames and asks whether any W inputs reach its
+state after K + W + 1 frames, i.e. one frame sooner (`harness/window.c`).
+A yes makes the rest of the route work unchanged a frame earlier: it is
+spliced in and replayed. A no proves that this stretch cannot be shortened
+to the same state.
+
+The state is compared on the fields that can still change the rest of the
+route. `sim/live.c` finds the others by replaying the rest of the route with
+each field changed: `onGround` is recomputed every frame, a dash cooldown
+that runs out before the next dash does not matter, and so on. On the
+community TAS's `lvl_1`, 9–14 of the 17 candidate fields are dead at the
+frames tried. That is a test rather than a proof, so a route found with fields
+left out is replayed, and the window is asked again comparing everything if
+the replay is not faster. A "no" is a statement about every state that agrees
+on the compared fields, which includes the route's own state. The dominance
+rules on buffered presses are off in a window's last 5 frames, where a press
+can leave a buffer the target state has.
+
+On the demo room `ledge`, with one idle frame added at the start, the first
+window finds the wasted frame and the next one proves no saving (about 5 min
+each). Windows of 8 frames on the community TAS take about a minute each.
+(Results for rooms 1–3: see below once they are in.)
 
 ### Rooms in sequence
 

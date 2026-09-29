@@ -55,7 +55,8 @@ def check(path, rdir, work):
     if name.startswith("community") or name.startswith("celeste-sat-community"):
         m = re.fullmatch(r"\[(\w+)\]", first)
         if m and m.group(1) != "1":
-            start = os.path.join(ROOT, "build", "community_tas", f"entry_lvl_{m.group(1)}.h")
+            start = os.path.join(ROOT, "build", "community_tas", f"entry_lvl_{m.group(1)}"
+                                 + ("_edit" if "-edit" in name else "") + ".h")
             if not os.path.exists(start):
                 return f"{name}: needs {start} (run tests/community_tas.py first)", None
     prev = None                                  # (room file, build dir, route file, exit frame)
