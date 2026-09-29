@@ -222,6 +222,13 @@ def export(package, level, lv, path=None, goals=None):
         elif e.name == "spring":
             if a.get("playerCanUse", True):
                 lines.append(f"; spring {a['x']} {a['y']}")
+        elif e.name == "zipMover":
+            x, y, w, h = a["x"], a["y"], a.get("width", 16), a.get("height", 16)
+            node = e.child("node")
+            if node:
+                lines.append(f"; zipmover {x} {y} {w} {h} {node.attrs['x']} {node.attrs['y']}")
+            else:
+                ignored.add(e.name)
         elif e.name in ("player", "strawberry", "goldenBerry", "checkpoint") or e.name in COSMETIC:
             if e.name not in ("player",):
                 cosmetic.add(e.name)

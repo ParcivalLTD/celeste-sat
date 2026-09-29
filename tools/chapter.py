@@ -39,7 +39,7 @@ from solve import read_tas, write_tas  # noqa: E402
 
 ST_NORMAL, ST_CLIMB, ST_DASH = 0, 1, 2
 FLOAT_FIELDS = {"remX", "remY", "spdX", "spdY", "beforeDashSpdX", "beforeDashSpdY", "varJumpSpeed",
-                "wallSpeedRetained", "maxFall", "stamina"}
+                "wallSpeedRetained", "maxFall", "stamina", "liftSpeedX", "liftSpeedY"}
 
 
 def origin_of(room_path):
@@ -141,6 +141,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     for k in ("prevJump", "prevDash", "prevCDash", "jumpBuf", "dashBuf", "cdashBuf", "jumpEdge", "dashEdge",
               "cdashEdge", "demoDashed", "exited", "dead", "freezeTimer"):
         e[k] = 0
+    e["liftSpeedX"] = e["liftSpeedY"] = 0.0
     return e
 
 
@@ -202,9 +203,9 @@ def main():
         exit_h = os.path.join(rdir, "exit.h")
         subprocess.run([os.path.join(rdir, "sim"), "-s", str(n), exit_h, best], capture_output=True, text=True)
         st = read_state(exit_h)
-        rows, _, _, _, _ = parse(room)
+        rows = parse(room)[0]
         side = exit_side(st, len(rows[0]) * 8, len(rows) * 8)
-        nrows, _, _, _, _ = parse(a.rooms[i + 1])
+        nrows = parse(a.rooms[i + 1])[0]
         e = enter_room(st, side, origin_of(room), origin_of(a.rooms[i + 1]),
                        len(nrows[0]) * 8, len(nrows) * 8, tables(rdir))
         entry = os.path.join(os.path.abspath(a.out), f"entry_{i + 2}.h")

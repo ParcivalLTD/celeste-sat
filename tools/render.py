@@ -21,7 +21,7 @@ def main():
     spec = json.load(open(sys.argv[1]))
     rooms = []
     for r in spec["rooms"]:
-        rows, _, exits, colliders, jumpthrus = parse(os.path.join(ROOT, r["room"]))
+        rows, _, exits, colliders, jumpthrus, *rest = parse(os.path.join(ROOT, r["room"]))
         spikes = [c[1:] for c in colliders if c[0] == "spikes"]
         springs = [list(c[1:]) for c in colliders if c[0] == "spring"]
         trace = json.load(open(os.path.join(ROOT, r["build"], "trace.json")))
