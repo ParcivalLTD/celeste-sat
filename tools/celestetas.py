@@ -79,6 +79,61 @@ def probe(a):
           f"  python3 tools/celestetas.py show <path to {a.dump}>")
 
 
+COMMUNITY_URL = ("https://raw.githubusercontent.com/VampireFlower/CelesteTAS/"
+                 "098927faa0da3101bf9c2371f1e45d719c830821/1A.tas")
+
+
+def community(a):
+    """the community 1A.tas, recording a stretch of rooms (and, with --entities, entities such as ZipMover)"""
+    import urllib.request
+    text = open(a.tas).read() if a.tas else urllib.request.urlopen(COMMUNITY_URL, timeout=30).read().decode("utf-8")
+    rooms = [r.lstrip("#") for r in a.rooms]
+    first, last = rooms[0], rooms[-1]
+    replace = {}
+    for spec in a.replace or []:                   # ROOM:OLD=NEW1/NEW2/...  (the last line OLD in #ROOM)
+        room, rest = spec.split(":", 1)
+        old, new = rest.split("=", 1)
+        replace[room] = (old.strip(), [l.strip() for l in new.split("/")])
+    lines, room, out, started, done = text.splitlines(), None, [], False, False
+    # the input lines of each room (the last one is the transition's idle frames)
+    last_line = {}
+    for i, line in enumerate(lines):
+        st = line.strip()
+        if re.match(r"#\S", st):
+            room = st[1:]
+        elif room and re.match(r"\d+", st):
+            last_line.setdefault(room, []).append(i)
+    room = None
+    for i, line in enumerate(lines):
+        st = line.strip()
+        if re.match(r"#\S", st):
+            room = st[1:]
+        # start recording at the idle frames that end the room before the first one (its transition)
+        if not started and room == prev_room_of(lines, first) and re.fullmatch(r"\d+", st) and i == last_line[room][-1]:
+            out.append(f"ExportGameInfo, {a.dump}" + "".join(f", {e}" for e in a.entities))
+            started = True
+        if room in replace and st == replace[room][0] and i in last_line[room]:
+            out += [f"   {l}" for l in replace[room][1]]
+            continue
+        out.append(line)
+        if started and not done and room == last and re.fullmatch(r"\d+", st) and i == last_line[room][-1]:
+            out.append("EndExportGameInfo")
+            done = True
+    if not started:
+        sys.exit(f"no room before #{first} in the TAS")
+    head = [f"# celeste-sat: community 1A.tas (VampireFlower/CelesteTAS){' with ' + '; '.join(a.replace) if a.replace else ''}",
+            f"# records #{first}..#{last} to {a.dump} in the Celeste folder, then plays on to the end of the chapter"]
+    open(a.out, "w").write("\n".join(head + out) + "\n")
+    print(f"wrote {a.out}: play it with CelesteTAS, then run\n  python3 tests/recordings.py <folder with {a.dump}>")
+
+
+def prev_room_of(lines, room):
+    """the label before #room in the TAS"""
+    labels = [l.strip()[1:] for l in lines if re.match(r"#\S", l.strip())]
+    k = labels.index(room)
+    return labels[k - 1] if k else None
+
+
 def show(a):
     """print the recorded rows, marking room changes"""
     last_room = None
@@ -115,10 +170,13 @@ def parse_dump(path, origin=(0, 0)):
         spd = re.findall(num, cols[5])
         if len(pos) < 2 or len(spd) < 2:
             continue
+        ents = cols[9] if len(cols) > 9 else ""
+        zm = re.search(r"ZipMover(?:\[[^\]]*\])?\s*:?\s*\(?\s*(" + num + r")\s*,\s*(" + num + ")", ents)
         rows.append(dict(line=cols[0], inputs=cols[1], x=float(pos[0]) - origin[0], y=float(pos[1]) - origin[1],
                          vx=float(spd[0]), vy=float(spd[1]), state=cols[6].strip(),
                          statuses=cols[7] if len(cols) > 7 else "",
-                         room=cols[8].strip() if len(cols) > 8 else ""))
+                         room=cols[8].strip() if len(cols) > 8 else "", entities=ents,
+                         zip=(float(zm.group(1)), float(zm.group(2))) if zm else None))
     return rows
 
 
@@ -143,7 +201,8 @@ def model_trace(room, route, start=None):
     return [dict(x=f["x"] + f.get("rx", 0.0), y=f["y"] + f.get("ry", 0.0),
                  vx=f.get("vxe", f["vx"]), vy=f.get("vye", f["vy"]),
                  state="Freeze" if f["frz"] else STATE_NAMES.get(f["st"], str(f["st"])),
-                 inp=f["in"]) for f in frames[1:]], (exit_frame if exit_frame and exit_frame > 0 else None)
+                 inp=f["in"], **({k: f[k] for k in ("zx", "zy", "zt", "lx", "ly") if k in f}))
+            for f in frames[1:]], (exit_frame if exit_frame and exit_frame > 0 else None)
 
 
 def same(m, g, tol_pos=2e-3, tol_spd=2e-3):
@@ -220,6 +279,14 @@ def main():
     p.add_argument("--after", type=int, default=90, help="idle frames after the route (default 90)")
     p.add_argument("--dump", default="celeste-sat-probe.txt")
     p.add_argument("-o", "--out", required=True)
+    m = sub.add_parser("community", help="the community 1A.tas, recording some rooms (and entities)")
+    m.add_argument("rooms", nargs="+", help="first and last room to record, e.g. lvl_4 lvl_3b")
+    m.add_argument("--tas", help="a local copy of 1A.tas (default: download it at the tested commit)")
+    m.add_argument("--entities", nargs="*", default=["ZipMover"], help="entity types to record (default ZipMover)")
+    m.add_argument("--replace", action="append", metavar="ROOM:OLD=NEW1/NEW2",
+                   help="replace the last input line OLD of ROOM, e.g. 'lvl_3:16,U,X=4,U,X/1,U/9/1,J'")
+    m.add_argument("--dump", default="celeste-sat-community.txt")
+    m.add_argument("-o", "--out", required=True)
     w = sub.add_parser("show", help="print a recording, marking room changes")
     w.add_argument("dump")
     w.add_argument("--frames", type=int, nargs=2, metavar=("FROM", "TO"))
@@ -230,7 +297,7 @@ def main():
     c.add_argument("--start", help="state header the room starts from (default: its spawn), e.g. the entry "
                    "state from the previous room written by tools/chapter.py or tests/community_tas.py")
     a = ap.parse_args()
-    {"export": export, "probe": probe, "show": show, "compare": compare}[a.cmd](a)
+    {"export": export, "probe": probe, "community": community, "show": show, "compare": compare}[a.cmd](a)
 
 
 if __name__ == "__main__":

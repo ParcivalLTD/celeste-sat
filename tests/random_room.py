@@ -71,4 +71,22 @@ for _ in range(random.randint(0, 2)):                   # a few spikes off the t
     d = random.choice(["up", "down", "left", "right"])
     extra.append(f"; spikes {d} {random.randint(8, W * 8 - 16)} {random.randint(8, H * 8 - 16)} {random.choice([8, 12, 16])}")
 
-print("\n".join(exits + extra + springs + ["".join(r) for r in g]))
+# zip movers (every other room; drawn last so the other rooms stay as they were)
+zips = []
+if seed % 2 == 0:
+    for _ in range(random.randint(1, 2)):
+        for _try in range(60):
+            zw, zh = random.randint(2, 4), random.randint(1, 2)          # tiles
+            zx, zy = random.randint(1, W - 1 - zw), random.randint(2, H - 1 - zh)
+            cells = [(x, y) for x in range(zx, zx + zw) for y in range(zy, zy + zh)]
+            if any(g[y][x] != '.' for x, y in cells) or any(abs(x - spawn_col) <= 1 and y >= H - 5 for x, y in cells):
+                continue
+            tx = min(max(zx * 8 + random.randint(-80, 80), 8), W * 8 - 8 - zw * 8)
+            ty = min(max(zy * 8 + random.randint(-48, 32), 8), H * 8 - 8 - zh * 8)
+            zips.append(f"; zipmover {zx * 8} {zy * 8} {zw * 8} {zh * 8} {tx} {ty}")
+            for x, y in cells:
+                g[y][x] = 'z'                                            # keep later zip movers apart
+            break
+    g = [[c if c != 'z' else '.' for c in r] for r in g]
+
+print("\n".join(exits + extra + springs + zips + ["".join(r) for r in g]))

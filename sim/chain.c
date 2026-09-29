@@ -33,7 +33,10 @@ static void dump(const State *s, const char *path, int k)
     fprintf(f, "/* state after %d frames (written by chain -s) */\n#define START_FRAMES %d\n", k, k);
     fprintf(f, "static const State START_STATE = {\n");
     I(x); I(y); F(remX); F(remY); F(spdX); F(spdY);
-    F(liftSpeedX); F(liftSpeedY);
+    F(liftSpeedX); F(liftSpeedY); F(liftLastX); F(liftLastY); I(liftGraceTimer);
+    fprintf(f, "    .zipTimer = {");
+    for (int z = 0; z < MAX_ZIP_MOVERS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->zipTimer[z]);
+    fprintf(f, "},\n");
     I(state); I(facing); I(ducking); I(onGround); I(dashes); I(moveX); I(forceMoveX); I(wallSlideDir);
     I(autoJump); I(dashStartedOnGround); I(aimX); I(aimY); I(dashDirX); I(dashDirY);
     F(beforeDashSpdX); F(beforeDashSpdY); F(varJumpSpeed); F(wallSpeedRetained); F(maxFall);

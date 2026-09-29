@@ -217,7 +217,7 @@ static uint64_t hash_state(const State *s)
     MIX(s->dashRefillCooldownTimer); MIX(s->dashAttackTimer); MIX(s->wallSlideTimer);
     MIX(s->wallSpeedRetentionTimer); MIX(s->forceMoveXTimer); MIX(s->coActive); MIX(s->coStage); MIX(s->coWait);
     MIX(s->freezeTimer); MIX(s->prevJump); MIX(s->prevDash); MIX(s->prevCDash);
-    MIXF(s->liftSpeedX); MIXF(s->liftSpeedY);
+    MIXF(s->liftSpeedX); MIXF(s->liftSpeedY); MIXF(s->liftLastX); MIXF(s->liftLastY); MIX(s->liftGraceTimer);
 #if NZIPMOVERS > 0
     for (int i = 0; i < NZIPMOVERS; i++) {
         MIX(s->zipTimer[i]);

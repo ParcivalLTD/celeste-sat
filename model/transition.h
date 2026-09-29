@@ -75,6 +75,8 @@ static State enter_room(State st)
     e.demoDashed = false;
     e.exited = false; e.dead = false;
     e.freezeTimer = 0;
+    /* the new room's moving solids start over (her lift speed stays with her) */
+    for (int i = 0; i < MAX_ZIP_MOVERS; i++) e.zipTimer[i] = 0;
     return e;
 }
 

@@ -98,6 +98,7 @@
 /* moving solids and lift boost */
 #define LIFT_X_CAP                 250.0f
 #define LIFT_Y_CAP               (-130.0f)
+#define LIFT_SPEED_GRACE_TIME      0.16f   /* Actor.LiftSpeedGraceTime */
 #define MAX_ZIP_MOVERS             4
 
 /* (float)(1 / sqrt(2)) as produced by Vector2.Normalize on (1,1) */
@@ -144,7 +145,13 @@ typedef struct {
     int   x, y;              /* integer position (feet, horizontal centre) */
     float remX, remY;        /* Actor.movementCounter (subpixels)          */
     float spdX, spdY;
-    float liftSpeedX, liftSpeedY; /* Actor.LiftSpeed (from moving platforms) */
+    /* Actor.LiftSpeed: set when a moving solid carries or pushes her, cleared
+     * in Actor.Update; the last non-zero value is kept for LiftSpeedGraceTime */
+    float liftSpeedX, liftSpeedY;     /* currentLiftSpeed */
+    float liftLastX, liftLastY;       /* lastLiftSpeed    */
+    Timer liftGraceTimer;             /* liftSpeedTimer   */
+    /* zip movers: 0 = waiting for a rider, else the number of ZipMover
+     * updates since it started (its position comes from tables in room.h) */
     short zipTimer[MAX_ZIP_MOVERS];
 
     /* Player */

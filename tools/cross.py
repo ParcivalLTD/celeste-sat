@@ -226,7 +226,8 @@ def main():
     total = info["exitB"]
     sh([f"{out}/chain", f"{out}/known.tas", "-s", str(na), f"{out}/b_entry.h"])
     entry_c = read_state(f"{out}/b_entry.h")
-    diff = sorted(k for k in entry_py if k in entry_c and float(entry_py[k]) != float(entry_c[k]))
+    num = lambda v: [float(x) for x in v] if isinstance(v, list) else float(v)
+    diff = sorted(k for k in entry_py if k in entry_c and num(entry_py[k]) != num(entry_c[k]))
     if diff:
         sys.exit(f"transition: C and Python disagree on {diff}")
     print(f"known route: leaves {na_name} on frame {na}, {nb_name} on frame {total} "
