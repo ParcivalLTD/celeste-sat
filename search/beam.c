@@ -222,6 +222,7 @@ static uint64_t hash_state(const State *s)
     for (int i = 0; i < NZIPMOVERS; i++) {
         MIX(s->zipTimer[i]);
     }
+    MIX(s->hopZip); MIX(s->hopZipT);
 #endif
     MIX(s->jumpBuf); MIX(s->dashBuf); MIX(s->cdashBuf);
     return h;
