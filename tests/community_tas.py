@@ -27,7 +27,7 @@ from solve import build, read_tas  # noqa: E402
 
 URL = ("https://raw.githubusercontent.com/VampireFlower/CelesteTAS/"
        "098927faa0da3101bf9c2371f1e45d719c830821/1A.tas")
-ROOMS = ["lvl_1", "lvl_2", "lvl_3"]          # the rooms the model covers (no zip movers etc.)
+ROOMS = ["lvl_1", "lvl_2", "lvl_3", "lvl_4"]          # rooms tested against community TAS
 
 
 def sections(text):

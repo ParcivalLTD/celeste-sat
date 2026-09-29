@@ -30,7 +30,7 @@ Spikes and springs act in the order they are listed (the game checks them in
 that order within a frame); spikes drawn with characters come first.
 All rows must have the same width.
 """
-import sys
+import math, sys
 
 SIDES = {"left": 0, "right": 1, "up": 2, "down": 3}
 DIRS = {"up": 0, "down": 1, "left": 2, "right": 3}
@@ -58,7 +58,7 @@ def spike_cells(d, x, y, n):
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y)] in game order."""
-    rows, exact, exits, ordered, jumpthrus = [], None, [], [], []
+    rows, exact, exits, ordered, jumpthrus, zipmovers = [], None, [], [], [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -77,12 +77,15 @@ def parse(path):
         elif line.startswith("; jumpthru "):
             x, y, w = int(words[2]), int(words[3]), int(words[4])
             jumpthrus.append((x, y, x + w))
+        elif line.startswith("; zipmover "):
+            x, y, w, h, tx, ty = int(words[2]), int(words[3]), int(words[4]), int(words[5]), int(words[6]), int(words[7])
+            zipmovers.append((x, y, w, h, tx, ty))
         if not line or line.startswith(";"):
             continue
         rows.append(line)
     w = len(rows[0])
     assert all(len(r) == w for r in rows), "all rows must have the same width"
-    assert len(rows) <= 32, "rooms taller than 32 tiles need a wider column type"
+    assert len(rows) <= 64, "rooms taller than 64 tiles need a wider column type"
     spawn = None
     for cy, r in enumerate(rows):
         for cx, ch in enumerate(r):
@@ -143,12 +146,64 @@ def parse(path):
                 cx += n
             else:
                 cx += 1
-    return rows, spawn, exits, tile_spikes + ordered, jumpthrus
+    return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
+
+
+def zip_trajectory(x, y, w, h, tx, ty):
+    DT = 0.0166667
+    steps = []  # (x, y, dx, dy)
+    lift = []   # (lsx, lsy)
+    steps.append((x, y, 0, 0))
+    lift.append((0.0, 0.0))
+    for _ in range(6):
+        steps.append((x, y, 0, 0))
+        lift.append((0.0, 0.0))
+    cur_x, cur_y = float(x), float(y)
+    rem_x, rem_y = 0.0, 0.0
+    for k in range(1, 31):
+        at = min(1.0, k * 2.0 * DT)
+        percent = 1.0 - math.cos(at * math.pi / 2.0)
+        target_px = x + (tx - x) * percent
+        target_py = y + (ty - y) * percent
+        rem_x += (target_px - cur_x)
+        rem_y += (target_py - cur_y)
+        mx = int(round(rem_x))
+        my = int(round(rem_y))
+        rem_x -= mx
+        rem_y -= my
+        cur_x += mx
+        cur_y += my
+        steps.append((int(cur_x), int(cur_y), mx, my))
+        lift.append((mx / DT, my / DT))
+    for _ in range(30):
+        steps.append((tx, ty, 0, 0))
+        lift.append((0.0, 0.0))
+    cur_x, cur_y = float(tx), float(ty)
+    rem_x, rem_y = 0.0, 0.0
+    for k in range(1, 121):
+        at = min(1.0, k * 0.5 * DT)
+        percent = math.cos(at * math.pi / 2.0)
+        target_px = x + (tx - x) * percent
+        target_py = y + (ty - y) * percent
+        rem_x += (target_px - cur_x)
+        rem_y += (target_py - cur_y)
+        mx = int(round(rem_x))
+        my = int(round(rem_y))
+        rem_x -= mx
+        rem_y -= my
+        cur_x += mx
+        cur_y += my
+        steps.append((int(cur_x), int(cur_y), mx, my))
+        lift.append((mx / DT, my / DT))
+    for _ in range(30):
+        steps.append((x, y, 0, 0))
+        lift.append((0.0, 0.0))
+    return steps, lift
 
 
 def main():
     src, dst = sys.argv[1], sys.argv[2]
-    rows, (sx, sy), exits, colliders, jumpthrus = parse(src)
+    rows, (sx, sy), exits, colliders, jumpthrus, zipmovers = parse(src)
     w, h = len(rows[0]), len(rows)
     out = [f"/* generated from {src} by tools/make_room.py */",
            "#ifndef ROOM_H_INCLUDED", "#define ROOM_H_INCLUDED",
@@ -158,10 +213,10 @@ def main():
     out += [f"   {r}" for r in rows]
     out += ["*/",
             "/* ROOM_COLS[c]: bit r set when tile (c, r) is solid */",
-            "static const unsigned ROOM_COLS[ROOM_W] = {"]
+            "static const unsigned long long ROOM_COLS[ROOM_W] = {"]
     for cx in range(w):
         bits = sum(1 << cy for cy, r in enumerate(rows) if r[cx] == "#")
-        out.append(f"    0x{bits:08x}u,")
+        out.append(f"    0x{bits:016x}ULL,")
     out += ["};", "",
             "/* exits: { side, from, to, goal } -- a neighbouring room on SIDE covering",
             " * [from, to) along that edge; goal 0 means going there counts as failing */",
@@ -193,6 +248,31 @@ def main():
     if jumpthrus:
         out.append("static const short JUMPTHRUS[NJUMPTHRUS][3] = {")
         out += [f"    {{ {a}, {b}, {c} }}," for a, b, c in jumpthrus]
+        out.append("};")
+    out += ["", "/* zip movers: { x, y, w, h, tx, ty } */",
+            f"#define NZIPMOVERS {len(zipmovers)}"]
+    if zipmovers:
+        out.append("#define ZIP_CYCLE_FRAMES 216")
+        out.append("static const short ZIPMOVERS[NZIPMOVERS][6] = {")
+        out += [f"    {{ {x}, {y}, {w}, {h}, {tx}, {ty} }}," for x, y, w, h, tx, ty in zipmovers]
+        out.append("};")
+        out.append("/* ZIP_STEPS[NZIPMOVERS][217][4]: { x, y, dx, dy } at timer t */")
+        out.append("static const short ZIP_STEPS[NZIPMOVERS][217][4] = {")
+        for zm in zipmovers:
+            steps, _ = zip_trajectory(*zm)
+            out.append("    {")
+            for t, (px, py, dx, dy) in enumerate(steps):
+                out.append(f"        {{ {px}, {py}, {dx}, {dy} }},")
+            out.append("    },")
+        out.append("};")
+        out.append("/* ZIP_LIFT[NZIPMOVERS][217][2]: { liftSpeedX, liftSpeedY } at timer t */")
+        out.append("static const float ZIP_LIFT[NZIPMOVERS][217][2] = {")
+        for zm in zipmovers:
+            _, lift = zip_trajectory(*zm)
+            out.append("    {")
+            for t, (lx, ly) in enumerate(lift):
+                out.append(f"        {{ {float(lx).hex()}f, {float(ly).hex()}f }},")
+            out.append("    },")
         out.append("};")
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))

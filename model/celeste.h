@@ -95,6 +95,11 @@
 #define SUPER_BOUNCE_SPEED      (-185.0f)
 #define SUPER_BOUNCE_VAR_JUMP_TIME 0.2f
 
+/* moving solids and lift boost */
+#define LIFT_X_CAP                 250.0f
+#define LIFT_Y_CAP               (-130.0f)
+#define MAX_ZIP_MOVERS             4
+
 /* (float)(1 / sqrt(2)) as produced by Vector2.Normalize on (1,1) */
 #define DIAG 0.70710677f
 
@@ -139,6 +144,8 @@ typedef struct {
     int   x, y;              /* integer position (feet, horizontal centre) */
     float remX, remY;        /* Actor.movementCounter (subpixels)          */
     float spdX, spdY;
+    float liftSpeedX, liftSpeedY; /* Actor.LiftSpeed (from moving platforms) */
+    short zipTimer[MAX_ZIP_MOVERS];
 
     /* Player */
     int   state;             /* ST_NORMAL, ST_CLIMB or ST_DASH */

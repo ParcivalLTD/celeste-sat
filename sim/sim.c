@@ -41,6 +41,7 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "/* state after %d frames (written by sim -s) */\n#define START_FRAMES %d\n", k, k);
     fprintf(f, "static const State START_STATE = {\n");
     I(x); I(y); F(remX); F(remY); F(spdX); F(spdY);
+    F(liftSpeedX); F(liftSpeedY);
     I(state); I(facing); I(ducking); I(onGround); I(dashes); I(moveX); I(forceMoveX); I(wallSlideDir);
     I(autoJump); I(dashStartedOnGround); I(aimX); I(aimY); I(dashDirX); I(dashDirY);
     F(beforeDashSpdX); F(beforeDashSpdY); F(varJumpSpeed); F(wallSpeedRetained); F(maxFall);
