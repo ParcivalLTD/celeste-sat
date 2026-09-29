@@ -170,8 +170,9 @@ int main(int argc, char **argv)
             if (f % 17 == 5) check_same_future(&s);
 #endif
             celeste_step(&s, in);
-            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d\n", r, s.x, s.y, s.remX, s.remY, s.spdX, s.spdY,
-                   s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX);
+            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d\n", r, s.x, s.y, s.remX, s.remY,
+                   s.spdX, s.spdY, s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX,
+                   s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY, s.zipTimer[0], s.zipTimer[1]);
             if (s.exited || s.dead) break;
         }
     }

@@ -47,9 +47,9 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 
 | path | what it is |
 |---|---|
-| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, room transitions |
+| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, zip movers and lift boost, room transitions |
 | `tools/gen_tables.c` | computes the exact timer frame counts with the game's float arithmetic |
-| `tools/make_room.py` | ASCII room → `room.h` |
+| `tools/make_room.py` | ASCII room → `room.h` (with each zip mover's path, computed in single precision) |
 | `tools/import_map.py` | lists the rooms in a Celeste map file (`Content/Maps/*.bin`) and exports one to ASCII |
 | `sim/sim.c` | replays a CelesteTAS-style file, prints a per-frame trace, dumps mid-run states |
 | `sim/tas_io.h` | reads and writes CelesteTAS-style input files (two keys per button) |
@@ -66,6 +66,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tools/run_tests.sh` | builds and checks everything on your machine |
 | `tools/celestetas.py` | writes CelesteTAS files for routes and compares the game's recording with the model |
 | `tools/chapter.py` | solves rooms in sequence, each starting in the state the previous one left her in |
+| `tools/transition.py` | the entry state for the next room from a dumped exit state (what `tools/chapter.py` does between rooms) |
 | `rooms/*.txt` | demo rooms (`shaft_a` and `shaft_b` are stacked, for the cross-room check) |
 
 ## Room format
@@ -82,6 +83,7 @@ top of the tile. Directives:
 ; spikes left 272 80 16  spikes in the game's entity coordinates
 ; jumpthru 8 160 40      a jump-through platform, top edge at y = 160, x in [8, 48)
 ; spring 120 144         a floor spring, base centre at (120, 144)
+; zipmover 112 80 24 16 184 72   a zip mover: top-left (112, 80), 24 x 16, moving to (184, 72)
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -135,6 +137,11 @@ From `Player.cs` and the Monocle engine:
 - room bounds (`Level.EnforceBounds`): leaving through an edge that has a
   neighbouring room is the goal, other edges are walls (the top one 24 px
   above the room), falling out is death
+- zip movers (see "Zip movers" below): a solid that starts when she stands
+  on it or climbs it, carries her along its path and pushes her out of its
+  way; the lift boost it leaves her (`Player.LiftBoost` in jumps, supers,
+  wall jumps, wallbounces, dashes, letting go of a wall, walking off it),
+  kept for 0.16 s after she leaves it
 
 Inputs are those of the game with its default bindings, as CelesteTAS writes
 them: directions, Grab (held), and Jump, Dash and Crouch Dash with **two keys
@@ -163,9 +170,9 @@ code (Extended Variant Mode, GravityHelper), for the 5 px wallbounce reach,
 the variable ceiling correction reach and the spike checks; and memory of the
 current code for the rest, listed under "Things to check".
 
-Not modelled yet: every other entity (wall springs, zip movers, crumble
-blocks, refills, dash blocks, moving platforms and lift speed, …), wind,
-water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
+Not modelled yet: every other entity (wall springs, crumble blocks, refills,
+dash blocks, other moving platforms, …), wind, water, holdables, climb
+blockers, assist modes. `MAX_DASHES` is 1.
 
 ### Fidelity details
 
@@ -188,8 +195,9 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   a ≤ 8 px move can cross instead of stepping pixel by pixel, and reads
   collisions from an 8×8-tile window around the player.
   `tests/diff.sh` runs both builds on 40 random rooms (with spikes, jump-throughs,
-  springs and exits on all sides) × 300 random input runs: **2.9 million
-  frames, bit-identical**, with every mechanic above exercised.
+  springs, exits on all sides, and zip movers in every other room) × 300
+  random input runs: **2.95 million frames, bit-identical**, with every
+  mechanic above exercised (riding, pushing and squishing included).
 - The harness never lets the solver choose an input that cannot matter, which
   keeps the formula small: directions and Grab during freeze frames, Up outside
   climbing and the dash-direction frame, Grab away from walls, a second-key
@@ -206,8 +214,52 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   value behind an expired timer, the previous frame's aim, …). The fuzzing
   checks that too: on every random frame it scrambles those fields in a copy,
   runs both on with the same random inputs for up to 40 frames, and they must
-  keep agreeing on everything `same_future` compares. 6.6 million checks, none
+  keep agreeing on everything `same_future` compares. 6.8 million checks, none
   broken.
+
+### Zip movers
+
+`ZipMover.cs`, `Solid.cs`, `Platform.cs` and `Actor.cs` are not published;
+this follows their decompiled behaviour as remembered, and the parts in
+`Player.cs` (lift boost, riding) as published. What is not yet checked
+against a recording is listed under "Things to check".
+
+- **Path.** `ZipMover.Sequence()` waits for a rider (`HasPlayerRider`), waits
+  0.1 s, moves to its target in 0.5 s (`Calc.Approach(at, 1, 2 * dt)`,
+  `Ease.SineIn`, `Vector2.Lerp`, `Platform.MoveTo`), waits 0.5 s, moves back
+  in 2 s, waits 0.5 s, and starts over when someone rides it then.
+  `tools/make_room.py` replays that coroutine once, in single precision
+  like the game (sub-pixel movement counter, `Math.Round` to even), and writes
+  one table entry per update: its position, the whole pixels it moved, and the
+  `LiftSpeed` of that move (`moveH / DeltaTime`, `moveV / DeltaTime`). The
+  state keeps one counter per zip mover (0 = waiting, else updates since it
+  started), so the solver sees a table lookup, not trigonometry. For the one
+  in `lvl_4` (24 × 16 at (112, 80), to (184, 72)) the trip out is 30 updates,
+  starting 8 updates after she lands on it; the whole cycle is 219.
+- **Update order.** After a room transition the player entity comes before
+  the new room's entities, so each frame the zip movers update after her:
+  they see where her update left her, and she sees their lift on her next
+  update. (A room loaded from scratch, e.g. `console load`, puts her after
+  them; that order is not modelled.)
+- **Riding and pushing** (`Solid.MoveHExact` / `MoveVExact`): standing on it
+  (`Actor.IsRiding`: 1 px below her feet) or climbing it (`Player.IsRiding`:
+  1 px in front) carries her with each whole-pixel move; if the move runs
+  into her she is pushed out of the way. Either way she gets its
+  `LiftSpeed`. A push she cannot follow (a wall behind her) is a squish,
+  counted as death (`Player.OnSquish` ducks or wiggles out when it can; not
+  modelled). Also ported: moving sideways, a zip mover pushes a player who
+  runs the same way just above its top edge 1 px down.
+- **Lift speed** (`Actor.LiftSpeed`): set by a carry or push, cleared by her
+  next `Actor.Update` (after her state machine, before her movement); the last
+  non-zero value stays readable for `LiftSpeedGraceTime` (0.16 s = 10
+  frames). `Player.LiftBoost` caps it (|x| ≤ 250, −130 ≤ y ≤ 0) and adds it to
+  jumps, supers and hypers (before the ducking multipliers), wall jumps,
+  wallbounces, dash starts, letting go of a wall or running out of stamina,
+  and walking off (`NormalUpdate`: a rising platform gives its speed).
+- **Cost.** In rooms without zip movers all of this compiles away: the
+  formula for `ledge` is within 0.05 % of what it was before. Rooms with them
+  allow whole-pixel moves up to 16 px (the rounding comparisons and the
+  movement split accordingly), and rooms up to 64 tiles tall.
 
 ### Checked against the real game
 
@@ -223,6 +275,7 @@ each room from the state the previous one left Madeline in:
 | `lvl_1` (from the spawn) | 92 frames | 92 |
 | `lvl_2` (entered from `lvl_1`) | 118 frames | 118 |
 | `lvl_3` (entered from `lvl_2`) | 107 frames | 107 |
+| `lvl_4` (entered from `lvl_3`, a zip mover) | 91 frames | **never** (open, see below) |
 
 A room's inputs only lead out of it on their last frame if every frame before
 agrees with the game: the routes use supers on the first dash frame, climb
@@ -290,6 +343,12 @@ For other routes: `tools/celestetas.py export ROOM ROUTE --load "1 lvl_2" -o
 check.tas`. `tests/recordings.py` (above) checks all recordings in a folder
 at once, from the inputs they record.
 
+For rooms of the community TAS, `tools/celestetas.py community lvl_4 lvl_3b
+-o check.tas` writes the whole `1A.tas` with a recording of those rooms (and
+of the zip movers: `--entities`), optionally with a changed ending
+(`--replace 'lvl_3:16,U,X=4,U,X/1,U/9/1,J'`); `tests/recordings.py` checks
+the result from the entry state `tests/community_tas.py` computes.
+
 ### Things to check against the real game
 
 What is still inferred rather than taken from code or checked against the game
@@ -334,6 +393,17 @@ changelog gives as 0.15 s; the upward room transition):
 - Float results can differ between the old 32-bit XNA build (x87 registers) and
   64-bit builds (SSE). The port matches strict IEEE single precision, which is
   what Everest's .NET Core builds use.
+- Zip movers (nothing checked in the game yet): the coroutine's waits and
+  moves as described under "Zip movers"; that the player updates before a
+  room's entities after a transition; that `Platform.Update` clears a
+  platform's `LiftSpeed` after its coroutine has moved it, so a wall jump off
+  a zip mover (`Player.WallJump` reads the wall's `LiftSpeed` when her own is
+  zero) gets nothing from it (`-DZIP_WALL_LIFT` switches to the other
+  reading); `Actor.LiftSpeedGraceTime` = 0.16 s; the published `WallJump`
+  looks for that wall 3 px to her right whatever the direction.
+  `results/celestetas/` has no zip mover probe yet; recordings made with
+  `ExportGameInfo, <file>, ZipMover` also record its position, and
+  `tests/recordings.py` prints it next to the model's at the first difference.
 
 ## Real rooms
 
@@ -352,7 +422,14 @@ are listed in the export as "NOT MODELLED". `--to lvl_3` makes the room above
 the goal; going back down to `lvl_1` then counts as failing.
 
 Chapter 1's first three rooms need nothing beyond the model (spikes,
-jump-throughs, one spring); `lvl_4` adds a zip mover.
+jump-throughs, one spring); `lvl_4` adds a zip mover. The model has zip
+movers now, but the community TAS's `lvl_4` inputs do not get out of `lvl_4`
+in it: by frame 66 she reaches the pillar under the exit shaft too high, hits
+its side, and the dash up on frame 71 hits the ceiling. The states that let
+the rest of the TAS's inputs work put her some 60 px further right by frame
+55 than the model does, and no change of position and speed at frame 48 (the
+hyper) or 52 does it, so something in between differs. That needs a
+recording of the TAS in the game to settle.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
