@@ -45,6 +45,7 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "    .zipTimer = {");
     for (int z = 0; z < MAX_ZIP_MOVERS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->zipTimer[z]);
     fprintf(f, "},\n");
+    I(hopZip); I(hopZipT);
     I(state); I(facing); I(ducking); I(onGround); I(dashes); I(moveX); I(forceMoveX); I(wallSlideDir);
     I(autoJump); I(dashStartedOnGround); I(aimX); I(aimY); I(dashDirX); I(dashDirY);
     F(beforeDashSpdX); F(beforeDashSpdY); F(varJumpSpeed); F(wallSpeedRetained); F(maxFall);

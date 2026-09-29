@@ -46,7 +46,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
        C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
-       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_NCOV };
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -58,7 +58,7 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "jump-through landing", "jump-through assist", "dash jump-through nudge", "floor snap onto jump-through",
        "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked",
        "zip mover starts", "carried by a zip mover", "pushed by a zip mover", "zip mover edge nudge (1 px down)",
-       "squished (death)" };
+       "squished (death)", "moved with a zip mover after a climb hop" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -249,6 +249,8 @@ static bool zips_overlap(int x, int y, int h)
 #define zips_overlap(x, y, h) false
 #endif
 
+static bool tiles_collide(int x, int y, int h);
+
 #ifdef REFERENCE
 /* bitmask of tile rows r0..r1 (inclusive), clipped to the grid */
 static room_col_t row_span(int r0, int r1)
@@ -262,12 +264,14 @@ static room_col_t row_span(int r0, int r1)
     return upto & ~below;
 }
 
-/* hitbox 8 x h with offset (-4, -h), placed at (x, y) */
-static bool collide_box(int x, int y, int h)
+/* hitbox 8 x h with offset (-4, -h), placed at (x, y): the tiles only */
+static bool tiles_collide(int x, int y, int h)
 {
     room_col_t rows = row_span(floor8(y - h), floor8(y - 1));
-    return ((col_bits(floor8(x - 4)) | col_bits(floor8(x + 3))) & rows) != 0 || zips_overlap(x, y, h);
+    return ((col_bits(floor8(x - 4)) | col_bits(floor8(x + 3))) & rows) != 0;
 }
+/* ... and any solid */
+static bool collide_box(int x, int y, int h) { return tiles_collide(x, y, h) || zips_overlap(x, y, h); }
 #define LOAD_WINDOW(s) load_zip_boxes(s)
 #else
 /* Solver build: every collision check during one frame lies within a few
@@ -307,12 +311,13 @@ static unsigned wcol(int c)          /* column c (room coordinates) of the windo
     return WCOL[i];
 }
 
-static bool collide_box(int x, int y, int h)
+static bool tiles_collide(int x, int y, int h)
 {
     int r0 = floor8(y - h) - WY0, r1 = floor8(y - 1) - WY0;
     MODEL_ASSUME(r0 >= 0 && r1 < 8);
-    return ((wcol(floor8(x - 4)) | wcol(floor8(x + 3))) & span8(r0, r1)) != 0 || zips_overlap(x, y, h);
+    return ((wcol(floor8(x - 4)) | wcol(floor8(x + 3))) & span8(r0, r1)) != 0;
 }
+static bool collide_box(int x, int y, int h) { return tiles_collide(x, y, h) || zips_overlap(x, y, h); }
 #endif
 
 static int collider_h(const State *s) { return s->ducking ? HB_DUCK_H : HB_NORMAL_H; }
@@ -1313,6 +1318,16 @@ static void climb_hop(State *s)
     COV(C_CLIMBHOP);
     if (collide_at(s, s->x + s->facing, s->y)) {   /* climbHopSolid != null: wait until clear */
         s->hopWaitX = s->facing;
+#if NZIPMOVERS > 0
+        /* CollideFirst<Solid>: the tiles come first; a zip mover is followed */
+        s->hopZip = 0;
+        if (!tiles_collide(s->x + s->facing, s->y, collider_h(s)))
+            for (int i = NZIPMOVERS - 1; i >= 0; i--)
+                if (zip_overlap(i, s->x + s->facing, s->y, collider_h(s))) {
+                    s->hopZip = (signed char)(i + 1);
+                    s->hopZipT = s->zipTimer[i];
+                }
+#endif
     } else {
         s->hopWaitX = 0;
         s->spdX = s->facing > 0 ? CLIMB_HOP_X : -CLIMB_HOP_X;
@@ -1684,7 +1699,25 @@ static void player_update(State *s, Input in)
         s->moveX = s->forceMoveX;
     } else {
         s->moveX = in.mx;
+#if NZIPMOVERS > 0
+        s->hopZip = 0;                            /* climbHopSolid = null */
+#endif
     }
+
+#if NZIPMOVERS > 0
+    /* Climb hop solid movement: after a climb hop onto a zip mover she moves
+     * with it (MoveHExact, MoveVExact) until the hop's forced move ends */
+    if (s->hopZip) {
+        int i = s->hopZip - 1, t = s->zipTimer[i], t0 = s->hopZipT;
+        int dx = ZIP_POS[i][t][0] - ZIP_POS[i][t0][0], dy = ZIP_POS[i][t][1] - ZIP_POS[i][t0][1];
+        if (dx || dy) {
+            COV(C_ZIPHOP);
+            s->hopZipT = (short)t;
+            move_h_exact(s, dx);
+            move_v_exact(s, dy);
+        }
+    }
+#endif
 
     /* Facing (not while climbing) */
     if (s->moveX != 0 && s->state != ST_CLIMB) s->facing = s->moveX;

@@ -12,6 +12,10 @@
  * gets from the route's state at frame K to its state at frame K + W + 1 in
  * fewer frames.
  *
+ * SF_IGNORE (a mask, model/state_eq.h) leaves fields out of the comparison
+ * that a concrete replay of the rest of the route shows cannot change it
+ * (sim/live.c); a route found that way is replayed before it counts.
+ *
  * The input rules are those of solve.c, except that the dominance rules
  * (presses that only fill a buffer) are off for the last 5 frames: there a
  * press can leave a buffer that the target state has.
@@ -29,6 +33,9 @@
 #ifndef W
 #define W 8
 #endif
+#ifndef SF_IGNORE
+#define SF_IGNORE 0u
+#endif
 
 Input inputs[W];
 
@@ -42,7 +49,7 @@ int main(void)
         inputs[f] = in;
         celeste_step(&s, in);
         after_step(in, &s);
-        hit = hit || s.exited || same_future(&s, &TARGET_STATE);
+        hit = hit || s.exited || same_future_mask(&s, &TARGET_STATE, SF_IGNORE);
     }
     __CPROVER_assert(!hit, "the route's state after K + W + 1 frames is not reached within W frames");
     return 0;
