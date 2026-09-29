@@ -121,10 +121,12 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
         e["spdY"] = max(0.0, e["spdY"])
         e["autoJump"] = 0
         e["varJumpTimer"] = 0
-    # Level.TransitionRoutine target: going up measured (feet 9 px above the bottom edge);
-    # the other sides inferred (4 px inside the edge crossed, 12 px when falling in)
+    # Level.TransitionRoutine target: going up, her feet stop 9 px above the bottom edge
+    # (measured), or 5 px when she is ducking (inferred: the only stop point from which the
+    # community TAS's lvl_5 works); the other sides inferred (4 px inside the edge crossed,
+    # 12 px when falling in)
     if side == "up":
-        y = min(y, new_h - 9)
+        y = min(y, new_h - (5 if e["ducking"] else 9))
     elif side == "down":
         y = max(y, 12)
     elif side == "right":
@@ -151,6 +153,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     # (Actor.LiftSpeed is not reset by the transition, only by her updates)
     e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
     e["hopZip"] = e["hopZipT"] = 0
+    e["refillTimer"] = [0] * len(e.get("refillTimer", [0] * 8))
     return e
 
 

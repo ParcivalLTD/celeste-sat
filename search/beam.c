@@ -224,6 +224,9 @@ static uint64_t hash_state(const State *s)
     }
     MIX(s->hopZip); MIX(s->hopZipT);
 #endif
+#if NREFILLS > 0
+    for (int k = 0; k < NREFILLS; k++) MIX(s->refillTimer[k]);
+#endif
     MIX(s->jumpBuf); MIX(s->dashBuf); MIX(s->cdashBuf);
     return h;
 }
