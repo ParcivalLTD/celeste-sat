@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """
 chain_tas.py -- play the community TAS of Chapter 1 through the model room
-after room, from a given room and entry state, as far as it goes.
+after room, from its first room, as far as it goes.
 
-    python3 tests/chain_tas.py [--from lvl_3b] [--entry ENTRY.h] [--map 1-ForsakenCity.bin] [--tas 1A.tas]
+    python3 tests/chain_tas.py [--from ROOM --entry ENTRY.h] [--map 1-ForsakenCity.bin] [--tas 1A.tas]
 
 Each room's inputs must leave the room on exactly their last frame; the next
 room then starts from the state the model gives her on entering it
 (tools/chapter.py). Rooms are exported from the map (tools/import_map.py)
-with the TAS's next room as the goal. The default start is lvl_3b, entered
-where lvl_4 must leave her (tests/chain_3b_5.py: x = 50 with 220 px/s of wall
-speed retention; every entry that works there gives the same exit), because
-the model's lvl_4 does not match the game yet.
+with the TAS's next room as the goal. The first room starts from its spawn,
+unless --from names a later room and --entry the state to enter it with.
 """
 import argparse, os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from chapter import enter_room, exit_side, origin_of, read_state, tables, write_state  # noqa: E402
+from chapter import enter_room, exit_side, origin_of, read_state, tables, up_stop, write_state  # noqa: E402
 from make_room import parse  # noqa: E402
 from solve import build, read_tas, sh  # noqa: E402
 
@@ -42,7 +40,7 @@ def sections(text, rooms):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--from", dest="start", default="lvl_3b")
+    ap.add_argument("--from", dest="start", default=None)
     ap.add_argument("--entry", help="entry state for the first room (default: see above)")
     ap.add_argument("--map", default=os.path.join(ROOT, "1-ForsakenCity.bin"))
     ap.add_argument("--tas", default=os.path.join(ROOT, "recordings", "1A.tas"))
@@ -54,17 +52,10 @@ def main():
     secs, order = sections(open(a.tas).read(), map_rooms)
     work = os.path.join(ROOT, "build", "chain_tas")
     os.makedirs(work, exist_ok=True)
-    k = order.index(a.start)
+    k = order.index(a.start) if a.start else 0
     entry = a.entry
-    if not entry:
-        entry = os.path.join(work, f"entry_{a.start}.h")
-        e = read_state(os.path.join(ROOT, "build", "community_tas", "entry_lvl_4.h"))   # an up transition
-        e.update(x=50, facing=1, dashAttackTimer=0, wallSpeedRetained=220.0, wallSpeedRetentionTimer=4)
-        room = os.path.join(a.rooms, f"1a_{a.start}.txt")
-        if not os.path.exists(room):
-            sh([sys.executable, f"{ROOT}/tools/import_map.py", a.map, a.start, "--to", order[k + 1], "-o", room])
-        e["y"] = len(parse(room)[0]) * 8 - 9
-        write_state(e, entry, f"{a.start}, entered where lvl_4 must leave her")
+    if k > 0 and not entry:
+        sys.exit("--from a later room needs --entry")
     total = 0
     for i in range(k, len(order) - 1):
         name, nxt = order[i], order[i + 1]
@@ -86,7 +77,7 @@ def main():
         print(f"{name:8s} {n:4d} frames of inputs: leaves on frame {got if got else '-- never'}  "
               f"{'ok' if ok else 'DIFFERENT'}{'   (' + notes[0] + ')' if notes else ''}", flush=True)
         if not ok:
-            last = out.strip().splitlines()[-1]
+            last = (out.strip().splitlines() or [r.stderr.strip() if (r := sh([f"{bdir}/sim", route])) else ""])[-1]
             print(f"         stops there: {last}")
             break
         total += n
@@ -103,7 +94,7 @@ def main():
                        len(nrows[0]) * 8, len(nrows) * 8, tables(bdir))
         entry = os.path.join(work, f"entry_{nxt}.h")
         write_state(e, entry, f"entering {nxt} from {name}")
-    print(f"{total} frames of the community TAS played exactly from {a.start}")
+    print(f"{total} frames of the community TAS played exactly from {order[k]}")
 
 
 if __name__ == "__main__":
