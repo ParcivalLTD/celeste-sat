@@ -26,6 +26,7 @@ Lines starting with ';' are comments, except these directives:
                             spike characters drawn on the same tiles.
     ; jumpthru X Y W        a jump-through platform, top edge at Y, x in [X, X+W)
     ; spring X Y            a floor spring whose base centre is at (X, Y)
+    ; refill X Y            a dash refill crystal centred at (X, Y)
 Spikes and springs act in the order they are listed (the game checks them in
 that order within a frame); spikes drawn with characters come first.
 All rows must have the same width.
@@ -57,7 +58,7 @@ def spike_cells(d, x, y, n):
 
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
-    colliders: [("spikes", dir, x, y, len) | ("spring", x, y)] in game order."""
+    colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
     rows, exact, exits, ordered, jumpthrus, zipmovers = [], None, [], [], [], []
     for line in open(path):
         line = line.rstrip("\n")
@@ -74,6 +75,8 @@ def parse(path):
             ordered.append(("spikes", d, x, y, n))
         elif line.startswith("; spring "):
             ordered.append(("spring", int(words[2]), int(words[3])))
+        elif line.startswith("; refill "):
+            ordered.append(("refill", int(words[2]), int(words[3])))
         elif line.startswith("; jumpthru "):
             x, y, w = int(words[2]), int(words[3]), int(words[4])
             jumpthrus.append((x, y, x + w))
@@ -263,10 +266,12 @@ def main():
     out += ["};", "",
             "/* player colliders in game order: { kind, a, b, c, d, e }",
             " *   spikes: { PC_SPIKES, direction, x0, y0, x1, y1 }, hitbox [x0,x1) x [y0,y1)",
-            " *   spring: { PC_SPRING, x, y, 0, 0, 0 }, floor spring, hitbox [x-8,x+8) x [y-6,y) */",
+            " *   spring: { PC_SPRING, x, y, 0, 0, 0 }, floor spring, hitbox [x-8,x+8) x [y-6,y)",
+            " *   refill: { PC_REFILL, x, y, index, 0, 0 }, dash refill, hitbox [x-8,x+8) x [y-8,y+8) */",
             "#define SPIKE_UP 0", "#define SPIKE_DOWN 1", "#define SPIKE_LEFT 2", "#define SPIKE_RIGHT 3",
-            "#define PC_SPIKES 0", "#define PC_SPRING 1",
+            "#define PC_SPIKES 0", "#define PC_SPRING 1", "#define PC_REFILL 2",
             f"#define NSPIKES {sum(1 for c in colliders if c[0] == 'spikes')}",
+            f"#define NREFILLS {sum(1 for c in colliders if c[0] == 'refill')}",
             f"#define NPCOL {len(colliders)}"]
     if colliders:
         out.append("static const short PCOL[NPCOL][6] = {")
@@ -275,6 +280,8 @@ def main():
                 d, x, y, n = c[1:]
                 x0, y0, x1, y1 = spike_box(d, x, y, n)
                 out.append(f"    {{ PC_SPIKES, SPIKE_{d.upper()}, {x0}, {y0}, {x1}, {y1} }},   /* {d} at ({x},{y}), {n} px */")
+            elif c[0] == "refill":
+                out.append(f"    {{ PC_REFILL, {c[1]}, {c[2]}, {sum(1 for d in colliders[:colliders.index(c)] if d[0] == 'refill')}, 0, 0 }},")
             else:
                 out.append(f"    {{ PC_SPRING, {c[1]}, {c[2]}, 0, 0, 0 }},")
         out.append("};")

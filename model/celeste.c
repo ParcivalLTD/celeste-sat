@@ -46,7 +46,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
        C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
-       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_NCOV };
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -58,7 +58,7 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "jump-through landing", "jump-through assist", "dash jump-through nudge", "floor snap onto jump-through",
        "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked",
        "zip mover starts", "carried by a zip mover", "pushed by a zip mover", "zip mover edge nudge (1 px down)",
-       "squished (death)", "moved with a zip mover after a climb hop" };
+       "squished (death)", "moved with a zip mover after a climb hop", "refill" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -1567,10 +1567,25 @@ static void player_colliders(State *s)
                 if (d == SPIKE_RIGHT && s->spdX <= 0) { COV(C_SPIKE_R); kill = true; }
                 if (kill) { s->dead = true; return; }
             }
-        } else {
+        } else if (PCOL[i][0] == PC_SPRING) {
             int sx = PCOL[i][1], sy = PCOL[i][2];
             if (hr > sx - 8 && hl < sx + 8 && hb > sy - 6 && ht < sy && s->spdY >= 0)
                 super_bounce(s, sy - 6);
+        } else {
+#if NREFILLS > 0
+            /* Refill.OnPlayer: while it is there (Collidable), Player.UseRefill() takes it when
+             * she can use it (a dash missing, or stamina below the tired threshold); its
+             * RefillRoutine freezes the game for 0.05 s, and it comes back after 2.5 s */
+            int rx = PCOL[i][1], ry = PCOL[i][2], k = PCOL[i][3];
+            if (!TPOS(s->refillTimer[k]) && hr > rx - 8 && hl < rx + 8 && hb > ry - 8 && ht < ry + 8
+                && (s->dashes < MAX_DASHES || s->stamina < CLIMB_TIRED_THRESHOLD)) {
+                COV(C_REFILL);
+                s->dashes = MAX_DASHES;
+                s->stamina = CLIMB_MAX_STAMINA;
+                TSET(s->refillTimer[k], REFILL_RESPAWN_TIME);
+                if (TLESS(s->freezeTimer, DASH_FREEZE_TIME)) TSET(s->freezeTimer, DASH_FREEZE_TIME);
+            }
+#endif
         }
     }
 #else
@@ -1951,6 +1966,10 @@ MODEL_API void celeste_step(State *s, Input in)
     player_update(s, in);
 #if NZIPMOVERS > 0
     if (!s->exited && !s->dead) zip_update(s, in);   /* entities added after her update after her */
+#endif
+#if NREFILLS > 0
+    for (int k = 0; k < NREFILLS; k++)                /* Refill.Update: respawnTimer */
+        if (TPOS(s->refillTimer[k])) TDEC(s->refillTimer[k]);
 #endif
 }
 

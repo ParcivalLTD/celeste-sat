@@ -89,4 +89,12 @@ if seed % 2 == 0:
             break
     g = [[c if c != 'z' else '.' for c in r] for r in g]
 
-print("\n".join(exits + extra + springs + zips + ["".join(r) for r in g]))
+# refills (every third room)
+refills = []
+if seed % 3 == 1:
+    for _ in range(random.randint(1, 2)):
+        x, y = random.randint(2, W - 3), random.randint(2, H - 3)
+        if g[y][x] == '.' and abs(x - spawn_col) > 1:
+            refills.append(f"; refill {x * 8 + random.choice([0, 4])} {y * 8 + random.choice([0, 4])}")
+
+print("\n".join(exits + extra + springs + zips + refills + ["".join(r) for r in g]))

@@ -53,6 +53,10 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
     }
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;
 #endif
+#if NREFILLS > 0
+    for (int k = 0; k < NREFILLS; k++)
+        if (a->refillTimer[k] != t->refillTimer[k]) return false;
+#endif
     if (!(ign & SF_VARJUMP) && t->varJumpTimer > 0 && !(EQ(varJumpSpeed) && EQ(varJumpLong))) return false;
     if (!(ign & SF_RETENTION) && t->wallSpeedRetentionTimer > 0 && !EQ(wallSpeedRetained)) return false;
     if (!(ign & SF_FORCEMOVE) && t->forceMoveXTimer > 0 && !EQ(forceMoveX)) return false;

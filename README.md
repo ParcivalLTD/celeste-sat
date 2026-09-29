@@ -85,6 +85,7 @@ top of the tile. Directives:
 ; jumpthru 8 160 40      a jump-through platform, top edge at y = 160, x in [8, 48)
 ; spring 120 144         a floor spring, base centre at (120, 144)
 ; zipmover 112 80 24 16 184 72   a zip mover: top-left (112, 80), 24 x 16, moving to (184, 72)
+; refill 152 72         a dash refill centred at (152, 72)
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -138,6 +139,10 @@ From `Player.cs` and the Monocle engine:
 - room bounds (`Level.EnforceBounds`): leaving through an edge that has a
   neighbouring room is the goal, other edges are walls (the top one 24 px
   above the room), falling out is death
+- refills (one dash): taken when she touches one (16 × 16) while a dash is
+  missing or stamina is below 20 (`Player.UseRefill`); taking one refills
+  stamina, freezes the game for 0.05 s like a dash, and the refill is back
+  after 2.5 s
 - zip movers (see "Zip movers" below): a solid that starts when she stands
   on it or climbs it, carries her along its path and pushes her out of its
   way; the lift boost it leaves her (`Player.LiftBoost` in jumps, supers,
@@ -171,8 +176,8 @@ code (Extended Variant Mode, GravityHelper), for the 5 px wallbounce reach,
 the variable ceiling correction reach and the spike checks; and memory of the
 current code for the rest, listed under "Things to check".
 
-Not modelled yet: every other entity (wall springs, crumble blocks, refills,
-dash blocks, other moving platforms, …), wind, water, holdables, climb
+Not modelled yet: every other entity (wall springs, crumble blocks, falling
+blocks, dash blocks, fake walls, two-dash refills, other moving platforms, …), wind, water, holdables, climb
 blockers, assist modes. `MAX_DASHES` is 1.
 
 ### Fidelity details
@@ -461,7 +466,25 @@ the zip mover was fitted to this route, so this is a check of its timing,
 carrying, lift boost, caps and grace. What is still open is the transition's
 stop point. The difference from rooms 2–4 (9 px, measured): she leaves
 `lvl_3b` ducking (after a crouch dash), in a taller room. The recording above
-includes the `lvl_3b` → `lvl_5` transition.
+includes the `lvl_3b` → `lvl_5` transition. The model now uses 5 px for a
+ducking player (`tools/chapter.py`, `model/transition.h`).
+
+**The chapter from `lvl_3b` on** (`tests/chain_tas.py`): each room's
+community inputs from the state the previous one left her in, rooms exported
+from the map as the TAS goes:
+
+| room | inputs | model leaves on frame | modelled entities it uses |
+|---|---|---|---|
+| `lvl_3b` | 98 | 98 | (crumble blocks not touched) |
+| `lvl_5` | 139 | 139 | zip mover, spring not used |
+| `lvl_6` | 117 | 117 | (refill, dash block, fake wall not touched) |
+| `lvl_6a` | 161 | 161 | refill |
+| `lvl_6b` | 110 | 110 | zip movers |
+| `lvl_6c` | 110 | 110 | |
+| `lvl_7` | 103 | never | falling blocks (not modelled) |
+
+735 frames in a row, through three sideways transitions (whose stop rule was
+only inferred before) and four upward ones.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
