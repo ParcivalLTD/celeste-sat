@@ -30,7 +30,7 @@ Spikes and springs act in the order they are listed (the game checks them in
 that order within a frame); spikes drawn with characters come first.
 All rows must have the same width.
 """
-import math, sys
+import math, struct, sys
 
 SIDES = {"left": 0, "right": 1, "up": 2, "down": 3}
 DIRS = {"up": 0, "down": 1, "left": 2, "right": 3}
@@ -149,56 +149,90 @@ def parse(path):
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
 
 
-def zip_trajectory(x, y, w, h, tx, ty):
-    DT = 0.0166667
-    steps = []  # (x, y, dx, dy)
-    lift = []   # (lsx, lsy)
-    steps.append((x, y, 0, 0))
-    lift.append((0.0, 0.0))
-    for _ in range(6):
-        steps.append((x, y, 0, 0))
-        lift.append((0.0, 0.0))
-    cur_x, cur_y = float(x), float(y)
-    rem_x, rem_y = 0.0, 0.0
-    for k in range(1, 31):
-        at = min(1.0, k * 2.0 * DT)
-        percent = 1.0 - math.cos(at * math.pi / 2.0)
-        target_px = x + (tx - x) * percent
-        target_py = y + (ty - y) * percent
-        rem_x += (target_px - cur_x)
-        rem_y += (target_py - cur_y)
-        mx = int(round(rem_x))
-        my = int(round(rem_y))
-        rem_x -= mx
-        rem_y -= my
-        cur_x += mx
-        cur_y += my
-        steps.append((int(cur_x), int(cur_y), mx, my))
-        lift.append((mx / DT, my / DT))
-    for _ in range(30):
-        steps.append((tx, ty, 0, 0))
-        lift.append((0.0, 0.0))
-    cur_x, cur_y = float(tx), float(ty)
-    rem_x, rem_y = 0.0, 0.0
-    for k in range(1, 121):
-        at = min(1.0, k * 0.5 * DT)
-        percent = math.cos(at * math.pi / 2.0)
-        target_px = x + (tx - x) * percent
-        target_py = y + (ty - y) * percent
-        rem_x += (target_px - cur_x)
-        rem_y += (target_py - cur_y)
-        mx = int(round(rem_x))
-        my = int(round(rem_y))
-        rem_x -= mx
-        rem_y -= my
-        cur_x += mx
-        cur_y += my
-        steps.append((int(cur_x), int(cur_y), mx, my))
-        lift.append((mx / DT, my / DT))
-    for _ in range(30):
-        steps.append((x, y, 0, 0))
-        lift.append((0.0, 0.0))
-    return steps, lift
+# ---- zip movers --------------------------------------------------------------
+# ZipMover.Sequence() (a Monocle Coroutine) replayed with the game's single
+# precision: each C# float operation is rounded to float32 here (a double
+# result of +, -, *, / on two floats rounds to the same float32).
+def f32(v):
+    return struct.unpack("<f", struct.pack("<f", v))[0]
+
+
+DT32 = f32(0.0166667)                   # Engine.DeltaTime
+PI_OVER_2 = f32(math.pi / 2)             # MathHelper.PiOver2
+
+
+def approach(val, target, max_move):     # Calc.Approach
+    return min(f32(val + max_move), target) if val <= target else max(f32(val - max_move), target)
+
+
+def sine_in(t):                          # Ease.SineIn: -(float)Math.Cos(PiOver2 * t) + 1
+    return f32(-f32(math.cos(f32(PI_OVER_2 * t))) + 1.0)
+
+
+def lerp(a, b, t):                       # MathHelper.Lerp: a + (b - a) * t
+    return f32(a + f32(f32(b - a) * t))
+
+
+def wait_updates(seconds):               # Coroutine: waitTimer -= DeltaTime while > 0
+    w, k = f32(seconds), 0
+    while w > 0:
+        w, k = f32(w - DT32), k + 1
+    return k
+
+
+def zip_cycle(x, y, tx, ty):
+    """One run of ZipMover.Sequence() from the update that finds a rider.
+    Returns one entry per update, index 0 = waiting (not started), 1 = the
+    update that found the rider, ...: (pos_x, pos_y, move_x, move_y, lift_x, lift_y),
+    where pos is the position after that update, move the whole pixels
+    Platform.MoveH / MoveV moved it (and its riders) and lift its LiftSpeed
+    (moveH / DeltaTime, moveV / DeltaTime) when that update called MoveTo."""
+    px, py, cx, cy = x, y, 0.0, 0.0                 # Position (whole pixels) and movementCounter
+    out = [(px, py, 0, 0, 0.0, 0.0)]                # 0: waiting for a rider
+
+    def idle(n):
+        for _ in range(n):
+            out.append((px, py, 0, 0, 0.0, 0.0))
+
+    def move_to(vx, vy):                            # Platform.MoveTo -> MoveH, MoveV
+        nonlocal px, py, cx, cy
+        mh = f32(vx - f32(px + cx))
+        lx = f32(mh / DT32)
+        cx = f32(cx + mh)
+        nx = round(cx)                              # (int)Math.Round: ties to even
+        cx = f32(cx - nx)
+        px += nx
+        mv = f32(vy - f32(py + cy))
+        ly = f32(mv / DT32)
+        cy = f32(cy + mv)
+        ny = round(cy)
+        cy = f32(cy - ny)
+        py += ny
+        out.append((px, py, nx, ny, lx, ly))
+
+    idle(1)                                         # HasPlayerRider: ... yield return 0.1f
+    idle(wait_updates(0.1))
+    idle(1)                                         # at = 0; while: yield return null
+    at = 0.0
+    while True:                                     # to the target, 0.5 s
+        at = approach(at, 1.0, f32(2.0 * DT32))
+        p = sine_in(at)
+        move_to(lerp(x, tx, p), lerp(y, ty, p))
+        if not at < 1.0:
+            break                                   # ... yield return 0.5f (same update)
+    idle(wait_updates(0.5))
+    idle(1)                                         # at = 0; while: yield return null
+    at = 0.0
+    while True:                                     # back to the start, 2 s
+        at = approach(at, 1.0, f32(0.5 * DT32))
+        p = sine_in(at)
+        move_to(lerp(tx, x, p), lerp(ty, y, p))
+        if not at < 1.0:
+            break                                   # ... yield return 0.5f
+    idle(wait_updates(0.5))
+    # the next update is back at the top of while (true): it checks for a rider
+    assert (px, py) == (x, y) and cx == 0.0 and cy == 0.0, "zip mover did not return exactly to its start"
+    return out
 
 
 def main():
@@ -213,10 +247,11 @@ def main():
     out += [f"   {r}" for r in rows]
     out += ["*/",
             "/* ROOM_COLS[c]: bit r set when tile (c, r) is solid */",
-            "static const unsigned long long ROOM_COLS[ROOM_W] = {"]
+            "typedef unsigned " + ("int" if h <= 32 else "long long") + " room_col_t;",
+            "static const room_col_t ROOM_COLS[ROOM_W] = {"]
     for cx in range(w):
         bits = sum(1 << cy for cy, r in enumerate(rows) if r[cx] == "#")
-        out.append(f"    0x{bits:016x}ULL,")
+        out.append(f"    0x{bits:08x}u," if h <= 32 else f"    0x{bits:016x}ULL,")
     out += ["};", "",
             "/* exits: { side, from, to, goal } -- a neighbouring room on SIDE covering",
             " * [from, to) along that edge; goal 0 means going there counts as failing */",
@@ -249,30 +284,28 @@ def main():
         out.append("static const short JUMPTHRUS[NJUMPTHRUS][3] = {")
         out += [f"    {{ {a}, {b}, {c} }}," for a, b, c in jumpthrus]
         out.append("};")
-    out += ["", "/* zip movers: { x, y, w, h, tx, ty } */",
+    out += ["", "/* zip movers: { x, y, w, h, target x, target y } and ZipMover.Sequence() per update",
+            " * (see zip_cycle): position after the update, pixels moved, LiftSpeed */",
             f"#define NZIPMOVERS {len(zipmovers)}"]
     if zipmovers:
-        out.append("#define ZIP_CYCLE_FRAMES 216")
+        cycles = [zip_cycle(x, y, tx, ty) for x, y, _, _, tx, ty in zipmovers]
+        n = len(cycles[0])
+        assert all(len(c) == n for c in cycles)
+        out.append(f"#define ZIP_T_END {n - 1}   /* after this update it waits for a rider again */")
         out.append("static const short ZIPMOVERS[NZIPMOVERS][6] = {")
         out += [f"    {{ {x}, {y}, {w}, {h}, {tx}, {ty} }}," for x, y, w, h, tx, ty in zipmovers]
         out.append("};")
-        out.append("/* ZIP_STEPS[NZIPMOVERS][217][4]: { x, y, dx, dy } at timer t */")
-        out.append("static const short ZIP_STEPS[NZIPMOVERS][217][4] = {")
-        for zm in zipmovers:
-            steps, _ = zip_trajectory(*zm)
-            out.append("    {")
-            for t, (px, py, dx, dy) in enumerate(steps):
-                out.append(f"        {{ {px}, {py}, {dx}, {dy} }},")
-            out.append("    },")
+        out.append("static const short ZIP_POS[NZIPMOVERS][ZIP_T_END + 1][2] = {")
+        for c in cycles:
+            out.append("  {" + ",".join(f"{{{e[0]},{e[1]}}}" for e in c) + "},")
         out.append("};")
-        out.append("/* ZIP_LIFT[NZIPMOVERS][217][2]: { liftSpeedX, liftSpeedY } at timer t */")
-        out.append("static const float ZIP_LIFT[NZIPMOVERS][217][2] = {")
-        for zm in zipmovers:
-            _, lift = zip_trajectory(*zm)
-            out.append("    {")
-            for t, (lx, ly) in enumerate(lift):
-                out.append(f"        {{ {float(lx).hex()}f, {float(ly).hex()}f }},")
-            out.append("    },")
+        out.append("static const signed char ZIP_MOVE[NZIPMOVERS][ZIP_T_END + 1][2] = {")
+        for c in cycles:
+            out.append("  {" + ",".join(f"{{{e[2]},{e[3]}}}" for e in c) + "},")
+        out.append("};")
+        out.append("static const float ZIP_LIFT[NZIPMOVERS][ZIP_T_END + 1][2] = {")
+        for c in cycles:
+            out.append("  {" + ",".join(f"{{{float(e[4]).hex()}f,{float(e[5]).hex()}f}}" for e in c) + "},")
         out.append("};")
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))

@@ -52,7 +52,7 @@ def check(path, rdir, work):
         i = j
     start, report, ok, frames_checked = None, [], True, 0
     first = segs[0][0]
-    if name.startswith("community"):
+    if name.startswith("community") or name.startswith("celeste-sat-community"):
         m = re.fullmatch(r"\[(\w+)\]", first)
         if m and m.group(1) != "1":
             start = os.path.join(ROOT, "build", "community_tas", f"entry_lvl_{m.group(1)}.h")
@@ -65,6 +65,12 @@ def check(path, rdir, work):
             report.append(f"room {tag} is not exported, stopping there")
             break
         rows = raw[a:b]
+        if k == 0 and "NoControl" in rows[0]["statuses"]:
+            # the recording starts in a room transition: the model starts at the first frame in control
+            c = 0
+            while c < len(rows) and "NoControl" in rows[c]["statuses"]:
+                c += 1
+            rows = rows[c + 1:]
         if k > 0:
             # entering from the previous room: the game gives control back one frame after the
             # last NoControl frame; the model's first frame in the room is the frame after that
@@ -107,6 +113,13 @@ def check(path, rdir, work):
             report.append(f"{where}: first difference on frame {f + 1}: model ({m['x']:.6f}, {m['y']:.6f}) "
                           f"v=({m['vx']:.4f}, {m['vy']:.4f}) {m['state']}, game ({g['x']:.6f}, {g['y']:.6f}) "
                           f"v=({g['vx']:.4f}, {g['vy']:.4f}) {g['state']}")
+            for q in range(max(0, f - 3), min(len(rows), len(model), f + 3)):   # context, zip mover included
+                gq, mq = rows[q], model[q]
+                gz = f" zip ({gq['zip'][0] - ox:.2f}, {gq['zip'][1] - oy:.2f})" if gq.get("zip") else ""
+                mz = f" zip ({mq['zx']}, {mq['zy']}) t={mq['zt']}" if "zx" in mq else ""
+                report.append(f"\n      frame {q + 1:3d} {gq['inputs'].strip():12s} game ({gq['x'] - ox:.4f}, {gq['y'] - oy:.4f}) "
+                              f"v=({gq['vx']:.3f}, {gq['vy']:.3f}){gz} | model ({mq['x']:.4f}, {mq['y']:.4f}) "
+                              f"v=({mq['vx']:.3f}, {mq['vy']:.3f}){mz}")
             ok = False
             break
         if exit_frame:

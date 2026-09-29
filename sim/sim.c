@@ -41,7 +41,10 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "/* state after %d frames (written by sim -s) */\n#define START_FRAMES %d\n", k, k);
     fprintf(f, "static const State START_STATE = {\n");
     I(x); I(y); F(remX); F(remY); F(spdX); F(spdY);
-    F(liftSpeedX); F(liftSpeedY);
+    F(liftSpeedX); F(liftSpeedY); F(liftLastX); F(liftLastY); I(liftGraceTimer);
+    fprintf(f, "    .zipTimer = {");
+    for (int z = 0; z < MAX_ZIP_MOVERS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->zipTimer[z]);
+    fprintf(f, "},\n");
     I(state); I(facing); I(ducking); I(onGround); I(dashes); I(moveX); I(forceMoveX); I(wallSlideDir);
     I(autoJump); I(dashStartedOnGround); I(aimX); I(aimY); I(dashDirX); I(dashDirY);
     F(beforeDashSpdX); F(beforeDashSpdY); F(varJumpSpeed); F(wallSpeedRetained); F(maxFall);
@@ -102,18 +105,32 @@ int main(int argc, char **argv)
             ins[2] = strchr(k, 'K') ? 'K' : (in.jump ? 'J' : '.');
             ins[3] = strchr(k, 'C') ? 'C' : (in.dash ? 'X' : (strchr(k, 'V') ? 'V' : (in.cdash ? 'Z' : '.')));
             ins[4] = in.grab ? 'G' : '.';
-            printf("%5d  %s %s %4d %4d %11.7f %11.7f %12.6f %12.6f %s%s%s d%d  %7.3f\n", f + 1, ins,
+            printf("%5d  %s %s %4d %4d %11.7f %11.7f %12.6f %12.6f %s%s%s d%d  %7.3f", f + 1, ins,
                    frozen ? "frz" : (s.state == ST_DASH ? "DSH" : (s.state == ST_CLIMB ? "CLB" : "NRM")),
                    s.x, s.y, s.remX, s.remY, s.spdX, s.spdY,
                    s.onGround ? "G" : "-", s.ducking ? "C" : "-", s.autoJump ? "A" : "-", s.dashes, s.stamina);
+#if NZIPMOVERS > 0
+            for (int z = 0; z < NZIPMOVERS; z++)
+                printf("  zip%d t=%3d (%d,%d)", z, s.zipTimer[z], ZIP_POS[z][s.zipTimer[z]][0], ZIP_POS[z][s.zipTimer[z]][1]);
+            if (s.liftSpeedX != 0 || s.liftSpeedY != 0 || s.liftLastX != 0 || s.liftLastY != 0)
+                printf("  lift (%.3f, %.3f) last (%.3f, %.3f)", s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY);
+#endif
+            printf("\n");
         }
         if (jf) {
             const char *ins = keys[f];
             fprintf(jf, ",\n  {\"x\":%d,\"y\":%d,\"st\":%d,\"duck\":%d,\"frz\":%d,\"vx\":%.4f,\"vy\":%.4f,"
                         "\"in\":\"%s\",\"dashes\":%d,\"ground\":%d,\"stam\":%.2f,"
-                        "\"rx\":%.9g,\"ry\":%.9g,\"vxe\":%.9g,\"vye\":%.9g}",
+                        "\"rx\":%.9g,\"ry\":%.9g,\"vxe\":%.9g,\"vye\":%.9g",
                     s.x, s.y, s.state, s.ducking, frozen, s.spdX, s.spdY, ins, s.dashes, s.onGround, s.stamina,
                     (double)s.remX, (double)s.remY, (double)s.spdX, (double)s.spdY);
+#if NZIPMOVERS > 0
+            fprintf(jf, ",\"zx\":%d,\"zy\":%d,\"zt\":%d,\"lx\":%.9g,\"ly\":%.9g}",
+                    ZIP_POS[0][s.zipTimer[0]][0], ZIP_POS[0][s.zipTimer[0]][1], s.zipTimer[0],
+                    (double)s.liftSpeedX, (double)s.liftSpeedY);
+#else
+            fprintf(jf, "}");
+#endif
         }
         if (dump && f + 1 == dumpAt) dump_state(&s, dump, dumpAt);
         if (s.exited) { exitFrame = f + 1; break; }

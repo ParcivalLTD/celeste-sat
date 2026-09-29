@@ -39,7 +39,7 @@ from solve import read_tas, write_tas  # noqa: E402
 
 ST_NORMAL, ST_CLIMB, ST_DASH = 0, 1, 2
 FLOAT_FIELDS = {"remX", "remY", "spdX", "spdY", "beforeDashSpdX", "beforeDashSpdY", "varJumpSpeed",
-                "wallSpeedRetained", "maxFall", "stamina", "liftSpeedX", "liftSpeedY"}
+                "wallSpeedRetained", "maxFall", "stamina", "liftSpeedX", "liftSpeedY", "liftLastX", "liftLastY"}
 
 
 def origin_of(room_path):
@@ -53,16 +53,22 @@ def origin_of(room_path):
 def read_state(path):
     """the fields of a START_STATE header written by sim -s"""
     st = {}
-    for m in re.finditer(r"\.(\w+)\s*=\s*([^,\n]+),", open(path).read()):
+    for m in re.finditer(r"\.(\w+)\s*=\s*(\{[^}]*\}|[^,\n]+),", open(path).read()):
         name, v = m.group(1), m.group(2).strip()
-        st[name] = float.fromhex(v.rstrip("f")) if name in FLOAT_FIELDS else int(v)
+        if v.startswith("{"):                       # an array (zipTimer)
+            st[name] = [int(x) for x in v.strip("{}").split(",") if x.strip()]
+        else:
+            st[name] = float.fromhex(v.rstrip("f")) if name in FLOAT_FIELDS else int(v)
     return st
 
 
 def write_state(st, path, note):
     lines = [f"/* {note} */", "#define START_FRAMES 0", "static const State START_STATE = {"]
     for k, v in st.items():
-        lines.append(f"    .{k} = {float(v).hex()}f," if k in FLOAT_FIELDS else f"    .{k} = {int(v)},")
+        if isinstance(v, list):
+            lines.append(f"    .{k} = {{{', '.join(str(int(x)) for x in v)}}},")
+        else:
+            lines.append(f"    .{k} = {float(v).hex()}f," if k in FLOAT_FIELDS else f"    .{k} = {int(v)},")
     lines.append("};")
     open(path, "w").write("\n".join(lines) + "\n")
 
@@ -141,7 +147,9 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     for k in ("prevJump", "prevDash", "prevCDash", "jumpBuf", "dashBuf", "cdashBuf", "jumpEdge", "dashEdge",
               "cdashEdge", "demoDashed", "exited", "dead", "freezeTimer"):
         e[k] = 0
-    e["liftSpeedX"] = e["liftSpeedY"] = 0.0
+    # a new room: its moving solids start over; the lift speed stays with her
+    # (Actor.LiftSpeed is not reset by the transition, only by her updates)
+    e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
     return e
 
 
