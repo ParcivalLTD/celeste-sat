@@ -67,6 +67,8 @@ static bool box_free(int x, int y, int h)       /* 8 x h hitbox at (x - 4, y - h
     return true;
 }
 
+static const State SPIKES_AT_START;
+
 /* 0 = cannot be here, 1 = free, 2 = leaving the room here counts as an exit */
 static int classify(int x, int y)
 {
@@ -81,7 +83,7 @@ static int classify(int x, int y)
     if (y > ROOM_PX_H && neighbour(EXIT_SIDE_DOWN, 2 * x)) return neighbour(EXIT_SIDE_DOWN, 2 * x) == 1 ? 2 : 0;
     if (y - HB_NORMAL_H < -24) return 0;
     /* standing hurtbox on spikes: avoid */
-    if (box_touches_spikes(x, y - 2, 9, 15)) return 0;
+    if (box_touches_spikes(&SPIKES_AT_START, x, y - 2, 9, 15)) return 0;   /* moving spikes: where they start */
     return 1;
 }
 
@@ -222,6 +224,11 @@ static uint64_t hash_state(const State *s)
     for (int i = 0; i < NZIPMOVERS; i++) {
         MIX(s->zipTimer[i]);
     }
+#endif
+#if NFALLBLOCKS > 0
+    for (int j = 0; j < NFALLBLOCKS; j++) MIX(s->fbT[j]);
+#endif
+#if NZIPMOVERS > 0 || NFALLBLOCKS > 0
     MIX(s->hopZip); MIX(s->hopZipT);
 #endif
 #if NREFILLS > 0

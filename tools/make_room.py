@@ -27,6 +27,11 @@ Lines starting with ';' are comments, except these directives:
     ; jumpthru X Y W        a jump-through platform, top edge at Y, x in [X, X+W)
     ; spring X Y            a floor spring whose base centre is at (X, Y)
     ; refill X Y            a dash refill crystal centred at (X, Y)
+    ; zipmover X Y W H TX TY  a zip mover (W x H at (X, Y)) going to (TX, TY)
+    ; fallingblock X Y W H CLIMBFALL  a falling block (W x H at (X, Y));
+                            CLIMBFALL 1: climbing on it also sets it off
+Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
+are attached to it and move with it.
 Spikes and springs act in the order they are listed (the game checks them in
 that order within a frame); spikes drawn with characters come first.
 All rows must have the same width.
@@ -59,7 +64,7 @@ def spike_cells(d, x, y, n):
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
-    rows, exact, exits, ordered, jumpthrus, zipmovers = [], None, [], [], [], []
+    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks = [], None, [], [], [], [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -83,6 +88,8 @@ def parse(path):
         elif line.startswith("; zipmover "):
             x, y, w, h, tx, ty = int(words[2]), int(words[3]), int(words[4]), int(words[5]), int(words[6]), int(words[7])
             zipmovers.append((x, y, w, h, tx, ty))
+        elif line.startswith("; fallingblock "):
+            fallblocks.append(tuple(int(v) for v in words[2:7]))
         if not line or line.startswith(";"):
             continue
         rows.append(line)
@@ -149,7 +156,14 @@ def parse(path):
                 cx += n
             else:
                 cx += 1
+    parse.fallblocks = fallblocks
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
+
+
+def fallblocks_of(path):
+    """the falling blocks of a room file: [(x, y, w, h, climbFall)]"""
+    parse(path)
+    return parse.fallblocks
 
 
 # ---- zip movers --------------------------------------------------------------
@@ -238,6 +252,77 @@ def zip_cycle(x, y, tx, ty):
     return out
 
 
+# ---- falling blocks -------------------------------------------------------
+FB_SHAKE = wait_updates(0.2)            # yield return 0.2f (shaking)
+FB_WAIT = wait_updates(0.4)             # float timer = 0.4f; while (timer > 0 && PlayerWaitCheck())
+FB_SHAKE_END = FB_SHAKE + 1             # fbT after the shake: the first PlayerWaitCheck update
+FB_WAIT_END = FB_SHAKE_END + FB_WAIT    # the last update of the wait loop (timer <= 0 there)
+FB_FALL0 = FB_WAIT_END + 1              # fbT after the first fall update
+
+
+def tiles_hit(rows, x0, y0, x1, y1):
+    """Grid.Collide(rect) against the room's tiles (outside the grid is air)"""
+    for cy in range(max(0, y0 // 8), min(len(rows), (y1 - 1) // 8 + 1)):
+        for cx in range(max(0, x0 // 8), min(len(rows[0]), (x1 - 1) // 8 + 1)):
+            if rows[cy][cx] == "#":
+                return True
+    return False
+
+
+def fall_cycle(x, y, w, h, rows, jumpthrus):
+    """FallingBlock.Sequence() from the update that finds her: one entry per
+    update (index = fbT after it): (y, pixels moved, LiftSpeed.Y). Ends with
+    the update it lands on the tiles or a jump-through (MoveVCollideSolids
+    returns true) or falls 16 px below the room (Collidable = false).
+    Returns (entries, gone). Other moving solids are not in its way (checked
+    by the caller)."""
+    out = [(y, 0, 0.0)] * FB_FALL0
+    py, speed, cy = y, 0.0, 0.0
+    while True:
+        speed = approach(speed, 160.0, f32(500.0 * DT32))       # Calc.Approach(speed, 160f, 500f * DeltaTime)
+        mv = f32(speed * DT32)                                   # MoveVCollideSolids(speed * DeltaTime)
+        ly = f32(mv / DT32)                                      # LiftSpeed.Y = moveV / DeltaTime
+        cy = f32(cy + mv)
+        num = round(cy)
+        moved, hit = 0, False
+        if num != 0:
+            cy = f32(cy - num)
+            step = 1 if num > 0 else -1
+            while num != 0:                                      # MoveVExactCollideSolids
+                ny = py + moved + step
+                if tiles_hit(rows, x, ny, x + w, ny + h):
+                    hit = True
+                    break
+                if num > 0 and any(jx0 < x + w and jx1 > x and jy < ny + h and jy + 5 > ny
+                                   and not (jy < py + moved + h and jy + 5 > py + moved)
+                                   for jx0, jy, jx1 in jumpthrus):
+                    hit = True
+                    break
+                moved += step
+                num -= step
+        py += moved
+        out.append((py, moved, ly))
+        if hit:
+            return out, False
+        if py > len(rows) * 8 + 16:                              # Top > level.Bounds.Bottom + 16
+            return out, True
+        assert len(out) < 2000, "falling block never lands"
+
+
+def spike_attached(c, solids):
+    """Spikes.IsRiding(solid): CollideCheckOutside(solid, Position -+ 1 px
+    towards the surface it sits on); the first solid (in load order) wins"""
+    d, x, y, n = c[1:]
+    x0, y0, x1, y1 = spike_box(d, x, y, n)
+    dx, dy = {"up": (0, 1), "down": (0, -1), "left": (1, 0), "right": (-1, 0)}[d]
+    for k, (sx, sy, sw, sh) in enumerate(solids):
+        def over(ax, ay):
+            return x0 + ax < sx + sw and x1 + ax > sx and y0 + ay < sy + sh and y1 + ay > sy
+        if over(dx, dy) and not over(0, 0):
+            return k
+    return -1
+
+
 def main():
     src, dst = sys.argv[1], sys.argv[2]
     rows, (sx, sy), exits, colliders, jumpthrus, zipmovers = parse(src)
@@ -285,6 +370,12 @@ def main():
             else:
                 out.append(f"    {{ PC_SPRING, {c[1]}, {c[2]}, 0, 0, 0 }},")
         out.append("};")
+    fallblocks = parse.fallblocks
+    solids = [(x, y, w_, h_) for x, y, w_, h_, _, _ in zipmovers] + [(x, y, w_, h_) for x, y, w_, h_, _ in fallblocks]
+    if colliders and solids:
+        att = [spike_attached(c, solids) if c[0] == "spikes" else -1 for c in colliders]
+        out.append("/* spikes attached to a moving solid (zip movers first, then falling blocks): its index, or -1 */")
+        out.append("static const signed char PCOL_MS[NPCOL] = { " + ", ".join(str(a) for a in att) + " };")
     out += ["", "/* jump-through platforms: { x0, top, x1 }, hitbox [x0,x1) x [top,top+5) */",
             f"#define NJUMPTHRUS {len(jumpthrus)}"]
     if jumpthrus:
@@ -313,6 +404,38 @@ def main():
         out.append("static const float ZIP_LIFT[NZIPMOVERS][ZIP_T_END + 1][2] = {")
         for c in cycles:
             out.append("  {" + ",".join(f"{{{float(e[4]).hex()}f,{float(e[5]).hex()}f}}" for e in c) + "},")
+        out.append("};")
+    out += ["", "/* falling blocks: { x, y, w, h, climbFall } and FallingBlock.Sequence() per update",
+            " * (see fall_cycle and fb_update in celeste.c): y after the update, pixels moved, LiftSpeed.Y */",
+            f"#define NFALLBLOCKS {len(fallblocks)}"]
+    if fallblocks:
+        cycles = []
+        for k, (x, y, w_, h_, _) in enumerate(fallblocks):
+            c, gone = fall_cycle(x, y, w_, h_, rows, jumpthrus)
+            ylo, yhi = y, c[-1][0] + h_
+            for m, (sx, sy, sw, sh) in enumerate(solids):
+                if m != len(zipmovers) + k and sx < x + w_ and sx + sw > x and sy < yhi and sy + sh > ylo:
+                    sys.exit(f"falling block at ({x},{y}) would run into another moving solid: not modelled")
+            cycles.append((c, gone))
+        tmax = max(len(c) - 1 for c, _ in cycles)
+        out += [f"#define FB_SHAKE_END {FB_SHAKE_END}   /* fbT 1..{FB_SHAKE_END - 1}: shaking (0.2 s) */",
+                f"#define FB_WAIT_END {FB_WAIT_END}    /* fbT {FB_SHAKE_END}..{FB_WAIT_END}: the 0.4 s wait while she is on it */",
+                f"#define FB_FALL0 {FB_FALL0}       /* fbT after the first fall update */",
+                f"#define FB_T_MAX {tmax}",
+                "static const short FALLBLOCKS[NFALLBLOCKS][5] = {"]
+        out += [f"    {{ {x}, {y}, {w_}, {h_}, {cf} }}," for x, y, w_, h_, cf in fallblocks]
+        out.append("};")
+        out.append("static const short FB_T_END[NFALLBLOCKS] = { " + ", ".join(str(len(c) - 1) for c, _ in cycles) + " };")
+        out.append("static const bool FB_GONE[NFALLBLOCKS] = { " + ", ".join("1" if g else "0" for _, g in cycles) + " };")
+        pad = lambda c: c + [c[-1][:1] + (0, 0.0)] * (tmax + 1 - len(c))
+        out.append("static const short FB_Y[NFALLBLOCKS][FB_T_MAX + 1] = {")
+        out += ["  {" + ",".join(str(e[0]) for e in pad(c)) + "}," for c, _ in cycles]
+        out.append("};")
+        out.append("static const signed char FB_MOVE[NFALLBLOCKS][FB_T_MAX + 1] = {")
+        out += ["  {" + ",".join(str(e[1]) for e in pad(c)) + "}," for c, _ in cycles]
+        out.append("};")
+        out.append("static const float FB_LIFT[NFALLBLOCKS][FB_T_MAX + 1] = {")
+        out += ["  {" + ",".join(f"{float(e[2]).hex()}f" for e in pad(c)) + "}," for c, _ in cycles]
         out.append("};")
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))

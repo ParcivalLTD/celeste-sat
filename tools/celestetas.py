@@ -108,14 +108,20 @@ def community(a):
         st = line.strip()
         if re.match(r"#\S", st):
             room = st[1:]
-        # start recording at the idle frames that end the room before the first one (its transition)
-        if not started and room == prev_room_of(lines, first) and re.fullmatch(r"\d+", st) and i == last_line[room][-1]:
+        # start recording at the idle frames that end the room before the first one (its
+        # transition), or after the level start's idle frames (the first room from its spawn)
+        at_prev = not started and room == prev_room_of(lines, first) and re.fullmatch(r"\d+", st) \
+            and i == last_line[room][-1]
+        if at_prev and room != "Start":
             out.append(f"ExportGameInfo, {a.dump}" + "".join(f", {e}" for e in a.entities))
             started = True
         if room in replace and st == replace[room][0] and i in last_line[room]:
             out += [f"   {l}" for l in replace[room][1]]
             continue
         out.append(line)
+        if at_prev and room == "Start":
+            out.append(f"ExportGameInfo, {a.dump}" + "".join(f", {e}" for e in a.entities))
+            started = True
         if started and not done and room == last and re.fullmatch(r"\d+", st) and i == last_line[room][-1]:
             out.append("EndExportGameInfo")
             done = True
@@ -198,11 +204,13 @@ def model_trace(room, route, start=None):
     trace = json.load(open(os.path.join(bdir, "trace.json")))
     frames = trace["frames"]
     exit_frame = trace.get("exit_frame", -1)
+    death = trace.get("death_frame", -1)
     return [dict(x=f["x"] + f.get("rx", 0.0), y=f["y"] + f.get("ry", 0.0),
                  vx=f.get("vxe", f["vx"]), vy=f.get("vye", f["vy"]),
                  state="Freeze" if f["frz"] else STATE_NAMES.get(f["st"], str(f["st"])),
-                 inp=f["in"], **({k: f[k] for k in ("zx", "zy", "zt", "lx", "ly") if k in f}))
-            for f in frames[1:]], (exit_frame if exit_frame and exit_frame > 0 else None)
+                 inp=f["in"], dead=(k + 1 == death),
+                 **({k2: f[k2] for k2 in ("zx", "zy", "zt", "lx", "ly") if k2 in f}))
+            for k, f in enumerate(frames[1:])], (exit_frame if exit_frame and exit_frame > 0 else None)
 
 
 def same(m, g, tol_pos=2e-3, tol_spd=2e-3):

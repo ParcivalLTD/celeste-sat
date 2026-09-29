@@ -231,6 +231,9 @@ def export(package, level, lv, path=None, goals=None):
                 lines.append(f"; zipmover {x} {y} {w} {h} {node.attrs['x']} {node.attrs['y']}")
             else:
                 ignored.add(e.name)
+        elif e.name == "fallingBlock":
+            lines.append(f"; fallingblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)} "
+                         f"{int(a.get('climbFall', True))}")
         elif e.name in ("player", "strawberry", "goldenBerry", "checkpoint") or e.name in COSMETIC:
             if e.name not in ("player",):
                 cosmetic.add(e.name)
