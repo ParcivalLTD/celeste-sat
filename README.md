@@ -90,6 +90,7 @@ top of the tile. Directives:
 ; zipmover 112 80 24 16 184 72   a zip mover: top-left (112, 80), 24 x 16, moving to (184, 72)
 ; refill 152 72         a dash refill centred at (152, 72)
 ; fallingblock 152 160 32 24 1   a falling block: top-left (152, 160), 32 x 24; 1 = climbing it sets it off too
+; crumble 232 152 24    a crumble block: top-left (232, 152), 24 x 8
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -156,6 +157,11 @@ From `Player.cs` and the Monocle engine:
   stands on it or climbs it, waits while she stays, falls (carrying or
   crushing her) and lands or drops out of the room; spikes on a zip mover or
   falling block move with it
+- crumble blocks (`CrumblePlatform`): standing on one, it shakes for 0.2 s
+  and then goes as soon as she leaves it or 0.4 s later; climbing it, it goes
+  after 1 s whatever she does; it is back after 2 s, once she is out of its
+  way (same code as the moving solids, so from memory of the decompiled
+  source too)
 
 Inputs are those of the game with its default bindings, as CelesteTAS writes
 them: directions, Grab (held), and Jump, Dash and Crouch Dash with **two keys
@@ -185,8 +191,8 @@ code (Extended Variant Mode, GravityHelper), for the 5 px wallbounce reach,
 the variable ceiling correction reach and the spike checks; and memory of the
 current code for the rest, listed under "Things to check".
 
-Not modelled yet: every other entity (wall springs, crumble blocks, dash
-blocks, fake walls, two-dash refills, other moving platforms, …), wind,
+Not modelled yet: every other entity (wall springs, dash blocks, fake walls,
+two-dash refills, other moving platforms, …), wind,
 water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
 
 ### Fidelity details
@@ -211,9 +217,11 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   collisions from an 8×8-tile window around the player.
   `tests/diff.sh` runs both builds on 40 random rooms (with spikes, jump-throughs,
   springs, exits on all sides, zip movers in every other room and falling
-  blocks, some with spikes on them, in the others) × 300 random input runs:
-  **2.92 million frames, bit-identical**, with every mechanic above exercised
-  (riding, pushing and squishing included; 397 falling blocks set off).
+  blocks, some with spikes on them, in the others, crumble blocks in every
+  third) × 300 random input runs: **2.96 million frames, bit-identical**,
+  with every mechanic above exercised (riding, pushing and squishing
+  included; falling and crumble blocks set off hundreds of times, crumble
+  blocks coming back 300 times).
 - The harness never lets the solver choose an input that cannot matter, which
   keeps the formula small: directions and Grab during freeze frames, Up outside
   climbing and the dash-direction frame, Grab away from walls, a second-key
@@ -230,7 +238,7 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   value behind an expired timer, the previous frame's aim, …). The fuzzing
   checks that too: on every random frame it scrambles those fields in a copy,
   runs both on with the same random inputs for up to 40 frames, and they must
-  keep agreeing on everything `same_future` compares. 6.7 million checks, none
+  keep agreeing on everything `same_future` compares. 6.8 million checks, none
   broken.
 
 ### Zip movers

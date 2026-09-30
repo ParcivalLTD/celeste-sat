@@ -101,6 +101,7 @@
 #define LIFT_SPEED_GRACE_TIME      0.16f   /* Actor.LiftSpeedGraceTime */
 #define MAX_ZIP_MOVERS             4
 #define MAX_FALL_BLOCKS            4
+#define MAX_CRUMBLES               8
 #define REFILL_RESPAWN_TIME        2.5f    /* Refill: respawnTimer */
 #define MAX_REFILLS                8
 
@@ -159,9 +160,12 @@ typedef struct {
     /* falling blocks: 0 = waiting for her, else the number of FallingBlock
      * updates since she set it off (shaking, waiting, falling; see celeste.c) */
     short fbT[MAX_FALL_BLOCKS];
+    /* crumble blocks: 0 = there, waiting for her; else where its Sequence()
+     * is (shaking, gone, coming back; see celeste.c) */
+    short crT[MAX_CRUMBLES];
     /* climbHopSolid when it is a moving solid: its index + 1 (zip movers
-     * first, then falling blocks; 0: none or the tiles), and its zipTimer /
-     * fbT when she last moved with it */
+     * first, then falling blocks, then crumble blocks; 0: none or the
+     * tiles), and its zipTimer / fbT when she last moved with it */
     signed char hopZip;
     short hopZipT;
     /* refills: time until each one is back (0: there) */

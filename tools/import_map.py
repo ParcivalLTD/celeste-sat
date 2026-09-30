@@ -231,6 +231,8 @@ def export(package, level, lv, path=None, goals=None):
                 lines.append(f"; zipmover {x} {y} {w} {h} {node.attrs['x']} {node.attrs['y']}")
             else:
                 ignored.add(e.name)
+        elif e.name == "crumbleBlock":
+            lines.append(f"; crumble {a['x']} {a['y']} {a.get('width', 8)}")
         elif e.name == "fallingBlock":
             lines.append(f"; fallingblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)} "
                          f"{int(a.get('climbFall', True))}")

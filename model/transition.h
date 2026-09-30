@@ -78,6 +78,7 @@ static State enter_room(State st)
     /* the new room's moving solids start over (her lift speed stays with her) */
     for (int i = 0; i < MAX_ZIP_MOVERS; i++) e.zipTimer[i] = 0;
     for (int i = 0; i < MAX_FALL_BLOCKS; i++) e.fbT[i] = 0;
+    for (int i = 0; i < MAX_CRUMBLES; i++) e.crT[i] = 0;
     e.hopZip = 0; e.hopZipT = 0;
     for (int i = 0; i < MAX_REFILLS; i++) e.refillTimer[i] = 0;
     return e;
