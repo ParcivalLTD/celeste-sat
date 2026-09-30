@@ -163,6 +163,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     # (Actor.LiftSpeed is not reset by the transition, only by her updates)
     e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
     e["fbT"] = [0] * len(e.get("fbT", [0, 0, 0, 0]))
+    e["crT"] = [0] * len(e.get("crT", [0] * 8))
     e["hopZip"] = e["hopZipT"] = 0
     e["refillTimer"] = [0] * len(e.get("refillTimer", [0] * 8))
     return e

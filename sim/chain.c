@@ -40,6 +40,9 @@ static void dump(const State *s, const char *path, int k)
     fprintf(f, "    .fbT = {");
     for (int z = 0; z < MAX_FALL_BLOCKS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->fbT[z]);
     fprintf(f, "},\n");
+    fprintf(f, "    .crT = {");
+    for (int z = 0; z < MAX_CRUMBLES; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->crT[z]);
+    fprintf(f, "},\n");
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);

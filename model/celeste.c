@@ -46,7 +46,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
        C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
-       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_NCOV };
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -58,7 +58,8 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "jump-through landing", "jump-through assist", "dash jump-through nudge", "floor snap onto jump-through",
        "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked",
        "zip mover starts", "carried by a zip mover or falling block", "pushed by a zip mover or falling block", "zip mover edge nudge (1 px down)",
-       "squished (death)", "moved with a moving solid after a climb hop", "refill", "falling block starts shaking", "falling block waits for her", "falling block moves" };
+       "squished (death)", "moved with a moving solid after a climb hop", "refill", "falling block starts shaking", "falling block waits for her", "falling block moves",
+       "crumble block starts shaking", "crumble block crumbles", "crumble block comes back" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -218,17 +219,40 @@ static room_col_t col_bits(int c)
 #define MODEL_TLS
 #endif
 
-/* Moving solids (zip movers, then falling blocks; NMS in all): their boxes
- * this frame, from zipTimer / fbT and the tables in room.h */
+/* Moving solids (zip movers, then falling blocks, then crumble blocks, which
+ * do not move but come and go; NMS in all): their boxes this frame, from
+ * zipTimer / fbT / crT and the tables in room.h */
 #ifndef NFALLBLOCKS
 #define NFALLBLOCKS 0
 #endif
-#define NMS (NZIPMOVERS + NFALLBLOCKS)
+#ifndef NCRUMBLES
+#define NCRUMBLES 0
+#endif
+#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES)
+#define MS_CR0 (NZIPMOVERS + NFALLBLOCKS)       /* index of the first crumble block */
 #if NMS > 0
 static MODEL_TLS short CUR_MS_BOX[NMS][4];   /* x0, y0, x1, y1 (exclusive); -32000 when not Collidable */
 #if NFALLBLOCKS > 0
 /* falling block j is gone (fell out of the room: Collidable = false) */
 static bool fb_gone(const State *s, int j) { return FB_GONE[j] && s->fbT[j] == FB_T_END[j]; }
+#endif
+#if NCRUMBLES > 0
+/* crumble block j has crumbled (Collidable = false) and is not back yet */
+static bool cr_gone(const State *s, int j) { return s->crT[j] >= CR_GONE0; }
+#endif
+#if NFALLBLOCKS > 0 || NCRUMBLES > 0
+/* moving solid i is Collidable (zip movers always are) */
+static bool ms_collidable(const State *s, int i)
+{
+#if NFALLBLOCKS > 0
+    if (i >= NZIPMOVERS && i < MS_CR0) return !fb_gone(s, i - NZIPMOVERS);
+#endif
+#if NCRUMBLES > 0
+    if (i >= MS_CR0) return !cr_gone(s, i - MS_CR0);
+#endif
+    (void)s; (void)i;
+    return true;
+}
 #endif
 static void load_ms_boxes(const State *s)
 {
@@ -256,6 +280,20 @@ static void load_ms_boxes(const State *s)
         }
     }
 #endif
+#if NCRUMBLES > 0
+    for (int j = 0; j < NCRUMBLES; j++) {
+        int i = MS_CR0 + j;
+        MODEL_ASSUME(s->crT[j] >= 0 && s->crT[j] <= CR_GONE_END);
+        if (cr_gone(s, j)) {
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        } else {
+            CUR_MS_BOX[i][0] = CRUMBLES[j][0];
+            CUR_MS_BOX[i][1] = CRUMBLES[j][1];
+            CUR_MS_BOX[i][2] = CRUMBLES[j][0] + CRUMBLES[j][2];
+            CUR_MS_BOX[i][3] = CRUMBLES[j][1] + 8;
+        }
+    }
+#endif
 }
 /* an 8 x h hitbox at (x, y) overlaps moving solid i */
 static bool ms_overlap(int i, int x, int y, int h)
@@ -276,10 +314,12 @@ static int ms_pos_x(int i, int t)
     if (i < NZIPMOVERS) return ZIP_POS[i][t][0];
 #endif
 #if NFALLBLOCKS > 0
-    return FALLBLOCKS[i - NZIPMOVERS][0];
-#else
-    (void)t; return 0;
+    if (i < MS_CR0) return FALLBLOCKS[i - NZIPMOVERS][0];
 #endif
+#if NCRUMBLES > 0
+    return CRUMBLES[i - MS_CR0][0];
+#endif
+    (void)i; (void)t; return 0;
 }
 static int ms_pos_y(int i, int t)
 {
@@ -287,21 +327,23 @@ static int ms_pos_y(int i, int t)
     if (i < NZIPMOVERS) return ZIP_POS[i][t][1];
 #endif
 #if NFALLBLOCKS > 0
-    return FB_Y[i - NZIPMOVERS][t];
-#else
-    (void)t; return 0;
+    if (i < MS_CR0) return FB_Y[i - NZIPMOVERS][t];
 #endif
+#if NCRUMBLES > 0
+    return CRUMBLES[i - MS_CR0][1];
+#endif
+    (void)i; (void)t; return 0;
 }
+/* the counter its position is looked up with (crumble blocks do not move: 0) */
 static int ms_timer(const State *s, int i)
 {
 #if NZIPMOVERS > 0
     if (i < NZIPMOVERS) return s->zipTimer[i];
 #endif
 #if NFALLBLOCKS > 0
-    return s->fbT[i - NZIPMOVERS];
-#else
-    (void)s; return 0;
+    if (i < MS_CR0) return s->fbT[i - NZIPMOVERS];
 #endif
+    (void)s; (void)i; return 0;
 }
 #else
 #define load_ms_boxes(s) ((void)0)
@@ -1814,8 +1856,8 @@ static void player_update(State *s, Input in)
     /* Climb hop solid movement: after a climb hop onto a moving solid she
      * moves with it (MoveHExact, MoveVExact) until the hop's forced move ends;
      * a solid that is no longer Collidable is forgotten */
-#if NFALLBLOCKS > 0
-    if (s->hopZip > NZIPMOVERS && fb_gone(s, s->hopZip - 1 - NZIPMOVERS)) s->hopZip = 0;
+#if NFALLBLOCKS > 0 || NCRUMBLES > 0
+    if (s->hopZip > NZIPMOVERS && !ms_collidable(s, s->hopZip - 1)) s->hopZip = 0;
 #endif
     if (s->hopZip) {
         int i = s->hopZip - 1, t = ms_timer(s, i), t0 = s->hopZipT;
@@ -2060,6 +2102,53 @@ static void fb_update(State *s)
     }
 }
 #endif
+
+#if NCRUMBLES > 0
+/* CrumblePlatform.Sequence(), one step per update. crT (constants in room.h):
+ *   0                       there: GetPlayerOnTop() or GetPlayerClimbing()?
+ *   1 .. CR_TOP_END         she stood on it: yield return 0.2f (shaking), then
+ *                           timer = 0.4f; while (timer > 0 && GetPlayerOnTop()) ...
+ *                           from CR_TOP_CHK on; then Collidable = false
+ *   CR_CLIMB0 .. CR_CLIMB_END  she climbed it: 3 x 0.2 s, then 0.4 s, then gone
+ *   CR_GONE0 .. CR_GONE_END gone: yield return 2f; then, once nothing overlaps
+ *                           it (CollideCheck<Actor>), back: Collidable = true,
+ *                           and the same update looks for her again */
+static bool cr_on_top(const State *s, int j)        /* GetPlayerOnTop: CollideFirst<Player>(Position - UnitY) */
+{
+    return ms_overlap(MS_CR0 + j, s->x, s->y + 1, collider_h(s));
+}
+static bool cr_climbed(const State *s, int j)       /* GetPlayerClimbing: climbing, the block 1 px in front */
+{
+    return s->state == ST_CLIMB && ms_overlap(MS_CR0 + j, s->x + s->facing, s->y, collider_h(s));
+}
+static void cr_update(State *s)
+{
+    for (int j = 0; j < NCRUMBLES; j++) {
+        int i = MS_CR0 + j, t = s->crT[j];
+        if (t == CR_GONE_END) {
+            int x0 = CRUMBLES[j][0], y0 = CRUMBLES[j][1], x1 = x0 + CRUMBLES[j][2], y1 = y0 + 8;
+            if (s->x + 4 > x0 && s->x - 4 < x1 && s->y > y0 && s->y - collider_h(s) < y1) continue;   /* she is in the way */
+            COV(C_CRBACK);
+            CUR_MS_BOX[i][0] = (short)x0; CUR_MS_BOX[i][1] = (short)y0;
+            CUR_MS_BOX[i][2] = (short)x1; CUR_MS_BOX[i][3] = (short)y1;
+            t = 0;                                   /* back, and looking for her in this update */
+        }
+        if (t == 0) {
+            if (cr_on_top(s, j)) { COV(C_CRSTART); t = 1; }
+            else if (cr_climbed(s, j)) { COV(C_CRSTART); t = CR_CLIMB0; }
+        } else if (t < CR_TOP_CHK || (t >= CR_CLIMB0 && t < CR_CLIMB_END) || (t >= CR_GONE0 && t < CR_GONE_END)) {
+            t++;
+        } else if (t <= CR_TOP_END && t < CR_TOP_END && cr_on_top(s, j)) {
+            t++;
+        } else {                                     /* the wait is over: Collidable = false */
+            COV(C_CRGONE);
+            t = CR_GONE0;
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        }
+        s->crT[j] = (short)t;
+    }
+}
+#endif
 #endif
 
 
@@ -2132,6 +2221,9 @@ MODEL_API void celeste_step(State *s, Input in)
 #endif
 #if NFALLBLOCKS > 0
         fb_update(s);
+#endif
+#if NCRUMBLES > 0
+        cr_update(s);
 #endif
     }
 #endif
