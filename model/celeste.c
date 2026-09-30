@@ -471,8 +471,8 @@ static void load_window(const State *s)
         MODEL_ASSUME(sh >= 0 && sh < 56);
         WCOL[i] = (unsigned char)(c >> sh);
 #else
-        unsigned long long c = col_bits(WX0 + i);
-        MODEL_ASSUME(WY0 >= -8 && WY0 < 64);
+        room_col_t c = col_bits(WX0 + i);
+        MODEL_ASSUME(WY0 >= -8 && WY0 < ROOM_H);
         WCOL[i] = (unsigned char)(WY0 < 0 ? c << (-WY0) : c >> WY0);
 #endif
     }

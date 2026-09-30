@@ -108,7 +108,7 @@ def parse(path):
         rows.append(line)
     w = len(rows[0])
     assert all(len(r) == w for r in rows), "all rows must have the same width"
-    assert len(rows) <= 64, "rooms taller than 64 tiles need a wider column type"
+    assert len(rows) <= 128, "rooms taller than 128 tiles need a wider column type"
     spawn = None
     for cy, r in enumerate(rows):
         for cx, ch in enumerate(r):
@@ -352,11 +352,18 @@ def main():
     out += [f"   {r}" for r in rows]
     out += ["*/",
             "/* ROOM_COLS[c]: bit r set when tile (c, r) is solid */",
-            "typedef unsigned " + ("int" if h <= 32 else "long long") + " room_col_t;",
+            "typedef " + ("unsigned int" if h <= 32 else "unsigned long long" if h <= 64 else "unsigned __int128") + " room_col_t;",
             "static const room_col_t ROOM_COLS[ROOM_W] = {"]
     for cx in range(w):
         bits = sum(1 << cy for cy, r in enumerate(rows) if r[cx] == "#")
-        out.append(f"    0x{bits:08x}u," if h <= 32 else f"    0x{bits:016x}ULL,")
+        if h <= 32:
+            out.append(f"    0x{bits:08x}u,")
+        elif h <= 64:
+            out.append(f"    0x{bits:016x}ULL,")
+        else:
+            lo = bits & 0xFFFFFFFFFFFFFFFF
+            hi = bits >> 64
+            out.append(f"    (((unsigned __int128)0x{hi:016x}ULL << 64) | 0x{lo:016x}ULL),")
     out += ["};", "",
             "/* exits: { side, from, to, goal } -- a neighbouring room on SIDE covering",
             " * [from, to) along that edge; goal 0 means going there counts as failing */",
