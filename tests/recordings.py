@@ -13,7 +13,8 @@ at the first frame the game gives control back.
 
 DIR is where CelesteTAS wrote the recordings (the Celeste folder, e.g.
 /mnt/r/SteamLibrary/steamapps/common/Celeste in WSL); every
-celeste-sat-*.txt and community-*.txt there is checked. The files in
+celeste-sat-*.txt and community-*.txt there is checked (celeste-sat-2a-*.txt
+against the Chapter 2 rooms, the others against Chapter 1). The files in
 results/celestetas/ record to such names. A recording that starts in the
 middle of the chapter (the community TAS from its #lvl_3, say: name it
 community-*.txt) starts from the state the community TAS enters that room
@@ -31,10 +32,16 @@ from solve import build  # noqa: E402
 TOL = 2e-3
 
 
-def room_file(rdir, tag):
-    """"[3]" -> rooms/vanilla/1a_lvl_3.txt"""
+def chapter_of(name):
+    """the chapter a recording is from, by its name: celeste-sat-2a-*.txt is 2A, anything else 1A"""
+    m = re.search(r"-(\d+[abc])-", name.lower())
+    return m.group(1) if m else "1a"
+
+
+def room_file(rdir, tag, chapter="1a"):
+    """"[3]" -> rooms/vanilla/1a_lvl_3.txt (2a_lvl_3.txt for Chapter 2)"""
     m = re.fullmatch(r"\[(\w+)\]", tag)
-    return os.path.join(rdir, f"1a_lvl_{m.group(1)}.txt") if m else None
+    return os.path.join(rdir, f"{chapter}_lvl_{m.group(1)}.txt") if m else None
 
 
 def check(path, rdir, work):
@@ -64,7 +71,7 @@ def check(path, rdir, work):
                 return f"{name}: needs {start} (run tests/community_tas.py first)", None
     prev = None                                  # (room file, build dir, route file, exit frame)
     for k, (tag, a, b) in enumerate(segs):
-        room = room_file(rdir, tag)
+        room = room_file(rdir, tag, chapter_of(name))
         if not room or not os.path.exists(room):
             report.append(f"room {tag} is not exported, stopping there")
             break

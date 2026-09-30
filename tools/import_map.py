@@ -241,6 +241,15 @@ def export(package, level, lv, path=None, goals=None):
         elif e.name == "fallingBlock":
             lines.append(f"; fallingblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)} "
                          f"{int(a.get('climbFall', True))}")
+        elif e.name == "switchGate":
+            node = e.child("node")
+            if node and not a.get("persistent", False):
+                lines.append(f"; switchgate {a['x']} {a['y']} {a.get('width', 16)} {a.get('height', 16)} "
+                             f"{node.attrs['x']} {node.attrs['y']}")
+            else:
+                ignored.add(e.name)
+        elif e.name == "touchSwitch":
+            lines.append(f"; touchswitch {a['x']} {a['y']}")
         elif e.name == "dreamBlock":
             lines.append(f"; dreamblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)}")
         elif e.name in ("badelineChaser", "badelineOldsite", "badelineBoss", "darkChaser"):

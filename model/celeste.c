@@ -251,6 +251,16 @@ static room_col_t col_bits(int c)
 #ifndef CHASER_DELAY
 #define CHASER_DELAY 90
 #endif
+#ifndef NCHASERS
+#define NCHASERS 1
+#endif
+#define CHASER_WAKE 6     /* frames from her first move until a chaser can touch her (at least 8 in the game) */
+#ifndef NTOUCH
+#define NTOUCH 0
+#endif
+#ifndef TS_ALL
+#define TS_ALL 0                                      /* no touch switches: a switch gate opens at once */
+#endif
 #ifndef K_DREAM_DASH_MIN_TIME
 #define K_DREAM_DASH_MIN_TIME 6
 #endif
@@ -2095,21 +2105,53 @@ static void enforce_bounds(State *s)
 /* Badeline Chaser (Chapter 2)                                              */
 /* ------------------------------------------------------------------------ */
 #if HAS_CHASER
+/* BadelineOldsite (from the game's code): chaser i follows the positions the
+ * player recorded (Player.ChaserStates, one per Player.Update) from
+ * 1.55 s + 0.4 s * i ago (Player.GetChasePosition), approaching that point at
+ * 500 px/s, and kills her when its 6 x 6 hitbox at (-3, -7) touches her
+ * hurtbox (a PlayerCollider, checked in Player.Update after she moves).
+ * Which recorded frame "1.55 s ago" is depends on the float rounding of
+ * Scene.TimeActive, so the frames CHASER_DELAY - 2 .. CHASER_DELAY back are
+ * all checked (a conservative model). The history runs on across rooms:
+ * tools/chapter.py carries it into the next room, with the transition's
+ * frames (no player updates) as her entry position. */
 static void chaser_update(State *s)
 {
+    /* after a respawn (the spawn of the first room) BadelineOldsite waits until
+     * she moves (Player.JustRespawned is cleared once her Speed is not zero),
+     * then pops out and needs a 0.1 s tween before it is Collidable; the
+     * positions before that are all the spawn */
+    if (s->chaserTimer == 0 && s->spdX == 0 && s->spdY == 0) return;
     s->histX[s->chaserTimer & CHASER_HIST_MASK] = (short)s->x;
     s->histY[s->chaserTimer & CHASER_HIST_MASK] = (short)s->y;
     s->chaserTimer++;
-    if (s->chaserTimer > CHASER_DELAY) {
-        int idx = (s->chaserTimer - 1 - CHASER_DELAY) & CHASER_HIST_MASK;
-        short bx = s->histX[idx];
-        short by = s->histY[idx];
-        int h = collider_h(s);
-        /* Badeline has an 8 x 11 hitbox at (bx, by) */
-        if (abs(s->x - bx) < 8 && (s->y > by - 11) && (s->y - h < by)) {
-            s->dead = true;
+    if (s->chaserTimer <= CHASER_WAKE) return;                   /* (rooms entered from another start at 256) */
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;   /* hurtbox 8 x 9 (ducking 8 x 4) */
+    for (int c = 0; c < NCHASERS; c++) {
+        int D = CHASER_DELAY + 24 * c;                          /* followBehindIndexDelay = 0.4 s * index */
+        for (int d = D - 2; d <= D; d++) {
+            int idx = (s->chaserTimer - 1 - d) & CHASER_HIST_MASK;
+            int bx = s->histX[idx], by = s->histY[idx];
+            if (s->x - 4 < bx + 3 && s->x + 4 > bx - 3 && top < by - 1 && bot > by - 7) {
+                s->dead = true;
+                return;
+            }
         }
     }
+}
+#endif
+
+#if NTOUCH > 0
+/* TouchSwitch: a PlayerCollider (30 x 30 around it) against her hurtbox;
+ * Switch.Activate -> when every switch in the room is on, all finish at once
+ * and the switch gates' Sequence() sees it in their update this frame */
+static void touch_update(State *s)
+{
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;
+    for (int j = 0; j < NTOUCH; j++)
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + 15 && s->x + 4 > TOUCHSWITCHES[j][0] - 15
+            && top < TOUCHSWITCHES[j][1] + 15 && bot > TOUCHSWITCHES[j][1] - 15)
+            s->tsOn |= (unsigned char)(1u << j);
 }
 #endif
 
@@ -2274,6 +2316,9 @@ static void player_update(State *s, Input in)
     /* Player colliders (spikes, springs), then the room bounds */
     player_colliders(s);
     if (s->dead) return;
+#if NTOUCH > 0
+    touch_update(s);
+#endif
 
 #if HAS_CHASER
     chaser_update(s);
@@ -2378,7 +2423,19 @@ static void zip_update(State *s, Input in)
 {
     for (int i = 0; i < NZIPMOVERS && !s->dead; i++) {
         int t = s->zipTimer[i];
-        if (t != 0) t = t < ZIP_T_END ? t + 1 : 0;
+        if (ZIP_KIND[i]) {                             /* a switch gate: SwitchGate.Sequence() */
+            if (t == 0) {                              /* while (!Switch.Check(Scene)) yield return null */
+                if (s->tsOn != TS_ALL) continue;
+                t = 1;
+            } else if (t < ZIP_END[i]) t++;
+            else continue;                             /* open: it stays at its node */
+            s->zipTimer[i] = (short)t;
+            if (ZIP_MOVE[i][t][0] != 0) ms_move_h(s, in, i, ZIP_MOVE[i][t][0], ZIP_LIFT[i][t][0]);
+            if (ZIP_MOVE[i][t][1] != 0) ms_move_v(s, i, ZIP_MOVE[i][t][1], ZIP_LIFT[i][t][0], ZIP_LIFT[i][t][1]);
+            MODEL_ASSUME(CUR_MS_BOX[i][0] == ZIP_POS[i][t][0] && CUR_MS_BOX[i][1] == ZIP_POS[i][t][1]);
+            continue;
+        }
+        if (t != 0) t = t < ZIP_END[i] ? t + 1 : 0;
         if (t == 0) {                                  /* while (!HasPlayerRider()) yield return null */
             if (riding_ms(s, i)) { COV(C_ZIPSTART); t = 1; }
             s->zipTimer[i] = (short)t;
@@ -2505,6 +2562,15 @@ MODEL_API void celeste_init(State *s, int spawnX, int spawnY)
     s->stamina = CLIMB_MAX_STAMINA;
     WS_SET(s);
     s->aimX = 1;
+#ifdef SPAWN_FACING                    /* e.g. 2A lvl_3: CS02_BadelineIntro.OnEnd sets Facing = Left */
+    s->facing = SPAWN_FACING;
+    s->aimX = SPAWN_FACING;
+#endif
+#if HAS_CHASER
+    /* she stood at the spawn before the route starts: that is where the
+     * chasers' delayed path begins */
+    for (int k = 0; k < CHASER_HIST_LEN; k++) { s->histX[k] = (short)spawnX; s->histY[k] = (short)spawnY; }
+#endif
 }
 
 /* VirtualButton.Update for Jump, Dash and Crouch Dash (runs every frame,

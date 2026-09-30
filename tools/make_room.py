@@ -13,7 +13,8 @@ Format (one character per 8x8 tile):
     -  air with a jump-through platform along the top of this tile
 
 Lines starting with ';' are comments, except these directives:
-    ; spawn X Y             exact spawn in pixels (overrides S)
+    ; spawn X Y [FACING]    exact spawn in pixels (overrides S); FACING -1: she
+                            starts facing left
     ; exit SIDE FROM TO     a neighbouring room on SIDE (left, right, up, down)
                             covering pixels [FROM, TO) along that edge; leaving
                             the room there is the goal. Without any exit line
@@ -33,6 +34,10 @@ Lines starting with ';' are comments, except these directives:
     ; crumble X Y W         a crumble block (W x 8 at (X, Y))
     ; dashblock X Y W H CANDASH  a dash block (W x H at (X, Y)); CANDASH 1: a
                             dash into it breaks it (and she rebounds)
+    ; switchgate X Y W H NX NY  a switch gate (W x H at (X, Y)); when every
+                            touch switch in the room is on it moves to (NX, NY)
+    ; touchswitch X Y       a touch switch centred at (X, Y)
+    ; chaser DELAY          a Badeline chaser (one line each; DELAY in frames)
 Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
 are attached to it and move with it.
 Spikes and springs act in the order they are listed (the game checks them in
@@ -69,12 +74,14 @@ def parse(path):
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
     rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles, dashblocks, dreamblocks = \
         [], None, [], [], [], [], [], [], [], []
-    chaser = None
+    chaser, nchasers, facing, zipkinds, touches = None, 0, None, [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
         if line.startswith("; spawn "):
             exact = tuple(int(v) for v in words[2:4])
+            if len(words) > 4 and words[4].lstrip("-").isdigit():
+                facing = int(words[4])                   # ; spawn X Y FACING (-1: facing left)
         elif line.startswith("; exit ") or line.startswith("; leave "):
             side, a, b = words[2], int(words[3]), int(words[4])
             assert side in SIDES, f"unknown exit side {side!r}"
@@ -93,6 +100,13 @@ def parse(path):
         elif line.startswith("; zipmover "):
             x, y, w, h, tx, ty = int(words[2]), int(words[3]), int(words[4]), int(words[5]), int(words[6]), int(words[7])
             zipmovers.append((x, y, w, h, tx, ty))
+            zipkinds.append(0)
+        elif line.startswith("; switchgate "):
+            x, y, w, h, tx, ty = (int(v) for v in words[2:8])
+            zipmovers.append((x, y, w, h, tx, ty))       # a moving solid like a zip mover, kind 1
+            zipkinds.append(1)
+        elif line.startswith("; touchswitch "):
+            touches.append((int(words[2]), int(words[3])))
         elif line.startswith("; fallingblock "):
             fallblocks.append(tuple(int(v) for v in words[2:7]))
         elif line.startswith("; crumble "):
@@ -103,6 +117,7 @@ def parse(path):
             dreamblocks.append(tuple(int(v) for v in words[2:6]))
         elif line.startswith("; chaser"):
             chaser = int(words[2]) if len(words) > 2 else 90
+            nchasers += 1
         if not line or line.startswith(";"):
             continue
         rows.append(line)
@@ -174,6 +189,12 @@ def parse(path):
     parse.dashblocks = dashblocks
     parse.dreamblocks = dreamblocks
     parse.chaser = chaser
+    parse.nchasers = nchasers
+    parse.facing = facing
+    parse.zipkinds = zipkinds
+    parse.touches = touches
+    assert len(touches) <= 8, "at most 8 touch switches (State.tsOn is 8 bits)"
+    assert not touches or 1 in zipkinds, "touch switches without a switch gate"
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
 
 
@@ -269,6 +290,70 @@ def zip_cycle(x, y, tx, ty):
     return out
 
 
+def cube_out(t):                         # Ease.CubeOut = Invert(CubeIn): 1 - (1 - t)^3
+    u = f32(1.0 - t)
+    return f32(1.0 - f32(f32(u * u) * u))
+
+
+def gate_cycle(x, y, nx, ny):
+    """SwitchGate.Sequence() (from the game's code) from the update that finds
+    Switch.Check(Scene) true, one entry per update like zip_cycle; index 0 =
+    waiting. After the last entry it stays at its node.
+        while (!Switch.Check(Scene)) yield return null;
+        yield return 0.1f;
+        StartShaking(0.5f);                         (drawing only)
+        while (icon.Rate < 1f) { icon.Rate += Engine.DeltaTime * 2f; yield return null; }
+        yield return 0.1f;
+        Tween tween = Tween.Create(Oneshot, Ease.CubeOut, 2f, start: true);
+        tween.OnUpdate = t => MoveTo(Vector2.Lerp(start, node, t.Eased));
+        Add(tween);                                 (updates from the next frame on)
+        yield return 1.8f; ...                      (particles only)
+    Tween.Update: TimeLeft -= DeltaTime; Percent = 1 - Math.Max(0, TimeLeft) / Duration;
+    Eased = Easer(Percent); OnUpdate; removed once TimeLeft <= 0."""
+    px, py, cx, cy = x, y, 0.0, 0.0
+    out = [(px, py, 0, 0, 0.0, 0.0)]                # 0: waiting for the switches
+
+    def idle(n):
+        for _ in range(n):
+            out.append((px, py, 0, 0, 0.0, 0.0))
+
+    def move_to(vx, vy):                            # Platform.MoveTo -> MoveH, MoveV (as zip_cycle)
+        nonlocal px, py, cx, cy
+        mh = f32(vx - f32(px + cx))
+        lx = f32(mh / DT32)
+        cx = f32(cx + mh)
+        mx = round(cx)
+        cx = f32(cx - mx)
+        px += mx
+        mv = f32(vy - f32(py + cy))
+        ly = f32(mv / DT32)
+        cy = f32(cy + mv)
+        my = round(cy)
+        cy = f32(cy - my)
+        py += my
+        out.append((px, py, mx, my, lx, ly))
+
+    idle(1)                                         # Check() true: yield return 0.1f
+    idle(wait_updates(0.1))
+    rate = 0.0
+    while rate < 1.0:                               # one update per loop pass (yield return null)
+        rate = f32(rate + f32(DT32 * 2.0))
+        idle(1)
+    idle(1)                                         # Rate >= 1: yield return 0.1f
+    idle(wait_updates(0.1))
+    idle(1)                                         # Tween.Create, Add, yield return 1.8f
+    left = f32(2.0)
+    while True:                                     # the tween, one update per frame from the next
+        left = f32(left - DT32)
+        pct = f32(1.0 - f32(max(0.0, left) / 2.0))
+        e = cube_out(pct)
+        move_to(lerp(x, nx, e), lerp(y, ny, e))
+        if left <= 0:
+            break
+    assert (px, py) == (nx, ny), "switch gate did not arrive at its node"
+    return out
+
+
 # ---- falling blocks -------------------------------------------------------
 FB_SHAKE = wait_updates(0.2)            # yield return 0.2f (shaking)
 FB_WAIT = wait_updates(0.4)             # float timer = 0.4f; while (timer > 0 && PlayerWaitCheck())
@@ -348,6 +433,7 @@ def main():
            "#ifndef ROOM_H_INCLUDED", "#define ROOM_H_INCLUDED",
            f"#define ROOM_W {w}", f"#define ROOM_H {h}",
            f"#define SPAWN_X {sx}", f"#define SPAWN_Y {sy}",
+           *([f"#define SPAWN_FACING {parse.facing}"] if parse.facing else []),
            "/* the room, for reference:"]
     out += [f"   {r}" for r in rows]
     out += ["*/",
@@ -412,25 +498,38 @@ def main():
             " * (see zip_cycle): position after the update, pixels moved, LiftSpeed */",
             f"#define NZIPMOVERS {len(zipmovers)}"]
     if zipmovers:
-        cycles = [zip_cycle(x, y, tx, ty) for x, y, _, _, tx, ty in zipmovers]
-        n = len(cycles[0])
-        assert all(len(c) == n for c in cycles)
-        out.append(f"#define ZIP_T_END {n - 1}   /* after this update it waits for a rider again */")
+        kinds = parse.zipkinds
+        cycles = [gate_cycle(x, y, tx, ty) if k else zip_cycle(x, y, tx, ty)
+                  for (x, y, _, _, tx, ty), k in zip(zipmovers, kinds)]
+        n = max(len(c) for c in cycles)
+        pad = lambda c: c + [c[-1][:2] + (0, 0, 0.0, 0.0)] * (n - len(c))
+        out.append(f"#define ZIP_T_END {n - 1}   /* the longest table (entries beyond a mover's own end repeat its last position) */")
+        out.append("/* 0: zip mover (starts when ridden, returns, waits again); 1: switch gate (starts when every"
+                   " touch switch is on, then stays at its node) */")
+        out.append("static const unsigned char ZIP_KIND[NZIPMOVERS] = { " + ", ".join(str(k) for k in kinds) + " };")
+        out.append("static const short ZIP_END[NZIPMOVERS] = { " + ", ".join(str(len(c) - 1) for c in cycles) + " };")
         out.append("static const short ZIPMOVERS[NZIPMOVERS][6] = {")
         out += [f"    {{ {x}, {y}, {w}, {h}, {tx}, {ty} }}," for x, y, w, h, tx, ty in zipmovers]
         out.append("};")
         out.append("static const short ZIP_POS[NZIPMOVERS][ZIP_T_END + 1][2] = {")
         for c in cycles:
-            out.append("  {" + ",".join(f"{{{e[0]},{e[1]}}}" for e in c) + "},")
+            out.append("  {" + ",".join(f"{{{e[0]},{e[1]}}}" for e in pad(c)) + "},")
         out.append("};")
         out.append("static const signed char ZIP_MOVE[NZIPMOVERS][ZIP_T_END + 1][2] = {")
         for c in cycles:
-            out.append("  {" + ",".join(f"{{{e[2]},{e[3]}}}" for e in c) + "},")
+            out.append("  {" + ",".join(f"{{{e[2]},{e[3]}}}" for e in pad(c)) + "},")
         out.append("};")
         out.append("static const float ZIP_LIFT[NZIPMOVERS][ZIP_T_END + 1][2] = {")
         for c in cycles:
-            out.append("  {" + ",".join(f"{{{float(e[4]).hex()}f,{float(e[5]).hex()}f}}" for e in c) + "},")
+            out.append("  {" + ",".join(f"{{{float(e[4]).hex()}f,{float(e[5]).hex()}f}}" for e in pad(c)) + "},")
         out.append("};")
+    touches = parse.touches
+    out += ["", "/* touch switches: { x, y } (a 30 x 30 PlayerCollider around it); all on = TS_ALL */",
+            f"#define NTOUCH {len(touches)}"]
+    if touches:
+        out.append(f"#define TS_ALL {(1 << len(touches)) - 1}")
+        out.append("static const short TOUCHSWITCHES[NTOUCH][2] = { "
+                   + ", ".join(f"{{ {x}, {y} }}" for x, y in touches) + " };")
     out += ["", "/* falling blocks: { x, y, w, h, climbFall } and FallingBlock.Sequence() per update",
             " * (see fall_cycle and fb_update in celeste.c): y after the update, pixels moved, LiftSpeed.Y */",
             f"#define NFALLBLOCKS {len(fallblocks)}"]
@@ -498,7 +597,8 @@ def main():
     if parse.chaser is not None:
         out += ["", "/* Badeline chaser */",
                 "#define HAS_CHASER 1",
-                f"#define CHASER_DELAY {parse.chaser}"]
+                f"#define CHASER_DELAY {parse.chaser}",
+                f"#define NCHASERS {parse.nchasers}   /* chaser i follows 0.4 s * i later */"]
     else:
         out += ["", "#define HAS_CHASER 0"]
     out += ["#endif", ""]

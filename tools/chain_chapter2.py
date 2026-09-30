@@ -1,8 +1,25 @@
 #!/usr/bin/env python3
 """
-chain_chapter2.py -- sequentially solve and chain all Chapter 2 chase rooms into an end-to-end TAS.
+chain_chapter2.py -- solve the Chapter 2 chase rooms in order, each from the
+state the previous room leaves her in, and chain them into one route.
+
+    python3 tools/chain_chapter2.py [--beam-width 100000] [--polish]
+
+The first room (2a_lvl_3) starts at its spawn, as `console load 2 3` puts her
+there. Every later room starts from the state tools/chapter.py's enter_room
+gives her when she crosses into it. A room's solved route is reused only if
+it was solved from exactly the same start state (build/<room>/solved_from.h);
+otherwise it is searched again.
+
+The chase ends in lvl_13 at the payphone cutscene, which the model has no
+goal for, so the chain stops when she enters lvl_13.
+
+Then write the file to play in the game:
+
+    python3 tools/celestetas.py chain build/chapter2_chase/2A_chase.tas \\
+        --load "2 3" --dump celeste-sat-2a-chase.txt -o results/celestetas/2a_chase.tas
 """
-import argparse, json, os, subprocess, sys, time
+import argparse, filecmp, json, os, re, shutil, subprocess, sys, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
@@ -23,136 +40,108 @@ CHASE_ROOMS = [
     "2a_lvl_11",
     "2a_lvl_12b",
     "2a_lvl_12",
-    "2a_lvl_13",
 ]
+SPAWN = "/* the room's spawn */\n"
+
+
+def sim_path(bdir):
+    return os.path.join(bdir, "sim.exe" if sys.platform == "win32" else "sim")
+
+
+def exit_frame(bdir, tas):
+    out = subprocess.run([sim_path(bdir), tas], capture_output=True, text=True).stdout
+    m = re.search(r"EXIT at frame (\d+)", out)
+    return int(m.group(1)) if m else None
+
+
+def same_start(bdir, entry):
+    """was build/<room>/best.tas solved from this start state?"""
+    mark = os.path.join(bdir, "solved_from.h")
+    if not os.path.exists(mark) or not os.path.exists(os.path.join(bdir, "best.tas")):
+        return False
+    if entry is None:
+        return open(mark).read() == SPAWN
+    return filecmp.cmp(mark, entry, shallow=False)
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--from", dest="start_room", default="2a_lvl_3")
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--beam-width", type=int, default=100000)
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "chapter2_chase"))
     ap.add_argument("--polish", action="store_true")
     a = ap.parse_args()
 
     os.makedirs(a.out, exist_ok=True)
-    summary, all_inputs = [], []
+    summary, all_inputs, entry = [], [], None
+    print(f"=== Chapter 2 chase: {len(CHASE_ROOMS)} rooms, each from the previous room's exit ===", flush=True)
 
-    start_idx = CHASE_ROOMS.index(a.start_room) if a.start_room in CHASE_ROOMS else 0
-    entry_h = None
-
-    print(f"=== Starting Chapter 2 Automated Chase Pipeline ({len(CHASE_ROOMS)} rooms) ===")
-
-    for idx, room_name in enumerate(CHASE_ROOMS):
-        room_path = os.path.join(ROOT, "rooms", "vanilla", f"{room_name}.txt")
-        bdir = os.path.join(ROOT, "build", room_name)
-        os.makedirs(bdir, exist_ok=True)
-
+    for idx, room in enumerate(CHASE_ROOMS):
+        room_path = os.path.join(ROOT, "rooms", "vanilla", f"{room}.txt")
+        bdir = os.path.join(ROOT, "build", room)
         best_tas = os.path.join(bdir, "best.tas")
-        sim_exe = os.path.join(bdir, "sim.exe" if sys.platform == "win32" else "sim")
-
-        # If previous entry state exists, use it
-        if idx > 0 and not entry_h:
-            entry_h = os.path.join(bdir, "entry.h")
-
         t0 = time.time()
-        # Check if already solved
-        if os.path.exists(best_tas) and os.path.exists(sim_exe):
-            r = subprocess.run([sim_exe, best_tas], capture_output=True, text=True)
-            if "EXIT at frame" in r.stdout:
-                import re
-                m = re.search(r"EXIT at frame (\d+)", r.stdout)
-                n = int(m.group(1))
-                print(f"[{idx+1}/{len(CHASE_ROOMS)}] {room_name:12s}: already solved ({n} frames)")
-                frames = read_tas(best_tas)[:n]
-                summary.append({"room": room_name, "frames": n, "status": "cached"})
-                all_inputs.append(frames)
+        n, status = None, "solved"
 
-                if idx + 1 < len(CHASE_ROOMS):
-                    exit_h = os.path.join(bdir, "exit.h")
-                    subprocess.run([sim_exe, "-s", str(n), exit_h, best_tas], check=True)
-                    st = read_state(exit_h)
-                    r_cur = parse(room_path)[0]
-                    next_path = os.path.join(ROOT, "rooms", "vanilla", f"{CHASE_ROOMS[idx+1]}.txt")
-                    r_nxt = parse(next_path)[0]
-                    side = exit_side(st, len(r_cur[0]) * 8, len(r_cur) * 8)
-                    e = enter_room(st, side, origin_of(room_path), origin_of(next_path),
-                                   len(r_nxt[0]) * 8, len(r_nxt) * 8, tables(bdir))
-                    next_bdir = os.path.join(ROOT, "build", CHASE_ROOMS[idx+1])
-                    os.makedirs(next_bdir, exist_ok=True)
-                    entry_h = os.path.join(next_bdir, "entry.h")
-                    write_state(e, entry_h, f"entering {CHASE_ROOMS[idx+1]} from {room_name}")
-                continue
+        if same_start(bdir, entry):
+            build(room_path, bdir, entry)
+            n = exit_frame(bdir, best_tas)
+            status = "cached"
+        if n is None:
+            widths = [a.beam_width] + [w for w in (20000, 5000) if w < a.beam_width]
+            for bw in widths:
+                print(f"[{idx + 1}/{len(CHASE_ROOMS)}] {room:12s}: beam width {bw} ...", flush=True)
+                cmd = [sys.executable, os.path.join(ROOT, "tools", "solve.py"), room_path,
+                       "--out", bdir, "--beam-width", str(bw), "--no-sat"]
+                if entry:
+                    cmd += ["--start", entry]
+                if a.polish:
+                    cmd += ["--polish"]
+                r = subprocess.run(cmd, capture_output=True, text=True)
+                if os.path.exists(best_tas) and r.returncode == 0:
+                    n = exit_frame(bdir, best_tas)
+                    if n:
+                        break
+                print(f"   no route with width {bw}", flush=True)
+            if n is None:
+                sys.exit(f"{room}: no route found\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}")
+            if entry:
+                shutil.copy(entry, os.path.join(bdir, "solved_from.h"))
+            else:
+                open(os.path.join(bdir, "solved_from.h"), "w").write(SPAWN)
 
-        # Solve this room with adaptive beam fallback
-        widths = [a.beam_width]
-        if a.beam_width > 25000 and 20000 not in widths:
-            widths.append(20000)
-        if 5000 not in widths:
-            widths.append(5000)
-
-        solved = False
-        for bw in widths:
-            print(f"[{idx+1}/{len(CHASE_ROOMS)}] {room_name:12s}: searching with beam (width {bw})...", flush=True)
-            cmd = [sys.executable, os.path.join(ROOT, "tools", "solve.py"), room_path,
-                   "--out", bdir, "--beam-width", str(bw), "--no-sat"]
-            if entry_h and os.path.exists(entry_h):
-                cmd += ["--start", entry_h]
-            if a.polish:
-                cmd += ["--polish"]
-
-            r = subprocess.run(cmd, capture_output=True, text=True)
-            if os.path.exists(best_tas):
-                r_sim = subprocess.run([sim_exe, best_tas], capture_output=True, text=True)
-                if "EXIT at frame" in r_sim.stdout:
-                    solved = True
-                    break
-            print(f"   (beam width {bw} failed or timed out, trying fallback width...)")
-
-        if not solved:
-            print(f"ERROR: {room_name} failed to find route with any beam width!\nSTDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}")
-            break
-
-        # Check exit
-        r_sim = subprocess.run([sim_exe, best_tas], capture_output=True, text=True)
-        import re
-        m = re.search(r"EXIT at frame (\d+)", r_sim.stdout)
-        if not m:
-            print(f"ERROR: {room_name} route did not exit!\n{r_sim.stdout}")
-            break
-        n = int(m.group(1))
-        dt = time.time() - t0
-        print(f"   -> {room_name} solved in {n} frames ({dt:.1f}s)")
         frames = read_tas(best_tas)[:n]
-        summary.append({"room": room_name, "frames": n, "time": dt, "status": "solved"})
+        print(f"[{idx + 1}/{len(CHASE_ROOMS)}] {room:12s}: {n} frames ({status}, {time.time() - t0:.0f}s)",
+              flush=True)
+        summary.append({"room": room, "frames": n, "status": status,
+                        "start": "spawn" if entry is None else f"entered from {CHASE_ROOMS[idx - 1]}"})
         all_inputs.append(frames)
 
-        if idx + 1 < len(CHASE_ROOMS):
-            exit_h = os.path.join(bdir, "exit.h")
-            subprocess.run([sim_exe, "-s", str(n), exit_h, best_tas], check=True)
-            st = read_state(exit_h)
-            r_cur = parse(room_path)[0]
-            next_path = os.path.join(ROOT, "rooms", "vanilla", f"{CHASE_ROOMS[idx+1]}.txt")
-            r_nxt = parse(next_path)[0]
-            side = exit_side(st, len(r_cur[0]) * 8, len(r_cur) * 8)
-            e = enter_room(st, side, origin_of(room_path), origin_of(next_path),
-                           len(r_nxt[0]) * 8, len(r_nxt) * 8, tables(bdir))
-            next_bdir = os.path.join(ROOT, "build", CHASE_ROOMS[idx+1])
-            os.makedirs(next_bdir, exist_ok=True)
-            entry_h = os.path.join(next_bdir, "entry.h")
-            write_state(e, entry_h, f"entering {CHASE_ROOMS[idx+1]} from {room_name}")
+        # the state she enters the next room with (lvl_13 after the last one)
+        nxt = CHASE_ROOMS[idx + 1] if idx + 1 < len(CHASE_ROOMS) else "2a_lvl_13"
+        next_path = os.path.join(ROOT, "rooms", "vanilla", f"{nxt}.txt")
+        exit_h = os.path.join(bdir, "exit.h")
+        route = os.path.join(bdir, "chained.tas")
+        write_tas(route, frames, [room])
+        subprocess.run([sim_path(bdir), "-s", str(n), exit_h, route], check=True, capture_output=True)
+        st = read_state(exit_h)
+        r_cur, r_nxt = parse(room_path)[0], parse(next_path)[0]
+        side = exit_side(st, len(r_cur[0]) * 8, len(r_cur) * 8)
+        e = enter_room(st, side, origin_of(room_path), origin_of(next_path),
+                       len(r_nxt[0]) * 8, len(r_nxt) * 8, tables(bdir))
+        entry = os.path.join(a.out, f"entry_{nxt}.h")
+        write_state(e, entry, f"entering {nxt} from {room}")
 
-    total_frames = sum(s["frames"] for s in summary)
+    total = sum(s["frames"] for s in summary)
     combined = [f for fr in all_inputs for f in fr]
     out_tas = os.path.join(a.out, "2A_chase.tas")
     write_tas(out_tas, combined,
-              [f"Chapter 2 Badeline Chase: {len(summary)} rooms, {total_frames} frames ({total_frames/60:.2f}s)"] +
+              [f"Chapter 2 Badeline chase: {len(summary)} rooms, {total} frames ({total / 60:.2f}s) of control, "
+               f"room transitions not counted; each room entered from the previous one"] +
               [f"  {s['room']}: {s['frames']} frames" for s in summary])
     with open(os.path.join(a.out, "summary.json"), "w") as f:
-        json.dump({"rooms": summary, "total_frames": total_frames, "total_seconds": total_frames/60.0}, f, indent=2)
+        json.dump({"rooms": summary, "total_frames": total, "total_seconds": total / 60.0}, f, indent=2)
 
-    print(f"\n=== Completed {len(summary)} rooms: {total_frames} frames ({total_frames/60:.2f}s) ===")
-    print(f"Combined TAS: {out_tas}")
+    print(f"\n=== {len(summary)} rooms: {total} frames ({total / 60:.2f}s) ===\nchained route: {out_tas}")
 
 
 if __name__ == "__main__":

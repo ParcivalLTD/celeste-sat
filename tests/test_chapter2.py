@@ -75,29 +75,39 @@ def test_dream_block_solid_walk():
     print(f"PASS: Dream block is completely solid to walking! Blocked at x={final_x} as expected.")
 
 def test_badeline_chaser():
-    print("--- Test 3: Badeline Chaser Death ---")
+    print("--- Test 3: Badeline Chaser waits until she moves ---")
     bdir, sim_bin = setup_room("chaser_test")
-    # Delay is 30 frames. Standing still for 40 frames must result in death around frame 31.
+    # BadelineOldsite starts chasing only once Player.JustRespawned is cleared (she moves)
     tas_path = os.path.join(bdir, "test_idle.tas")
     with open(tas_path, "w") as f:
-        f.write("  50\n")
-        
+        f.write("  60\n")
     json_path = os.path.join(bdir, "trace_idle.json")
-    res = subprocess.run([sim_bin, "-j", json_path, tas_path], capture_output=True, text=True)
-    
+    subprocess.run([sim_bin, "-j", json_path, tas_path], capture_output=True, text=True)
     trace = json.loads(open(json_path).read())
-    # sim stops recording on death
-    total_frames = len(trace["frames"])
+    total_frames = len(trace["frames"]) - 1
+    assert total_frames == 60, f"standing still at the spawn must not wake the chaser (died after {total_frames})"
+    print("PASS: standing at the spawn, the chaser never comes")
+
+    print("--- Test 3b: Badeline Chaser catches her when she stops ---")
+    # Delay 30 frames: walk right for 20 frames, then stand; the chaser replays her path
+    # 28-30 frames later and reaches her about 30 frames after she stopped
+    tas_path = os.path.join(bdir, "test_stop.tas")
+    with open(tas_path, "w") as f:
+        f.write("  20,R\n  60\n")
+    json_path = os.path.join(bdir, "trace_stop.json")
+    subprocess.run([sim_bin, "-j", json_path, tas_path], capture_output=True, text=True)
+    trace = json.loads(open(json_path).read())
+    total_frames = len(trace["frames"]) - 1
     print(f"Frames until death: {total_frames}")
-    assert 30 <= total_frames <= 35, f"Expected death around frame 31, got {total_frames} frames!"
-    print(f"PASS: Badeline Chaser caught and killed stationary Madeline at frame {total_frames}!")
+    assert 35 <= total_frames <= 55, f"expected death 15-35 frames after stopping, got frame {total_frames}"
+    print(f"PASS: the chaser caught her standing still, on frame {total_frames}")
 
     print("--- Test 4: Badeline Chaser Survival by Movement ---")
     # Moving right continuously stays ahead of Badeline
     tas_path2 = os.path.join(bdir, "test_run.tas")
     with open(tas_path2, "w") as f:
         f.write("  50,R\n")
-        
+
     json_path2 = os.path.join(bdir, "trace_run.json")
     res2 = subprocess.run([sim_bin, "-j", json_path2, tas_path2], capture_output=True, text=True)
     trace2 = json.loads(open(json_path2).read())
