@@ -168,6 +168,11 @@ static Input policy(const State *s)
             in.jump = press;
         return in;
     }
+    if (s->state == ST_DREAM_DASH) {
+        if (s->dreamJump || TPOS(s->jumpGraceTimer))
+            in.jump = press;
+        return in;
+    }
     if (s->state == ST_CLIMB) {                        /* keep climbing while the path goes up */
         in.grab = up;
         in.my = (signed char)(up ? -1 : 0);
@@ -239,6 +244,12 @@ static uint64_t hash_state(const State *s)
 #endif
 #if NREFILLS > 0
     for (int k = 0; k < NREFILLS; k++) MIX(s->refillTimer[k]);
+#endif
+#if NDREAMBLOCKS > 0
+    MIX(s->dreamDashCanEndTimer); MIX(s->dreamJump);
+#endif
+#if HAS_CHASER
+    MIX(s->chaserTimer);
 #endif
     MIX(s->jumpBuf); MIX(s->dashBuf); MIX(s->cdashBuf);
     return h;
@@ -374,6 +385,7 @@ int main(int argc, char **argv)
             for (int dk = 0; dk < 3; dk++)               /* 0 none, 1 dash, 2 crouch dash */
             for (int g = 0; g <= 1; g++) {
                 if (frozen && (mx != 0 || my != 0 || g)) continue;
+                if (cs.state == ST_DREAM_DASH && (mx != 0 || my != 0 || g || dk)) continue;
                 if (my == -1 && !upMatters) continue;
                 if (g && !grabMatters) continue;
                 Input in = { (signed char)mx, (signed char)my, jumpOpts[jo],

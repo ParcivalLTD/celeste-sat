@@ -66,6 +66,8 @@ static void dump_state(const State *s, const char *path, int k)
     I(coActive); I(coStage); I(coWait); I(freezeTimer); I(prevJump); I(prevDash); I(prevCDash);
     I(jumpBuf); I(dashBuf); I(cdashBuf); I(jumpEdge); I(dashEdge); I(cdashEdge); I(demoDashed);
     I(exited); I(dead);
+    I(dreamDashCanEndTimer); I(dreamJump);
+    I(chaserTimer);
     fprintf(f, "};\n");
     fclose(f);
 #undef I
