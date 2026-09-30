@@ -29,6 +29,7 @@ int main(void)
 {
     State s = START;
     int f = 0;
+    speed_bounds_from(&s);
     for (int i = 0; i < A_STEPS; i++, f++) {
         Input in = free_input(&s);
         inputs[f] = in;
