@@ -288,7 +288,16 @@ against a recording is listed under "Things to check".
   frames). `Player.LiftBoost` caps it (|x| ≤ 250, −130 ≤ y ≤ 0) and adds it to
   jumps, supers and hypers (before the ducking multipliers), wall jumps,
   wallbounces, dash starts, letting go of a wall or running out of stamina,
-  and walking off (`NormalUpdate`: a rising platform gives its speed).
+  and walking off (`NormalUpdate`: a rising platform gives its speed). The
+  grace time does not run during a room transition (her updates stop), so a
+  lift speed can carry into the next room; a room entered like that is built
+  with the lift code too (`CARRIED_LIFT`, which `tools/solve.py` and
+  `tools/cross.py` set). None of the TAS's room changes carries one.
+- **Speed bounds.** The SAT harnesses assume |speed| ≤ 400 × 250 px/s
+  (1000 × 400 with lift boosts) as redundant facts that help the solver;
+  a start state carrying more (a room entered fast from the one before:
+  `lvl_9b` at 654 px/s) raises them to its own speeds, so that the
+  assumption never cuts off a real route.
 - **Cost.** In rooms without zip movers all of this compiles away: the
   formula for `ledge` is within 0.05 % of what it was before. Rooms with them
   allow whole-pixel moves up to 16 px (the rounding comparisons and the
