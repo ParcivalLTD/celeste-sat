@@ -611,7 +611,10 @@ right; `lvl_2` keeps its wall speed retention). The faster endings are
 worth something only if the next room can make up for the state it gets,
 which `tests/tas_crossings.py` (`tools/cross.py` at each room change) asks
 next: can she be in the TAS's exact state a few frames into the next room,
-one frame sooner?
+one frame sooner? With the room's last 6 frames and the next room's first 3
+free (one query per frame she could leave on, 15–40 min per room change),
+so far: `lvl_1` → `lvl_2`, `lvl_2` → `lvl_3` and `lvl_3` → `lvl_4`: no
+(proven); the other room changes are still running.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
