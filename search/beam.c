@@ -184,6 +184,17 @@ static Input policy(const State *s)
             in.jump = press;
         }
     }
+    if (s->state == ST_NORMAL && s->dashes > 0 && !TPOS(s->dashCooldownTimer)) {
+        if (s->onGround && in.mx != 0 && !up) {
+            in.cdash = s->prevCDash ? BTN_REPRESS : 1;
+            in.my = 1;
+            return in;
+        } else if (!s->onGround && (abs(tx - s->x) > 20 || abs(ty - s->y) > 20)) {
+            in.dash = s->prevDash ? BTN_REPRESS : 1;
+            in.my = (signed char)(up ? -1 : (down ? 1 : 0));
+            return in;
+        }
+    }
     return in;
 }
 
@@ -197,8 +208,11 @@ static float score(const State *s0)
     State s = *s0;
     float best = -(float)pos_dist(s.x, s.y, NULL, NULL);
     int tbest = 0;
-    for (int t = 1; t <= ROLLOUT; t++) {
+    int moved = 0;
+    for (int t = 1; moved < ROLLOUT && t <= ROLLOUT + 8; t++) {
+        bool frozen = s.freezeTimer > 0;
         celeste_step(&s, policy(&s));
+        if (!frozen) moved++;
         if (s.dead) break;
         if (s.exited) return 1e6f - (float)t;
         float v = -(float)pos_dist(s.x, s.y, NULL, NULL);
