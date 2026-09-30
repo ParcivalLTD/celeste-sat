@@ -1091,6 +1091,15 @@ static void climb_jump(State *s)
     COV(C_CLIMBJUMP);
     if (!s->onGround) s->stamina -= CLIMB_JUMP_COST;
     jump(s);                                      /* Jump(false, false) */
+#if NMS > 0
+    /* A climb jump counts as riding the solid she jumped off (Player.IsRiding:
+     * climbTriggerDir) for the moving solids' updates of that frame: it
+     * starts a zip mover or falling block. Not in the published code; the
+     * community TAS's lvl_9 starts its zip mover this way (it plays exactly
+     * only if the zip mover starts on the climb jump's frame). Setting it on
+     * any grab next to a wall (whether or not she can climb) fits too. */
+    s->climbTriggerDir = (signed char)s->facing;
+#endif
     if (s->moveX == 0) {
         s->wallBoostDir = -s->facing;
         TSET(s->wallBoostTimer, CLIMB_JUMP_BOOST_TIME);
@@ -1900,7 +1909,6 @@ static void player_update(State *s, Input in)
 {
     LOAD_WINDOW(s);
     FRAME_HOOK(s, in);
-
     /* Get ground (a solid, or a jump-through from above) */
     bool wasOnGround = s->onGround;               /* set at the end of the last Player.Update */
     if (s->spdY >= 0) s->onGround = on_ground_at(s, s->x, s->y);
@@ -2073,6 +2081,7 @@ static void player_update(State *s, Input in)
 static bool riding_ms(const State *s, int i)
 {
     if (s->state == ST_CLIMB) return ms_overlap(i, s->x + s->facing, s->y, collider_h(s));
+    if (s->climbTriggerDir) return ms_overlap(i, s->x + s->climbTriggerDir, s->y, collider_h(s));
     return ms_overlap(i, s->x, s->y + 1, collider_h(s));
 }
 
@@ -2333,6 +2342,7 @@ MODEL_API void celeste_step(State *s, Input in)
         cr_update(s);
 #endif
     }
+    s->climbTriggerDir = 0;                          /* only for this frame's riders */
 #endif
 #if NREFILLS > 0
     for (int k = 0; k < NREFILLS; k++)                /* Refill.Update: respawnTimer */
