@@ -145,8 +145,9 @@ def replay(bdir, tas, json_out=None):
 
 def cbmc(bdir, horizon, start_file, timeout):
     """True/False/None = found a route / proved impossible / timed out."""
-    cmd = ["cbmc", "solve.c", "-I", ".", "-I", f"{ROOT}/model", f"-DNFRAMES={horizon}",
-           "--trace", "--json-ui"]
+    cmd = ["cbmc"] + (["--gcc"] if sys.platform == "win32" else []) + [
+        "solve.c", "-I", ".", "-I", f"{ROOT}/model", f"-DNFRAMES={horizon}",
+        "--trace", "--json-ui"]
     if start_file:
         cmd.append(f'-DSTART_STATE_FILE="{start_file}"')
     t0 = time.time()
