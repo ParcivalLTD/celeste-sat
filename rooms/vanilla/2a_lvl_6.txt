@@ -1,10 +1,11 @@
 ; room lvl_6 of 2-OldSite (40x23 tiles), imported by tools/import_map.py
 ; origin 320 -1072   (world position of the room's top-left corner)
-; NOT MODELLED (ignored): switchGate, touchSwitch
 ; leave down 0 320   (-> lvl_5)
 ; exit up 0 336   (-> lvl_7)
+; switchgate 112 48 40 24 112 104
 ; spikes up 224 176 32
 ; spikes up 32 176 48
+; touchswitch 16 152
 ; spikes up 200 168 24
 ; dreamblock 56 16 40 24
 ; chaser 93

@@ -51,7 +51,7 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "    .crT = {");
     for (int z = 0; z < MAX_CRUMBLES; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->crT[z]);
     fprintf(f, "},\n");
-    I(dbBroken);
+    I(dbBroken); I(tsOn);
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);
@@ -68,6 +68,12 @@ static void dump_state(const State *s, const char *path, int k)
     I(exited); I(dead);
     I(dreamDashCanEndTimer); I(dreamJump);
     I(chaserTimer);
+    fprintf(f, "    .histX = {");
+    for (int z = 0; z < CHASER_HIST_LEN; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->histX[z]);
+    fprintf(f, "},\n");
+    fprintf(f, "    .histY = {");
+    for (int z = 0; z < CHASER_HIST_LEN; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->histY[z]);
+    fprintf(f, "},\n");
     fprintf(f, "};\n");
     fclose(f);
 #undef I

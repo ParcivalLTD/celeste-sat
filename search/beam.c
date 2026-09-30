@@ -50,8 +50,12 @@
 #define INF (1 << 29)
 #define LOOK 16
 
-static int dist[GH][GW];
-static short aheadX[GH][GW], aheadY[GH][GW];   /* point LOOK px further along the path */
+/* field 0: distance to an exit; field 1 + j: distance to touch switch j
+ * (positions where her hurtbox touches its 30 x 30 collider) */
+#define NFIELDS (1 + NTOUCH)
+static int distF[NFIELDS][GH][GW];
+static short aheadXF[NFIELDS][GH][GW], aheadYF[NFIELDS][GH][GW];   /* point LOOK px further along the path */
+#define dist distF[0]
 
 static bool solid_px(int px, int py)            /* tile solid at pixel; outside the grid is air */
 {
@@ -89,30 +93,42 @@ static int classify(int x, int y)
 
 static int pos_dist(int x, int y, int *ax, int *ay);
 
-static void build_distance(void)
+static bool at_switch(int j, int x, int y)
 {
-    static signed char cls[GH][GW];
+#if NTOUCH > 0
+    return x - 4 < TOUCHSWITCHES[j][0] + 15 && x + 4 > TOUCHSWITCHES[j][0] - 15
+        && y - 11 < TOUCHSWITCHES[j][1] + 15 && y - 2 > TOUCHSWITCHES[j][1] - 15;
+#else
+    (void)j; (void)x; (void)y; return false;
+#endif
+}
+
+static signed char cls[GH][GW];
+
+static int bfs_field(int f)
+{
     static int qx[GW * GH], qy[GW * GH];
     static short nx_[GH][GW], ny_[GH][GW];
     int head = 0, tail = 0, ntarget = 0;
+    int (*d)[GW] = distF[f];
     for (int y = GY0; y <= GY1; y++)
         for (int x = GX0; x <= GX1; x++) {
-            int c = classify(x, y);
-            cls[y - GY0][x - GX0] = (signed char)c;
-            dist[y - GY0][x - GX0] = INF;
+            int c = cls[y - GY0][x - GX0];
+            d[y - GY0][x - GX0] = INF;
             nx_[y - GY0][x - GX0] = (short)x; ny_[y - GY0][x - GX0] = (short)y;
-            if (c == 2) { dist[y - GY0][x - GX0] = 0; qx[tail] = x; qy[tail++] = y; ntarget++; }
+            bool target = f == 0 ? c == 2 : (c == 1 && at_switch(f - 1, x, y));
+            if (target) { d[y - GY0][x - GX0] = 0; qx[tail] = x; qy[tail++] = y; ntarget++; }
         }
     while (head < tail) {
         int x = qx[head], y = qy[head++];
-        static const int d[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
+        static const int dd[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
         for (int k = 0; k < 4; k++) {
-            int nx = x + d[k][0], ny = y + d[k][1];
+            int nx = x + dd[k][0], ny = y + dd[k][1];
             if (nx < GX0 || ny < GY0 || nx > GX1 || ny > GY1) continue;
             if (!cls[ny - GY0][nx - GX0]) continue;
-            if (dist[ny - GY0][nx - GX0] > dist[y - GY0][x - GX0] + 1) {
-                dist[ny - GY0][nx - GX0] = dist[y - GY0][x - GX0] + 1;
-                nx_[ny - GY0][nx - GX0] = (short)x; ny_[ny - GY0][nx - GX0] = (short)y;   /* next step to the exit */
+            if (d[ny - GY0][nx - GX0] > d[y - GY0][x - GX0] + 1) {
+                d[ny - GY0][nx - GX0] = d[y - GY0][x - GX0] + 1;
+                nx_[ny - GY0][nx - GX0] = (short)x; ny_[ny - GY0][nx - GX0] = (short)y;   /* next step to the target */
                 qx[tail] = nx; qy[tail++] = ny;
             }
         }
@@ -124,8 +140,31 @@ static void build_distance(void)
                 int a = nx_[cy - GY0][cx - GX0], b = ny_[cy - GY0][cx - GX0];
                 cx = a; cy = b;
             }
-            aheadX[y - GY0][x - GX0] = (short)cx;
-            aheadY[y - GY0][x - GX0] = (short)cy;
+            aheadXF[f][y - GY0][x - GX0] = (short)cx;
+            aheadYF[f][y - GY0][x - GX0] = (short)cy;
+        }
+    return ntarget;
+}
+
+/* switch-to-switch and switch-to-exit path lengths (from the nearest point of
+ * one target area to the other) */
+static int SW_D[NFIELDS][NFIELDS];
+
+static void build_distance(void)
+{
+    for (int y = GY0; y <= GY1; y++)
+        for (int x = GX0; x <= GX1; x++)
+            cls[y - GY0][x - GX0] = (signed char)classify(x, y);
+    int ntarget = bfs_field(0);
+    for (int f = 1; f < NFIELDS; f++) bfs_field(f);
+    for (int a = 1; a < NFIELDS; a++)
+        for (int b = 0; b < NFIELDS; b++) {
+            int best = INF;
+            for (int y = GY0; y <= GY1; y++)
+                for (int x = GX0; x <= GX1; x++)
+                    if (distF[a][y - GY0][x - GX0] == 0 && distF[b][y - GY0][x - GX0] < best)
+                        best = distF[b][y - GY0][x - GX0];
+            SW_D[a][b] = best;
         }
 #ifdef START_STATE_FILE
     int sd = pos_dist(START_STATE.x, START_STATE.y, NULL, NULL);
@@ -134,11 +173,18 @@ static void build_distance(void)
 #endif
     fprintf(stderr, "distance field: %d exit positions, spawn is %d px from an exit\n",
             ntarget, sd >= INF ? -1 : sd);
+#if NTOUCH > 0
+    for (int a = 1; a < NFIELDS; a++) {
+        fprintf(stderr, "  touch switch %d:", a - 1);
+        for (int b = 0; b < NFIELDS; b++) fprintf(stderr, " %d", SW_D[a][b] >= INF ? -1 : SW_D[a][b]);
+        fprintf(stderr, "  (to the exit, then to each switch)\n");
+    }
+#endif
 }
 
 /* distance of a position, or of the best one nearby (positions on spikes are
  * left out of the field) */
-static int pos_dist(int x, int y, int *ax, int *ay)
+static int pos_dist_f(int f, int x, int y, int *ax, int *ay)
 {
     int best = INF, bx = x, by = y;
     for (int r = 0; r <= 3 && best >= INF; r++)
@@ -146,18 +192,60 @@ static int pos_dist(int x, int y, int *ax, int *ay)
             for (int dx = -r; dx <= r; dx++) {
                 int xx = x + dx, yy = y + dy;
                 if (xx < GX0 || yy < GY0 || xx > GX1 || yy > GY1) continue;
-                int d = dist[yy - GY0][xx - GX0];
+                int d = distF[f][yy - GY0][xx - GX0];
                 if (d < INF && d + abs(dx) + abs(dy) < best) { best = d + abs(dx) + abs(dy); bx = xx; by = yy; }
             }
-    if (ax) { *ax = best < INF ? aheadX[by - GY0][bx - GX0] : x; *ay = best < INF ? aheadY[by - GY0][bx - GX0] : y; }
+    if (ax) { *ax = best < INF ? aheadXF[f][by - GY0][bx - GX0] : x; *ay = best < INF ? aheadYF[f][by - GY0][bx - GX0] : y; }
     return best;
+}
+
+static int pos_dist(int x, int y, int *ax, int *ay) { return pos_dist_f(0, x, y, ax, ay); }
+
+/* the rest of the way: every touch switch not yet on (in the best order), then
+ * an exit; ax, ay: the point to steer for (on the way to the first of them) */
+#if NTOUCH > 0
+static int order_cost(int from, unsigned left)
+{
+    if (!left) return SW_D[from][0];
+    int best = INF;
+    for (int j = 0; j < NTOUCH; j++)
+        if (left & (1u << j)) {
+            int c = SW_D[from][1 + j];
+            if (c >= INF) continue;
+            int r = order_cost(1 + j, left & ~(1u << j));
+            if (r < INF && c + r < best) best = c + r;
+        }
+    return best;
+}
+#endif
+
+static int goal_dist(const State *s, int *ax, int *ay)
+{
+#if NTOUCH > 0
+    unsigned left = (unsigned)(TS_ALL & ~s->tsOn);
+    if (left) {
+        int best = INF, first = 0;
+        for (int j = 0; j < NTOUCH; j++)
+            if (left & (1u << j)) {
+                int d = pos_dist_f(1 + j, s->x, s->y, NULL, NULL);
+                if (d >= INF) continue;
+                int r = order_cost(1 + j, left & ~(1u << j));
+                if (r < INF && d + r < best) { best = d + r; first = 1 + j; }
+            }
+        if (best < INF) {
+            if (ax) pos_dist_f(first, s->x, s->y, ax, ay);
+            return best;
+        }
+    }
+#endif
+    return pos_dist_f(0, s->x, s->y, ax, ay);
 }
 
 /* ---- rollout policy and score -------------------------------------------- */
 static Input policy(const State *s)
 {
     int tx, ty;
-    pos_dist(s->x, s->y, &tx, &ty);
+    goal_dist(s, &tx, &ty);
     Input in = {0, 0, 0, 0, false, 0};
     in.mx = (signed char)(tx > s->x + 1 ? 1 : (tx < s->x - 1 ? -1 : 0));
     bool up = ty < s->y - 1, down = ty > s->y + 1;
@@ -206,7 +294,7 @@ static float score(const State *s0)
 {
     if (s0->exited) return 1e9f;
     State s = *s0;
-    float best = -(float)pos_dist(s.x, s.y, NULL, NULL);
+    float best = -(float)goal_dist(&s, NULL, NULL);
     int tbest = 0;
     int moved = 0;
     for (int t = 1; moved < ROLLOUT && t <= ROLLOUT + 8; t++) {
@@ -215,7 +303,7 @@ static float score(const State *s0)
         if (!frozen) moved++;
         if (s.dead) break;
         if (s.exited) return 1e6f - (float)t;
-        float v = -(float)pos_dist(s.x, s.y, NULL, NULL);
+        float v = -(float)goal_dist(&s, NULL, NULL);
         if (v > best) { best = v; tbest = t; }
     }
     return best - TIE * (float)tbest + (s0->dashes > 0 ? DASH_BONUS : 0.0f);
@@ -252,6 +340,9 @@ static uint64_t hash_state(const State *s)
 #endif
 #if NDASHBLOCKS > 0
     MIX(s->dbBroken);
+#endif
+#if NTOUCH > 0
+    MIX(s->tsOn);
 #endif
 #if NZIPMOVERS > 0 || NFALLBLOCKS > 0 || NCRUMBLES > 0
     MIX(s->hopZip); MIX(s->hopZipT);
@@ -318,12 +409,13 @@ static int seen_insert(uint64_t h)
 static uint64_t cell_key(const State *s)
 {
     return ((uint64_t)(uint16_t)s->x << 32) | ((uint64_t)(uint16_t)s->y << 16)
-         | ((uint64_t)s->state << 4) | ((uint64_t)s->dashes << 1) | (uint64_t)s->onGround;
+         | ((uint64_t)s->state << 4) | ((uint64_t)s->dashes << 1) | (uint64_t)s->onGround
+         | ((uint64_t)s->tsOn << 48);
 }
 
 int main(int argc, char **argv)
 {
-    int K = 20000, maxFrames = 600, M = 0, prefixN = 0;
+    int K = 20000, maxFrames = 1200, M = 0, prefixN = 0;
     const char *out = "beam.tas", *prefixFile = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-k")) K = atoi(argv[++i]);

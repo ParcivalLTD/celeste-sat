@@ -11,7 +11,8 @@
 ; spikes up 264 160 32
 ; spikes up 296 168 40
 ; chaser 93
-; spawn 120 168
+; spawn 120 168 -1
+; (facing left: CS02_BadelineIntro, skipped after `console load 2 3`, ends with Facing = Left)
 #######################################....##
 #######################################....##
 ##############....#####################....##

@@ -81,6 +81,7 @@ static State enter_room(State st)
     for (int i = 0; i < MAX_FALL_BLOCKS; i++) e.fbT[i] = 0;
     for (int i = 0; i < MAX_CRUMBLES; i++) e.crT[i] = 0;
     e.dbBroken = 0;
+    e.tsOn = 0;
     e.hopZip = 0; e.hopZipT = 0;
     for (int i = 0; i < MAX_REFILLS; i++) e.refillTimer[i] = 0;
     return e;

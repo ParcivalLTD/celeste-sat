@@ -100,6 +100,27 @@ def exit_side(st, room_w, room_h):
     return "down"
 
 
+TRANSITION_GAP = 40      # game frames between the exit frame's update and her first update in
+                         # the new room (recordings/celeste-sat-probe-1to2.txt)
+
+
+def carry_chaser_history(e, st, dx, dy, x, y):
+    """the chasers' history of her positions, continued into the new room: the
+    old room's frames (in new-room coordinates), then TRANSITION_GAP frames at
+    the entry position; chaserTimer = its length, so hist[(chaserTimer-1-j) & mask]
+    is j frames ago"""
+    hx, hy, t = st.get("histX"), st.get("histY"), st.get("chaserTimer", 0)
+    if not hx:
+        return
+    n = len(hx)
+    if t > 0:
+        past = [(hx[(t - 1 - j) % n] + dx, hy[(t - 1 - j) % n] + dy) for j in range(n)][::-1]
+    else:                                              # no chaser in the old room: nothing recorded
+        past = [(x, y)] * n
+    seq = (past + [(x, y)] * TRANSITION_GAP)[-n:]
+    e["histX"], e["histY"], e["chaserTimer"] = [p[0] for p in seq], [p[1] for p in seq], n
+
+
 def up_stop(new_h):
     """where her feet stop after an upward transition into a room new_h px tall"""
     return new_h - 9 if new_h <= 184 else new_h - 5
@@ -158,14 +179,19 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     # buttons released during the transition; buffers long expired
     for k in ("prevJump", "prevDash", "prevCDash", "jumpBuf", "dashBuf", "cdashBuf", "jumpEdge", "dashEdge",
               "cdashEdge", "demoDashed", "exited", "dead", "freezeTimer",
-              "dreamDashCanEndTimer", "dreamJump", "chaserTimer"):
+              "dreamDashCanEndTimer", "dreamJump"):
         e[k] = 0
+    # Badeline chasers follow the positions she recorded (Player.ChaserStates) with a
+    # delay in game time, across rooms; the transition's frames have no player
+    # updates, so they stand for where she enters (see chaser_update in celeste.c)
+    carry_chaser_history(e, st, old_origin[0] - new_origin[0], old_origin[1] - new_origin[1], x, y)
     # a new room: its moving solids start over; the lift speed stays with her
     # (Actor.LiftSpeed is not reset by the transition, only by her updates)
     e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
     e["fbT"] = [0] * len(e.get("fbT", [0, 0, 0, 0]))
     e["crT"] = [0] * len(e.get("crT", [0] * 8))
     e["dbBroken"] = 0
+    e["tsOn"] = 0
     e["hopZip"] = e["hopZipT"] = 0
     e["refillTimer"] = [0] * len(e.get("refillTimer", [0] * 8))
     return e
