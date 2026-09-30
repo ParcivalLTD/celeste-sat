@@ -242,9 +242,22 @@ static room_col_t col_bits(int c)
 #ifndef NDASHBLOCKS
 #define NDASHBLOCKS 0
 #endif
-#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES + NDASHBLOCKS)
+#ifndef NDREAMBLOCKS
+#define NDREAMBLOCKS 0
+#endif
+#ifndef HAS_CHASER
+#define HAS_CHASER 0
+#endif
+#ifndef CHASER_DELAY
+#define CHASER_DELAY 90
+#endif
+#ifndef K_DREAM_DASH_MIN_TIME
+#define K_DREAM_DASH_MIN_TIME 6
+#endif
+#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES + NDASHBLOCKS + NDREAMBLOCKS)
 #define MS_CR0 (NZIPMOVERS + NFALLBLOCKS)       /* index of the first crumble block */
 #define MS_DB0 (MS_CR0 + NCRUMBLES)             /* index of the first dash block */
+#define MS_DR0 (MS_DB0 + NDASHBLOCKS)           /* index of the first dream block */
 #if NMS > 0
 static MODEL_TLS short CUR_MS_BOX[NMS][4];   /* x0, y0, x1, y1 (exclusive); -32000 when not Collidable */
 #if NFALLBLOCKS > 0
@@ -259,7 +272,7 @@ static bool cr_gone(const State *s, int j) { return s->crT[j] >= CR_GONE0; }
 /* dash block j has been broken */
 static bool db_broken(const State *s, int j) { return (s->dbBroken >> j) & 1; }
 #endif
-#if NFALLBLOCKS > 0 || NCRUMBLES > 0 || NDASHBLOCKS > 0
+#if NMS > 0
 /* moving solid i is Collidable (zip movers always are) */
 static bool ms_collidable(const State *s, int i)
 {
@@ -270,7 +283,10 @@ static bool ms_collidable(const State *s, int i)
     if (i >= MS_CR0 && i < MS_DB0) return !cr_gone(s, i - MS_CR0);
 #endif
 #if NDASHBLOCKS > 0
-    if (i >= MS_DB0) return !db_broken(s, i - MS_DB0);
+    if (i >= MS_DB0 && i < MS_DR0) return !db_broken(s, i - MS_DB0);
+#endif
+#if NDREAMBLOCKS > 0
+    if (i >= MS_DR0) return true;
 #endif
     (void)s; (void)i;
     return true;
@@ -329,6 +345,15 @@ static void load_ms_boxes(const State *s)
         }
     }
 #endif
+#if NDREAMBLOCKS > 0
+    for (int j = 0; j < NDREAMBLOCKS; j++) {
+        int i = MS_DR0 + j;
+        CUR_MS_BOX[i][0] = DREAMBLOCKS[j][0];
+        CUR_MS_BOX[i][1] = DREAMBLOCKS[j][1];
+        CUR_MS_BOX[i][2] = DREAMBLOCKS[j][0] + DREAMBLOCKS[j][2];
+        CUR_MS_BOX[i][3] = DREAMBLOCKS[j][1] + DREAMBLOCKS[j][3];
+    }
+#endif
 }
 /* an 8 x h hitbox at (x, y) overlaps moving solid i */
 static bool ms_overlap(int i, int x, int y, int h)
@@ -355,7 +380,10 @@ static int ms_pos_x(int i, int t)
     if (i < MS_DB0) return CRUMBLES[i - MS_CR0][0];
 #endif
 #if NDASHBLOCKS > 0
-    return DASHBLOCKS[i - MS_DB0][0];
+    if (i < MS_DR0) return DASHBLOCKS[i - MS_DB0][0];
+#endif
+#if NDREAMBLOCKS > 0
+    if (i >= MS_DR0) return DREAMBLOCKS[i - MS_DR0][0];
 #endif
     (void)i; (void)t; return 0;
 }
@@ -371,7 +399,10 @@ static int ms_pos_y(int i, int t)
     if (i < MS_DB0) return CRUMBLES[i - MS_CR0][1];
 #endif
 #if NDASHBLOCKS > 0
-    return DASHBLOCKS[i - MS_DB0][1];
+    if (i < MS_DR0) return DASHBLOCKS[i - MS_DB0][1];
+#endif
+#if NDREAMBLOCKS > 0
+    if (i >= MS_DR0) return DREAMBLOCKS[i - MS_DR0][1];
 #endif
     (void)i; (void)t; return 0;
 }
@@ -732,7 +763,7 @@ static bool move_v_exact_plain(State *s, int move)
 }
 #endif
 
-#if NDASHBLOCKS > 0
+#if NDASHBLOCKS > 0 || NDREAMBLOCKS > 0
 /* CollideFirst<Solid> at a position where she is blocked: the tiles come
  * first (SolidTiles is added before the room's entities), then the moving
  * solids in order. -1: the tiles, -2: none (a jump-through), else its index.
@@ -835,6 +866,20 @@ static void move_h_plain(State *s, float amount)
     if (move == 0) return;
     s->remX -= (float)move;
     move_h_exact(s, move);
+}
+
+/* Actor.NaiveMove: subpixel stepping without solid collision (used in ST_DREAM_DASH) */
+static void move_naive(State *s, float dx, float dy)
+{
+    s->remX += dx;
+    int mx = round_even(s->remX);
+    s->remX -= (float)mx;
+    s->x += mx;
+
+    s->remY += dy;
+    int my = round_even(s->remY);
+    s->remY -= (float)my;
+    s->y += my;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1152,10 +1197,23 @@ static bool dash_block_collide(State *s, int dashDir, int reboundDir)
 }
 #endif
 
+#if NDREAMBLOCKS > 0
+static void set_state(State *s, int next, int moveY);
+static bool dream_block_collide(State *s, int dashDir)
+{
+    if (!dash_attacking(s) || MS_HIT < MS_DR0 || MS_HIT >= MS_DR0 + NDREAMBLOCKS || MS_HIT_DIR != dashDir) return false;
+    set_state(s, ST_DREAM_DASH, 0);
+    return true;
+}
+#endif
+
 static void on_collide_h(State *s)
 {
 #if NDASHBLOCKS > 0
     if (dash_block_collide(s, s->dashDirX, -signf(s->spdX))) return;
+#endif
+#if NDREAMBLOCKS > 0
+    if (dream_block_collide(s, s->dashDirX)) return;
 #endif
     /* dash corner correction */
     if (s->state == ST_DASH) {
@@ -1196,6 +1254,9 @@ static void on_collide_v(State *s)
 {
 #if NDASHBLOCKS > 0
     if (dash_block_collide(s, s->dashDirY, 0)) return;
+#endif
+#if NDREAMBLOCKS > 0
+    if (dream_block_collide(s, s->dashDirY)) return;
 #endif
     if (s->spdY > 0) {
         /* dash corner correction */
@@ -1328,6 +1389,36 @@ static void dash_begin(State *s, int moveY)
     s->demoDashed = false;                                    /* (only read here) */
 }
 
+static void dream_dash_begin(State *s)
+{
+    float spd = (s->dashDirX != 0 && s->dashDirY != 0) ? (DASH_SPEED * DIAG) : DASH_SPEED;
+    s->spdX = (float)s->dashDirX * spd;
+    s->spdY = (float)s->dashDirY * spd;
+#ifdef REFERENCE
+    s->dreamDashCanEndTimer = DREAM_DASH_MIN_TIME;
+#else
+    s->dreamDashCanEndTimer = K_DREAM_DASH_MIN_TIME;
+#endif
+    s->stamina = CLIMB_MAX_STAMINA;
+    s->dreamJump = false;
+    TCLR(s->dashAttackTimer);
+}
+
+static void dream_dash_end(State *s)
+{
+    if (!s->dreamJump) {
+        s->autoJump = true;
+    }
+    s->dashes = MAX_DASHES;
+    s->stamina = CLIMB_MAX_STAMINA;
+    if (s->dashDirX != 0) {
+        TSET(s->jumpGraceTimer, JUMP_GRACE_TIME);
+        s->dreamJump = true;
+    } else {
+        TCLR(s->jumpGraceTimer);
+    }
+}
+
 /* moveY: Input.MoveY on this frame (read by DashBegin) */
 static void set_state(State *s, int next, int moveY)
 {
@@ -1336,9 +1427,11 @@ static void set_state(State *s, int next, int moveY)
     s->state = next;
     if (prev == ST_NORMAL) normal_end(s);
     else if (prev == ST_CLIMB) climb_end(s);     /* DashEnd only fires dash events */
+    else if (prev == ST_DREAM_DASH) dream_dash_end(s);
     if (next == ST_NORMAL) normal_begin(s);
     else if (next == ST_CLIMB) climb_begin(s);
-    else dash_begin(s, moveY);
+    else if (next == ST_DASH) dash_begin(s, moveY);
+    else if (next == ST_DREAM_DASH) dream_dash_begin(s);
     if (next == ST_DASH) {
         s->coActive = true;                      /* currentCoroutine.Replace(DashCoroutine()) */
         s->coStage = 0;
@@ -1550,6 +1643,86 @@ static int dash_update(State *s, Input in)
     }
 
     return ST_DASH;
+}
+
+static bool solid_check_non_dream(const State *s, int x, int y)
+{
+    int h = collider_h(s);
+    if (tiles_collide(x, y, h)) return true;
+#if NMS > 0
+    for (int i = 0; i < MS_DR0; i++)
+        if (ms_collidable(s, i) && ms_overlap(i, x, y, h)) return true;
+#endif
+    return false;
+}
+
+static bool dream_dashed_into_solid(State *s)
+{
+    if (solid_check_non_dream(s, s->x, s->y)) {
+        for (int x = 1; x <= DREAM_DASH_END_WIGGLE; x++) {
+            for (int xm = -1; xm <= 1; xm += 2) {
+                for (int y = 1; y <= DREAM_DASH_END_WIGGLE; y++) {
+                    for (int ym = -1; ym <= 1; ym += 2) {
+                        int addX = x * xm;
+                        int addY = y * ym;
+                        if (!solid_check_non_dream(s, s->x + addX, s->y + addY)) {
+                            s->x += addX;
+                            s->y += addY;
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+#if NDREAMBLOCKS > 0
+static bool dream_blocks_overlap(int x, int y, int h)
+{
+    for (int j = 0; j < NDREAMBLOCKS; j++) {
+        int i = MS_DR0 + j;
+        if (ms_overlap(i, x, y, h)) return true;
+    }
+    return false;
+}
+#endif
+
+static int dream_dash_update(State *s, Input in)
+{
+    if (TPOS(s->dreamDashCanEndTimer)) TDEC(s->dreamDashCanEndTimer);
+
+#if NDREAMBLOCKS > 0
+    bool inside = dream_blocks_overlap(s->x, s->y, collider_h(s));
+    if (!inside) {
+        if (dream_dashed_into_solid(s)) {
+            s->dead = true;
+            return ST_NORMAL;
+        } else if (!TPOS(s->dreamDashCanEndTimer)) {
+            TSET(s->freezeTimer, DASH_FREEZE_TIME);
+
+            if (jump_pressed(s) && s->dashDirX != 0) {
+                s->dreamJump = true;
+                jump(s);
+                return ST_NORMAL;
+            } else {
+                bool left = climb_check(s, -1, 0);
+                bool right = climb_check(s, 1, 0);
+                if (in.grab && (s->dashDirY >= 0 || s->dashDirX != 0)
+                    && ((s->moveX == 1 && right) || (s->moveX == -1 && left))) {
+                    s->facing = s->moveX;
+                    return ST_CLIMB;
+                }
+            }
+            return ST_NORMAL;
+        }
+    }
+#else
+    (void)in;
+#endif
+    return ST_DREAM_DASH;
 }
 
 /* SlipCheck: are Madeline's hands above the top of the wall? Two points
@@ -1816,6 +1989,7 @@ static void super_bounce(State *s, int fromY)
  *   floor springs (16x6 above their base): bounce when Speed.Y >= 0. */
 static void player_colliders(State *s)
 {
+    if (s->state == ST_DREAM_DASH) return;
 #if NPCOL > 0
     for (int i = 0; i < NPCOL; i++) {
         int hl = s->x - 4, hr = s->x + 4;
@@ -1916,6 +2090,28 @@ static void enforce_bounds(State *s)
         s->dead = true;                                       /* fell out of the level */
     }
 }
+
+/* ------------------------------------------------------------------------ */
+/* Badeline Chaser (Chapter 2)                                              */
+/* ------------------------------------------------------------------------ */
+#if HAS_CHASER
+static void chaser_update(State *s)
+{
+    s->histX[s->chaserTimer & CHASER_HIST_MASK] = (short)s->x;
+    s->histY[s->chaserTimer & CHASER_HIST_MASK] = (short)s->y;
+    s->chaserTimer++;
+    if (s->chaserTimer > CHASER_DELAY) {
+        int idx = (s->chaserTimer - 1 - CHASER_DELAY) & CHASER_HIST_MASK;
+        short bx = s->histX[idx];
+        short by = s->histY[idx];
+        int h = collider_h(s);
+        /* Badeline has an 8 x 11 hitbox at (bx, by) */
+        if (abs(s->x - bx) < 8 && (s->y > by - 11) && (s->y - h < by)) {
+            s->dead = true;
+        }
+    }
+}
+#endif
 
 /* ------------------------------------------------------------------------ */
 /* Player.Update                                                            */
@@ -2033,46 +2229,56 @@ static void player_update(State *s, Input in)
     }
 
     /* base.Update() -> StateMachine.Update() */
-    int next = s->state == ST_NORMAL ? normal_update(s, in, wasOnGround)
-             : s->state == ST_CLIMB  ? climb_update(s, in)
-             : dash_update(s, in);
+    int next = s->state == ST_NORMAL     ? normal_update(s, in, wasOnGround)
+             : s->state == ST_CLIMB      ? climb_update(s, in)
+             : s->state == ST_DASH       ? dash_update(s, in)
+             : dream_dash_update(s, in);
     set_state(s, next, in.my);
     if (s->coActive) coroutine_update(s);
     actor_update_lift(s);                         /* rest of Actor.Update */
 
-    /* Jump-through assist: rising inside a jump-through nudges her up
-     * (unless spikes would block the hop) */
-    if (!s->onGround && s->spdY <= 0 && (s->state != ST_CLIMB || s->lastClimbMove == -1)
-        && jumpthru_inside(s)
-        && !box_touches_spikes(s, s->x, s->y - 2, collider_h(s), (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
-        COV(C_JTASSIST);
-        move_v_plain(s, JUMPTHRU_ASSIST_SPEED * DT);
-    }
-
-    /* Dash floor snapping */
-    if (!s->onGround && dash_attacking(s) && s->dashDirY == 0) {
-        bool jt = jumpthru_outside(collider_h(s), s->x, s->y, s->x, s->y + DASH_V_FLOOR_SNAP_DIST);
-        if ((collide_at(s, s->x, s->y + DASH_V_FLOOR_SNAP_DIST) || jt)
-            && !dash_correct_check(s, 0, DASH_V_FLOOR_SNAP_DIST)) {                /* v1.4: not onto spikes */
-            COV(C_FLOORSNAP);
-            if (jt) COV(C_JTSNAP);
-            move_v_exact_plain(s, DASH_V_FLOOR_SNAP_DIST);
+    if (s->state != ST_DREAM_DASH) {
+        /* Jump-through assist: rising inside a jump-through nudges her up
+         * (unless spikes would block the hop) */
+        if (!s->onGround && s->spdY <= 0 && (s->state != ST_CLIMB || s->lastClimbMove == -1)
+            && jumpthru_inside(s)
+            && !box_touches_spikes(s, s->x, s->y - 2, collider_h(s), (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
+            COV(C_JTASSIST);
+            move_v_plain(s, JUMPTHRU_ASSIST_SPEED * DT);
         }
+
+        /* Dash floor snapping */
+        if (!s->onGround && dash_attacking(s) && s->dashDirY == 0) {
+            bool jt = jumpthru_outside(collider_h(s), s->x, s->y, s->x, s->y + DASH_V_FLOOR_SNAP_DIST);
+            if ((collide_at(s, s->x, s->y + DASH_V_FLOOR_SNAP_DIST) || jt)
+                && !dash_correct_check(s, 0, DASH_V_FLOOR_SNAP_DIST)) {                /* v1.4: not onto spikes */
+                COV(C_FLOORSNAP);
+                if (jt) COV(C_JTSNAP);
+                move_v_exact_plain(s, DASH_V_FLOOR_SNAP_DIST);
+            }
+        }
+
+        /* Falling unducking -- not during coyote time (jumpGraceTimer > 0): the
+         * published Player.cs has no such condition, but the game (1.4) keeps her
+         * ducked there (recordings/celeste-sat-community-lvl4.txt, lvl_4: she walks
+         * off a ledge ducked, jumps in coyote time and goes on ducked under a wall) */
+        if (s->spdY > 0 && can_unduck(s) && !s->onGround && !TPOS(s->jumpGraceTimer)) s->ducking = false;
+
+        /* Physics */
+        move_h(s, s->spdX * DT);
+        move_v(s, s->spdY * DT);
+    } else {
+        move_naive(s, s->spdX * DT, s->spdY * DT);
     }
-
-    /* Falling unducking -- not during coyote time (jumpGraceTimer > 0): the
-     * published Player.cs has no such condition, but the game (1.4) keeps her
-     * ducked there (recordings/celeste-sat-community-lvl4.txt, lvl_4: she walks
-     * off a ledge ducked, jumps in coyote time and goes on ducked under a wall) */
-    if (s->spdY > 0 && can_unduck(s) && !s->onGround && !TPOS(s->jumpGraceTimer)) s->ducking = false;
-
-    /* Physics */
-    move_h(s, s->spdX * DT);
-    move_v(s, s->spdY * DT);
 
     /* Player colliders (spikes, springs), then the room bounds */
     player_colliders(s);
     if (s->dead) return;
+
+#if HAS_CHASER
+    chaser_update(s);
+    if (s->dead) return;
+#endif
 
     /* Level.EnforceBounds */
     enforce_bounds(s);

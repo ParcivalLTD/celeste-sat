@@ -54,6 +54,7 @@ int main(void)
     K(REBOUND_VAR_JUMP_TIME);
     K(LIFT_SPEED_GRACE_TIME);
     K(REFILL_RESPAWN_TIME);
+    K(DREAM_DASH_MIN_TIME);
 
     /* varJumpTimer < VarJumpTime - CeilingVarJumpGrace  <=>  remaining <= VJ_* */
     const float thr = VAR_JUMP_TIME - CEILING_VAR_JUMP_GRACE;
