@@ -64,6 +64,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tests/diff.sh` | differential fuzzing of the two builds, with mechanic coverage and symmetry checks |
 | `tests/community_tas.py` | replays the community TAS of Chapter 1 through the model, rooms 1–4 |
 | `tests/chain_tas.py` | the same through the whole chapter (rooms exported from the map as it goes), as far as the model goes |
+| `tests/tas_endings.py` | SAT on the end of each room of the chained TAS: can she leave it a frame sooner? |
 | `tests/recordings.py` | checks recordings from the game (CelesteTAS `ExportGameInfo`) frame by frame, room after room |
 | `tests/make_up_probes.py` | CelesteTAS files that record upward room transitions left in different ways |
 | `tests/real_game.py` | replays a recording from the real game (celeste-rl) and compares Madeline's state |
