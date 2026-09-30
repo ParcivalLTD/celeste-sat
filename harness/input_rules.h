@@ -37,13 +37,29 @@ _Bool nondet_bool(void);
  * Lift boosts from moving solids go well past the usual ones: a hyper off a
  * zip mover is (260 + 250) * 1.25 px/s, and a dash keeps a faster speed.
  * ANY_ZIPMOVERS: set by tools/cross.py when either room has one. */
-#if (defined(NZIPMOVERS) && NZIPMOVERS > 0) || defined(ANY_ZIPMOVERS)
+#if HAS_LIFT || defined(ANY_ZIPMOVERS)
 #define MAX_SPEED_X 1000.0f
 #define MAX_SPEED_Y 400.0f
 #else
 #define MAX_SPEED_X 400.0f
 #define MAX_SPEED_Y 250.0f
 #endif
+/* A room can also be entered faster than it lets her go (speed carried from
+ * the room before: a sideways transition keeps it, and wall speed retention
+ * or a dash can give it back later). Nothing in a room without lift boosts
+ * makes her faster than the larger of that and the bound, so the harnesses
+ * raise the bounds to what their start state carries (speed_bounds_from). */
+static float max_speed_x = MAX_SPEED_X, max_speed_y = MAX_SPEED_Y;
+static float abs_bound(float v) { return v < 0 ? -v : v; }
+static void speed_bounds_from(const State *s)
+{
+    const float xs[] = { s->spdX, s->wallSpeedRetained, s->beforeDashSpdX };
+    const float ys[] = { s->spdY, s->beforeDashSpdY, s->varJumpSpeed };
+    for (int i = 0; i < 3; i++) {
+        if (abs_bound(xs[i]) > max_speed_x) max_speed_x = abs_bound(xs[i]);
+        if (abs_bound(ys[i]) > max_speed_y) max_speed_y = abs_bound(ys[i]);
+    }
+}
 
 /* The dominance rules can be switched off for some frames (harness/window.c:
  * a press near the end of a window may leave a buffer the target state has). */
@@ -103,8 +119,8 @@ static void after_step(Input in, const State *s)
      * give the SAT solver bounds it would otherwise have to rediscover. */
     __CPROVER_assume(s->remX >= -0.5f && s->remX <= 0.5f);
     __CPROVER_assume(s->remY >= -0.5f && s->remY <= 0.5f);
-    __CPROVER_assume(s->spdX >= -MAX_SPEED_X && s->spdX <= MAX_SPEED_X);
-    __CPROVER_assume(s->spdY >= -MAX_SPEED_Y && s->spdY <= MAX_SPEED_Y);
+    __CPROVER_assume(s->spdX >= -max_speed_x && s->spdX <= max_speed_x);
+    __CPROVER_assume(s->spdY >= -max_speed_y && s->spdY <= max_speed_y);
 #endif
 }
 

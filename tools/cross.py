@@ -28,7 +28,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 from chapter import enter_room, exit_side, origin_of, read_state, tables  # noqa: E402
 from make_room import parse  # noqa: E402
-from solve import build, read_tas, write_tas  # noqa: E402
+from solve import build, carries_lift, read_tas, write_tas  # noqa: E402
 
 SIDES = {"up": "TR_UP", "down": "TR_DOWN", "left": "TR_LEFT", "right": "TR_RIGHT"}
 
@@ -202,7 +202,8 @@ def main():
     sh([f"{out}/a/sim", "-s", str(na), f"{out}/a_exit.h", f"{out}/route_a.tas"])
     st = read_state(f"{out}/a_exit.h")
     rows_a, rows_b = parse(a.room_a)[0], parse(a.room_b)[0]
-    any_zips = bool(parse(a.room_a)[5] or parse(a.room_b)[5])   # speed bounds in the harness
+    any_zips_a = bool(parse(a.room_a)[5])
+    any_zips = bool(any_zips_a or parse(a.room_b)[5])            # speed bounds in the harness
     side = exit_side(st, len(rows_a[0]) * 8, len(rows_a) * 8)
     oa, ob = origin_of(a.room_a), origin_of(a.room_b)
     wb, hb = len(rows_b[0]) * 8, len(rows_b) * 8
@@ -214,6 +215,11 @@ def main():
         r = sh([sys.executable, f"{ROOT}/tools/make_room.py", room, f"{out}/room_{tag}.h"])
         if r.returncode:
             sys.exit(r.stderr)
+        # lift boost in B when A can give her a lift speed (zip movers), or in A when she starts with one
+        lift_a = bool(a.start and carries_lift(a.start))
+        if (tag == "b" and (any_zips_a or lift_a)) or (tag == "a" and lift_a):
+            with open(f"{out}/room_{tag}.h", "a") as f:
+                f.write("#define CARRIED_LIFT 1\n")
         model_unit(f"{out}/model_{tag}.c", tag, f"room_{tag}.h")
     shutil.copy(f"{out}/a/tables.h", f"{out}/tables.h")
     start0 = state_block(f"{out}/a_start.h", "START_STATE")

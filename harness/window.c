@@ -43,6 +43,7 @@ int main(void)
 {
     State s = START_STATE;
     bool hit = false;
+    speed_bounds_from(&s);
     for (int f = 0; f < W; f++) {
         rules_dominance = f < W - 5;
         Input in = free_input(&s);

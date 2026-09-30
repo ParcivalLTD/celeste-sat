@@ -27,12 +27,22 @@ def sh(cmd, **kw):
     return subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True, **kw)
 
 
+def carries_lift(state_file):
+    """does a state header have a lift speed in its grace time (Actor.LiftSpeed)?"""
+    text = open(state_file).read()
+    m = re.search(r"\.liftGraceTimer = (-?\d+)", text)
+    return bool(m and int(m.group(1)) > 0)
+
+
 def build(room_path, bdir, start=None):
     """room.h, timer tables, sim and beam for a room; `start` is an optional
     state header (START_STATE) to begin from instead of the spawn."""
     os.makedirs(bdir, exist_ok=True)
     r = sh([sys.executable, f"{ROOT}/tools/make_room.py", room_path, f"{bdir}/room.h"])
     if r.returncode: sys.exit(r.stderr)
+    if start and carries_lift(start):
+        with open(f"{bdir}/room.h", "a") as f:
+            f.write("/* she enters with a lift speed still in its grace time */\n#define CARRIED_LIFT 1\n")
     gen = f"{bdir}/gen_tables"
     for cmd in (["gcc", "-O0", "-I", f"{ROOT}/model", "-o", gen, f"{ROOT}/tools/gen_tables.c"],):
         r = sh(cmd)
