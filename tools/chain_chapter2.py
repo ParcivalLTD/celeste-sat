@@ -84,18 +84,33 @@ def main():
                     write_state(e, entry_h, f"entering {CHASE_ROOMS[idx+1]} from {room_name}")
                 continue
 
-        # Solve this room
-        print(f"[{idx+1}/{len(CHASE_ROOMS)}] {room_name:12s}: searching with beam (width {a.beam_width})...", flush=True)
-        cmd = [sys.executable, os.path.join(ROOT, "tools", "solve.py"), room_path,
-               "--out", bdir, "--beam-width", str(a.beam_width), "--no-sat"]
-        if entry_h and os.path.exists(entry_h):
-            cmd += ["--start", entry_h]
-        if a.polish:
-            cmd += ["--polish"]
+        # Solve this room with adaptive beam fallback
+        widths = [a.beam_width]
+        if a.beam_width > 25000 and 20000 not in widths:
+            widths.append(20000)
+        if 5000 not in widths:
+            widths.append(5000)
 
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        if not os.path.exists(best_tas):
-            print(f"ERROR: {room_name} failed to find route!\nSTDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}")
+        solved = False
+        for bw in widths:
+            print(f"[{idx+1}/{len(CHASE_ROOMS)}] {room_name:12s}: searching with beam (width {bw})...", flush=True)
+            cmd = [sys.executable, os.path.join(ROOT, "tools", "solve.py"), room_path,
+                   "--out", bdir, "--beam-width", str(bw), "--no-sat"]
+            if entry_h and os.path.exists(entry_h):
+                cmd += ["--start", entry_h]
+            if a.polish:
+                cmd += ["--polish"]
+
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if os.path.exists(best_tas):
+                r_sim = subprocess.run([sim_exe, best_tas], capture_output=True, text=True)
+                if "EXIT at frame" in r_sim.stdout:
+                    solved = True
+                    break
+            print(f"   (beam width {bw} failed or timed out, trying fallback width...)")
+
+        if not solved:
+            print(f"ERROR: {room_name} failed to find route with any beam width!\nSTDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}")
             break
 
         # Check exit
