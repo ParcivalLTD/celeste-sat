@@ -423,7 +423,7 @@ static int ms_timer(const State *s, int i)
 #endif
 
 static bool tiles_collide(int x, int y, int h);
-#if NPCOL > 0 && NMS > 0
+#if NPCOL > 0 && (NZIPMOVERS > 0 || NFALLBLOCKS > 0)
 static void load_pcol_offsets(const State *s);
 #else
 #define load_pcol_offsets(s) ((void)0)
@@ -529,7 +529,7 @@ static bool solid_point(int px, int py)
  * move with it: their offset from where the room places them. Only the
  * moving solids' updates (after hers) move them, so the offsets are worked
  * out once per frame, with the solids' boxes (load_ms_boxes). */
-#if NPCOL > 0 && NMS > 0
+#if NPCOL > 0 && (NZIPMOVERS > 0 || NFALLBLOCKS > 0)
 static MODEL_TLS short CUR_PCOL_D[NPCOL][2];
 static void load_pcol_offsets(const State *s)
 {
