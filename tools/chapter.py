@@ -157,7 +157,8 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     e["stamina"] = 110.0                               # RefillStamina
     # buttons released during the transition; buffers long expired
     for k in ("prevJump", "prevDash", "prevCDash", "jumpBuf", "dashBuf", "cdashBuf", "jumpEdge", "dashEdge",
-              "cdashEdge", "demoDashed", "exited", "dead", "freezeTimer"):
+              "cdashEdge", "demoDashed", "exited", "dead", "freezeTimer",
+              "dreamDashCanEndTimer", "dreamJump", "chaserTimer"):
         e[k] = 0
     # a new room: its moving solids start over; the lift speed stays with her
     # (Actor.LiftSpeed is not reset by the transition, only by her updates)
