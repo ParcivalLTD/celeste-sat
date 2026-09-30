@@ -174,6 +174,9 @@ typedef struct {
     /* climbHopSolid when it is a moving solid: its index + 1 (zip movers
      * first, then falling blocks, then crumble blocks; 0: none or the
      * tiles), and its zipTimer / fbT when she last moved with it */
+    /* climbTriggerDir: set by a climb jump for the rest of that frame, when
+     * the moving solids check who rides them (see climb_jump); 0 between frames */
+    signed char climbTriggerDir;
     signed char hopZip;
     short hopZipT;
     /* refills: time until each one is back (0: there) */

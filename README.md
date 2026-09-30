@@ -335,7 +335,7 @@ the previous one left Madeline in:
 | `lvl_4` (entered from `lvl_3`, a zip mover) | 91 frames | 91 |
 
 `tests/chain_tas.py` goes on through the chapter as far as the model goes
-(14 rooms, see "Real rooms").
+(all 19 rooms, see "Real rooms").
 
 A room's inputs only lead out of it on their last frame if every frame before
 agrees with the game: the routes use supers on the first dash frame, climb
@@ -447,10 +447,10 @@ changelog gives as 0.15 s; the upward room transition):
   up, recordings settle where she stops: 9 px above the new room's bottom
   edge in rooms 184 px tall (`lvl_2`, `lvl_4`, `lvl_3b`, with seven different
   ways of leaving `lvl_1`), 5 px in `lvl_5` (288 px); the community TAS's
-  `lvl_7` (216 px) works only from 5 px. 5 px is what a 4 px pad inside the
-  room gives (the rule sideways and downwards too); why rooms one screen
-  plus 4 px tall get 9 is not known, so other heights (224, 232, 264 later in
-  Chapter 1) are a guess (5). Sideways and downwards the stop point is
+  rooms entered from below work only with 5 px in `lvl_7` (216 px), and
+  with it in `lvl_10a`, `lvl_12` and `lvl_11` (224, 232 and 264 px). 5 px
+  is what a 4 px pad inside the room gives (the rule sideways and downwards
+  too); why rooms one screen plus 4 px tall get 9 is not known. Sideways and downwards the stop point is
   inferred (4 px inside the edge she crossed, 12 px when falling in); the
   chapter chain goes through three sideways transitions exactly.
 - Tiles outside the room count as air. In the game they belong to the
@@ -518,33 +518,50 @@ this checks its timing, carrying, lift boost, caps and grace.
 from the state the previous one left her in, rooms exported from the map as
 the TAS goes, from the spawn in `lvl_1`:
 
-| room | inputs | model leaves on frame | modelled entities it uses |
+| room | inputs | model leaves on frame | entities it uses (besides spikes and jump-throughs) |
 |---|---|---|---|
-| `lvl_1` | 92 | 92 | jump-throughs, spikes |
+| `lvl_1` | 92 | 92 | |
 | `lvl_2` | 118 | 118 | |
 | `lvl_3` | 107 | 107 | |
 | `lvl_4` | 91 | 91 | (zip mover not touched) |
 | `lvl_3b` | 98 | 98 | (crumble blocks not touched) |
-| `lvl_5` | 139 | 139 | zip mover |
-| `lvl_6` | 117 | 117 | (refill, dash block, fake wall not touched) |
+| `lvl_5` | 139 | 139 | zip mover (rides it up), spring |
+| `lvl_6` | 117 | 117 | (refill, dash block not touched) |
 | `lvl_6a` | 161 | 161 | refill |
-| `lvl_6b` | 110 | 110 | zip movers |
-| `lvl_6c` | 110 | 110 | |
-| `lvl_7` | 103 | 103 | falling blocks (both fall during the route) |
-| `lvl_8` | 107 | 107 | (falling block, crumble blocks, fake wall not touched) |
-| `lvl_8b` | 99 | 99 | |
-| `lvl_9` | 97 | never | a zip mover with spikes on it |
+| `lvl_6b` | 110 | 110 | (zip movers not touched) |
+| `lvl_6c` | 110 | 110 | spring (dash block not touched) |
+| `lvl_7` | 103 | 103 | both falling blocks (they fall during the route) |
+| `lvl_8` | 107 | 107 | (falling block, crumble blocks not touched) |
+| `lvl_8b` | 99 | 99 | two zip movers, one followed after a climb hop onto it |
+| `lvl_9` | 97 | 97 | zip mover with spikes on it, started by a climb jump off it |
+| `lvl_9b` | 73 | 73 | (zip mover, crumble block not touched) |
+| `lvl_10a` | 204 | 204 | refill |
+| `lvl_11` | 161 | 161 | crumble block (crumbles under her), spring |
+| `lvl_12` | 147 | 147 | (falling blocks not touched) |
+| `lvl_12a` | 141 | 141 | (zip movers not touched) |
 
-1,452 frames of control in a row, through 14 rooms, three sideways and ten
-upward transitions. Every entity in the rooms of the TAS's way through
-Chapter 1 is now in the model (zip movers, falling, crumble and dash blocks,
-refills, springs; fake walls are not solid), so the rooms the TAS does not
-touch them in can also be searched without leaving them out. In `lvl_9` the TAS climbs the side of a zip mover and
-crouch-dashes up along it as it starts; in the model the dash stops under
-the ceiling and she falls. `results/celestetas/celeste-sat-community-1a.tas`
-is the whole community `1A.tas` recording every frame of the chapter (with
-zip movers, falling blocks, crumble and dash blocks); `tests/recordings.py`
-checks it room by room and shows the first frame that differs.
+**The whole of Chapter 1, 2,275 frames of control in 19 rooms, plays
+exactly**: every room's inputs leave it on their last frame, through six
+sideways and thirteen upward transitions, into `lvl_end` (the chapter's last
+room, whose ending is a cutscene). Every entity in these rooms is in the model
+(zip movers, falling, crumble and dash blocks, refills, springs; fake walls
+are not solid), so the rooms can also be searched with the entities the TAS
+does not touch.
+
+`lvl_9` needed one rule that is not in the published `Player.cs`: a climb
+jump off a zip mover starts it (for that frame the climb jump counts as
+riding the solid she jumped off, like climbing it; the 1.4 code seems to call
+this `climbTriggerDir`). There the TAS climb-jumps off the zip mover's side
+on frame 44 and rides it much later; its inputs work only if the zip mover
+starts on exactly that frame (tried by starting it by hand on every frame
+from 1 to 67). "Grabbing next to a wall starts it even when she cannot
+climb" would fit the TAS equally well; the model uses the climb jump.
+
+`results/celestetas/celeste-sat-community-1a.tas` is the whole community
+`1A.tas` recording every frame of the chapter (with zip movers, falling
+blocks, crumble and dash blocks); `tests/recordings.py` checks it room by
+room and shows the first frame that differs. It would check the rooms from
+`lvl_5` on frame by frame, and settle which of the two rules is the game's.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):

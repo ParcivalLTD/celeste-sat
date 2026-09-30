@@ -28,9 +28,9 @@ is 9 px (H - 9). Both are measured with CelesteTAS recordings
 lvl_1, from y = 0 to 5, dashing, ducking or not, all stop at H - 9 in lvl_2;
 recordings/celeste-sat-community-lvl4.txt: H - 9 in lvl_4 and lvl_3b, H - 5
 in lvl_5, which is 288 px tall), and the community TAS's lvl_7 (216 px) only
-works from H - 5. Why the short rooms differ is not known (the camera, which
-can only move 4 px there, is a guess), so heights other than 184, 216 and
-288 are a guess (H - 5).
+works from H - 5, as do lvl_10a, lvl_12 and lvl_11 (224, 232, 264 px). Why
+the short rooms differ is not known (the camera, which can only move 4 px
+there, is a guess).
 Sideways and downwards the stop point is still inferred: 4 px inside the
 edge she crossed (12 px when she falls in from above).
 The transition itself takes a fixed time (the TAS waits 40 frames) and is
