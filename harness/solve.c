@@ -30,6 +30,7 @@ int main(void)
 #else
     celeste_init(&s, SPAWN_X, SPAWN_Y);
 #endif
+    speed_bounds_from(&s);
 
     for (int f = 0; f < NFRAMES; f++) {
         Input in = free_input(&s);

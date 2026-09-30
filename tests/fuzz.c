@@ -7,7 +7,7 @@
 #define MODEL_ASSUME(c) assert(c)
 #include "../model/celeste.c"
 #include "../model/state_eq.h"
-#if NZIPMOVERS > 0                       /* the bounds harness/input_rules.h assumes */
+#if HAS_LIFT                             /* the bounds harness/input_rules.h assumes */
 #define MAX_SPEED_X 1000.0f
 #define MAX_SPEED_Y 400.0f
 #else
