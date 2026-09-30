@@ -122,4 +122,20 @@ if seed % 2 == 1:
                              f"{fx * 8 if random.random() < 0.5 else (fx + fw) * 8} {fy * 8} {fh * 8}")
             break
 
-print("\n".join(exits + extra + springs + zips + refills + falls + ["".join(r) for r in g]))
+# crumble blocks (every third room): 8 px tall platforms in the air, out of
+# the falling blocks' columns
+crumbles = []
+if seed % 3 == 2:
+    fall_cols = used if seed % 2 == 1 else set()
+    for _ in range(random.randint(1, 3)):
+        cw = random.randint(1, 4)
+        cx, cy = random.randint(1, W - 1 - cw), random.randint(2, H - 3)
+        cells = [(x, cy) for x in range(cx, cx + cw)]
+        if all(g[y][x] == '.' for x, y in cells) and all(abs(x - spawn_col) > 1 for x, _ in cells) \
+                and not any(x in fall_cols for x, _ in cells):
+            crumbles.append(f"; crumble {cx * 8} {cy * 8} {cw * 8}")
+            for x, y in cells:
+                g[y][x] = 'c'
+    g = [[ch if ch != 'c' else '.' for ch in r] for r in g]
+
+print("\n".join(exits + extra + springs + zips + refills + falls + crumbles + ["".join(r) for r in g]))

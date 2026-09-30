@@ -48,6 +48,9 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "    .fbT = {");
     for (int z = 0; z < MAX_FALL_BLOCKS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->fbT[z]);
     fprintf(f, "},\n");
+    fprintf(f, "    .crT = {");
+    for (int z = 0; z < MAX_CRUMBLES; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->crT[z]);
+    fprintf(f, "},\n");
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);
@@ -128,6 +131,11 @@ int main(int argc, char **argv)
                     printf("  fb%d t=%3d y=%d%s", z, s.fbT[z], FB_Y[z][s.fbT[z]],
                            s.fbT[z] == FB_T_END[z] ? (FB_GONE[z] ? " gone" : " landed")
                            : s.fbT[z] < FB_SHAKE_END ? " shaking" : s.fbT[z] < FB_FALL0 ? " waiting" : " falling");
+#endif
+#if defined(NCRUMBLES) && NCRUMBLES > 0
+            for (int z = 0; z < NCRUMBLES; z++)
+                if (s.crT[z])
+                    printf("  crumble%d t=%3d %s", z, s.crT[z], s.crT[z] >= CR_GONE0 ? "gone" : "shaking");
 #endif
             printf("\n");
         }

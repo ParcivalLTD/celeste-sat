@@ -228,7 +228,10 @@ static uint64_t hash_state(const State *s)
 #if NFALLBLOCKS > 0
     for (int j = 0; j < NFALLBLOCKS; j++) MIX(s->fbT[j]);
 #endif
-#if NZIPMOVERS > 0 || NFALLBLOCKS > 0
+#if NCRUMBLES > 0
+    for (int j = 0; j < NCRUMBLES; j++) MIX(s->crT[j]);
+#endif
+#if NZIPMOVERS > 0 || NFALLBLOCKS > 0 || NCRUMBLES > 0
     MIX(s->hopZip); MIX(s->hopZipT);
 #endif
 #if NREFILLS > 0

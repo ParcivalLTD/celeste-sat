@@ -56,7 +56,11 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
     for (int j = 0; j < NFALLBLOCKS; j++)
         if (a->fbT[j] != t->fbT[j]) return false;
 #endif
-#if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0)
+#if defined(NCRUMBLES) && NCRUMBLES > 0
+    for (int j = 0; j < NCRUMBLES; j++)
+        if (a->crT[j] != t->crT[j]) return false;
+#endif
+#if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0)
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;
 #endif
 #if NREFILLS > 0

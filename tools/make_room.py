@@ -30,6 +30,7 @@ Lines starting with ';' are comments, except these directives:
     ; zipmover X Y W H TX TY  a zip mover (W x H at (X, Y)) going to (TX, TY)
     ; fallingblock X Y W H CLIMBFALL  a falling block (W x H at (X, Y));
                             CLIMBFALL 1: climbing on it also sets it off
+    ; crumble X Y W         a crumble block (W x 8 at (X, Y))
 Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
 are attached to it and move with it.
 Spikes and springs act in the order they are listed (the game checks them in
@@ -64,7 +65,7 @@ def spike_cells(d, x, y, n):
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
-    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks = [], None, [], [], [], [], []
+    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles = [], None, [], [], [], [], [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -90,6 +91,8 @@ def parse(path):
             zipmovers.append((x, y, w, h, tx, ty))
         elif line.startswith("; fallingblock "):
             fallblocks.append(tuple(int(v) for v in words[2:7]))
+        elif line.startswith("; crumble "):
+            crumbles.append(tuple(int(v) for v in words[2:5]))
         if not line or line.startswith(";"):
             continue
         rows.append(line)
@@ -157,6 +160,7 @@ def parse(path):
             else:
                 cx += 1
     parse.fallblocks = fallblocks
+    parse.crumbles = crumbles
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
 
 
@@ -371,7 +375,9 @@ def main():
                 out.append(f"    {{ PC_SPRING, {c[1]}, {c[2]}, 0, 0, 0 }},")
         out.append("};")
     fallblocks = parse.fallblocks
-    solids = [(x, y, w_, h_) for x, y, w_, h_, _, _ in zipmovers] + [(x, y, w_, h_) for x, y, w_, h_, _ in fallblocks]
+    crumbles = parse.crumbles
+    solids = ([(x, y, w_, h_) for x, y, w_, h_, _, _ in zipmovers] + [(x, y, w_, h_) for x, y, w_, h_, _ in fallblocks]
+              + [(x, y, w_, 8) for x, y, w_ in crumbles])
     if colliders and solids:
         att = [spike_attached(c, solids) if c[0] == "spikes" else -1 for c in colliders]
         out.append("/* spikes attached to a moving solid (zip movers first, then falling blocks): its index, or -1 */")
@@ -436,6 +442,25 @@ def main():
         out.append("};")
         out.append("static const float FB_LIFT[NFALLBLOCKS][FB_T_MAX + 1] = {")
         out += ["  {" + ",".join(f"{float(e[2]).hex()}f" for e in pad(c)) + "}," for c, _ in cycles]
+        out.append("};")
+    out += ["", "/* crumble blocks: { x, y, w } (8 px tall) and where CrumblePlatform.Sequence() is (crT) */",
+            f"#define NCRUMBLES {len(crumbles)}"]
+    if crumbles:
+        shake, wait, back = wait_updates(0.2), wait_updates(0.4), wait_updates(2.0)
+        top_chk = 1 + shake
+        top_end = top_chk + wait
+        climb0 = top_end + 1
+        climb_end = climb0 + 3 * (shake + 1) + wait - 1
+        gone0 = climb_end + 1
+        gone_end = gone0 + back
+        out += [f"#define CR_TOP_CHK {top_chk}     /* crT 1..{top_chk - 1}: shaking after she stood on it (0.2 s) */",
+                f"#define CR_TOP_END {top_end}     /* crT {top_chk}..{top_end}: the 0.4 s while she stays on top */",
+                f"#define CR_CLIMB0 {climb0}      /* crT {climb0}..{climb_end}: after she climbed it (3 x 0.2 s + 0.4 s) */",
+                f"#define CR_CLIMB_END {climb_end}",
+                f"#define CR_GONE0 {gone0}      /* crT {gone0}..{gone_end}: crumbled (2 s), then back once she is out of its way */",
+                f"#define CR_GONE_END {gone_end}",
+                "static const short CRUMBLES[NCRUMBLES][3] = {"]
+        out += [f"    {{ {x}, {y}, {w_} }}," for x, y, w_ in crumbles]
         out.append("};")
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))
