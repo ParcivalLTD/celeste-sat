@@ -241,6 +241,11 @@ def export(package, level, lv, path=None, goals=None):
         elif e.name == "fallingBlock":
             lines.append(f"; fallingblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)} "
                          f"{int(a.get('climbFall', True))}")
+        elif e.name == "dreamBlock":
+            lines.append(f"; dreamblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)}")
+        elif e.name in ("badelineChaser", "badelineOldsite", "badelineBoss"):
+            delay = int(round(float(a.get("chaseWait", 1.55)) * 60))
+            lines.append(f"; chaser {delay}")
         elif e.name in ("player", "strawberry", "goldenBerry", "checkpoint") or e.name in COSMETIC:
             if e.name not in ("player",):
                 cosmetic.add(e.name)

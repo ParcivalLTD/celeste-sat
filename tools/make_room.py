@@ -67,8 +67,9 @@ def spike_cells(d, x, y, n):
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
-    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles, dashblocks = \
-        [], None, [], [], [], [], [], [], []
+    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles, dashblocks, dreamblocks = \
+        [], None, [], [], [], [], [], [], [], []
+    chaser = None
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -98,6 +99,10 @@ def parse(path):
             crumbles.append(tuple(int(v) for v in words[2:5]))
         elif line.startswith("; dashblock "):
             dashblocks.append(tuple(int(v) for v in words[2:7]))
+        elif line.startswith("; dreamblock "):
+            dreamblocks.append(tuple(int(v) for v in words[2:6]))
+        elif line.startswith("; chaser"):
+            chaser = int(words[2]) if len(words) > 2 else 90
         if not line or line.startswith(";"):
             continue
         rows.append(line)
@@ -167,6 +172,8 @@ def parse(path):
     parse.fallblocks = fallblocks
     parse.crumbles = crumbles
     parse.dashblocks = dashblocks
+    parse.dreamblocks = dreamblocks
+    parse.chaser = chaser
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
 
 
@@ -474,6 +481,19 @@ def main():
         out.append("static const short DASHBLOCKS[NDASHBLOCKS][5] = {")
         out += [f"    {{ {x}, {y}, {w_}, {h_}, {c} }}," for x, y, w_, h_, c in dashblocks]
         out.append("};")
+    dreamblocks = parse.dreamblocks
+    out += ["", "/* dream blocks: { x, y, w, h } */", f"#define NDREAMBLOCKS {len(dreamblocks)}"]
+    assert len(dreamblocks) <= 8, "at most 8 dream blocks"
+    if dreamblocks:
+        out.append("static const short DREAMBLOCKS[NDREAMBLOCKS][4] = {")
+        out += [f"    {{ {x}, {y}, {w_}, {h_} }}," for x, y, w_, h_ in dreamblocks]
+        out.append("};")
+    if parse.chaser is not None:
+        out += ["", "/* Badeline chaser */",
+                "#define HAS_CHASER 1",
+                f"#define CHASER_DELAY {parse.chaser}"]
+    else:
+        out += ["", "#define HAS_CHASER 0"]
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))
 
