@@ -50,7 +50,8 @@ def build(room_path, bdir, start=None):
     open(f"{bdir}/tables.h", "w").write(sh([gen]).stdout)
     flags = []
     if start:
-        shutil.copy(start, f"{bdir}/entry.h")
+        if os.path.abspath(start) != os.path.abspath(f"{bdir}/entry.h"):
+            shutil.copy(start, f"{bdir}/entry.h")
         flags = ['-DSTART_STATE_FILE="entry.h"']
     for name, src, extra in (("sim", "sim/sim.c", []), ("beam", "search/beam.c", ["-fopenmp"])):
         r = sh(["gcc", "-O2", *extra, *flags, "-I", bdir, "-I", f"{ROOT}/model", "-o", f"{bdir}/{name}", f"{ROOT}/{src}"])
