@@ -67,6 +67,8 @@ static bool box_free(int x, int y, int h)       /* 8 x h hitbox at (x - 4, y - h
     return true;
 }
 
+static const State SPIKES_AT_START;
+
 /* 0 = cannot be here, 1 = free, 2 = leaving the room here counts as an exit */
 static int classify(int x, int y)
 {
@@ -81,7 +83,7 @@ static int classify(int x, int y)
     if (y > ROOM_PX_H && neighbour(EXIT_SIDE_DOWN, 2 * x)) return neighbour(EXIT_SIDE_DOWN, 2 * x) == 1 ? 2 : 0;
     if (y - HB_NORMAL_H < -24) return 0;
     /* standing hurtbox on spikes: avoid */
-    if (box_touches_spikes(x, y - 2, 9, 15)) return 0;
+    if (box_touches_spikes(&SPIKES_AT_START, x, y - 2, 9, 15)) return 0;   /* moving spikes: where they start */
     return 1;
 }
 
@@ -213,15 +215,30 @@ static uint64_t hash_state(const State *s)
     MIXF(s->beforeDashSpdX); MIXF(s->beforeDashSpdY); MIXF(s->varJumpSpeed); MIXF(s->wallSpeedRetained); MIXF(s->maxFall);
     MIXF(s->stamina); MIX(s->wallBoostDir); MIX(s->lastClimbMove); MIX(s->hopWaitX);
     MIX(s->wallBoostTimer); MIX(s->climbNoMoveTimer);
-    MIX(s->jumpGraceTimer); MIX(s->varJumpTimer); MIX(s->varJumpLong); MIX(s->dashCooldownTimer);
+    MIX(s->jumpGraceTimer); MIX(s->varJumpTimer); MIX(s->varJumpLong); MIX(s->varJumpShort); MIX(s->dashCooldownTimer);
     MIX(s->dashRefillCooldownTimer); MIX(s->dashAttackTimer); MIX(s->wallSlideTimer);
     MIX(s->wallSpeedRetentionTimer); MIX(s->forceMoveXTimer); MIX(s->coActive); MIX(s->coStage); MIX(s->coWait);
     MIX(s->freezeTimer); MIX(s->prevJump); MIX(s->prevDash); MIX(s->prevCDash);
-    MIXF(s->liftSpeedX); MIXF(s->liftSpeedY);
+    MIXF(s->liftSpeedX); MIXF(s->liftSpeedY); MIXF(s->liftLastX); MIXF(s->liftLastY); MIX(s->liftGraceTimer);
 #if NZIPMOVERS > 0
     for (int i = 0; i < NZIPMOVERS; i++) {
         MIX(s->zipTimer[i]);
     }
+#endif
+#if NFALLBLOCKS > 0
+    for (int j = 0; j < NFALLBLOCKS; j++) MIX(s->fbT[j]);
+#endif
+#if NCRUMBLES > 0
+    for (int j = 0; j < NCRUMBLES; j++) MIX(s->crT[j]);
+#endif
+#if NDASHBLOCKS > 0
+    MIX(s->dbBroken);
+#endif
+#if NZIPMOVERS > 0 || NFALLBLOCKS > 0 || NCRUMBLES > 0
+    MIX(s->hopZip); MIX(s->hopZipT);
+#endif
+#if NREFILLS > 0
+    for (int k = 0; k < NREFILLS; k++) MIX(s->refillTimer[k]);
 #endif
     MIX(s->jumpBuf); MIX(s->dashBuf); MIX(s->cdashBuf);
     return h;

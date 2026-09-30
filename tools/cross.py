@@ -69,6 +69,7 @@ def setup(where, start_block, target_block, tr):
         "/* written by tools/cross.py */\n"
         f"#define TR_SIDE {tr['side']}\n#define TR_DX {tr['dx']}\n#define TR_DY {tr['dy']}\n"
         f"#define TR_NEW_W {tr['w']}\n#define TR_NEW_H {tr['h']}\n"
+        + ("#define ANY_ZIPMOVERS 1\n" if tr.get("zips") else "")
         + start_block.replace("START_STATE", "START") + target_block.replace("START_STATE", "TARGET"))
 
 
@@ -201,11 +202,12 @@ def main():
     sh([f"{out}/a/sim", "-s", str(na), f"{out}/a_exit.h", f"{out}/route_a.tas"])
     st = read_state(f"{out}/a_exit.h")
     rows_a, rows_b = parse(a.room_a)[0], parse(a.room_b)[0]
+    any_zips = bool(parse(a.room_a)[5] or parse(a.room_b)[5])   # speed bounds in the harness
     side = exit_side(st, len(rows_a[0]) * 8, len(rows_a) * 8)
     oa, ob = origin_of(a.room_a), origin_of(a.room_b)
     wb, hb = len(rows_b[0]) * 8, len(rows_b) * 8
     entry_py = enter_room(st, side, oa, ob, wb, hb, tables(f"{out}/a"))
-    tr = dict(side=SIDES[side], dx=oa[0] - ob[0], dy=oa[1] - ob[1], w=wb, h=hb)
+    tr = dict(side=SIDES[side], dx=oa[0] - ob[0], dy=oa[1] - ob[1], w=wb, h=hb, zips=any_zips)
 
     # the two-room program: A and B side by side, the transition in C
     for tag, room in (("a", a.room_a), ("b", a.room_b)):
@@ -226,7 +228,8 @@ def main():
     total = info["exitB"]
     sh([f"{out}/chain", f"{out}/known.tas", "-s", str(na), f"{out}/b_entry.h"])
     entry_c = read_state(f"{out}/b_entry.h")
-    diff = sorted(k for k in entry_py if k in entry_c and float(entry_py[k]) != float(entry_c[k]))
+    num = lambda v: [float(x) for x in v] if isinstance(v, list) else float(v)
+    diff = sorted(k for k in entry_py if k in entry_c and num(entry_py[k]) != num(entry_c[k]))
     if diff:
         sys.exit(f"transition: C and Python disagree on {diff}")
     print(f"known route: leaves {na_name} on frame {na}, {nb_name} on frame {total} "

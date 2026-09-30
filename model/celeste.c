@@ -46,7 +46,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
        C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
-       C_DASHCLIMBJUMP, C_CROUCHDASH, C_NCOV };
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -56,7 +56,11 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "grab (climb begin)", "climbing up", "climbing down", "climb slip", "climb jump", "wall boost",
        "climb hop", "hop wait", "out of stamina", "no refill (on spikes)", "hop blocked (spikes)",
        "jump-through landing", "jump-through assist", "dash jump-through nudge", "floor snap onto jump-through",
-       "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked" };
+       "spring", "left for another room (fail)", "climb jump out of a dash", "dash starts ducked",
+       "zip mover starts", "carried by a zip mover or falling block", "pushed by a zip mover or falling block", "zip mover edge nudge (1 px down)",
+       "squished (death)", "moved with a moving solid after a climb hop", "refill", "falling block starts shaking", "falling block waits for her", "falling block moves",
+       "crumble block starts shaking", "crumble block crumbles", "crumble block comes back",
+       "dash block broken (rebound)" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -120,6 +124,62 @@ static float approach(float val, float target, float maxMove)
     return down ? maxf(r, target) : minf(r, target);
 }
 
+/* the largest whole-pixel move in one frame: 8 (~390 px/s), or 16 in rooms
+ * with moving solids (up to 250 px/s of lift boost on top) */
+#if NZIPMOVERS > 0
+#define ROUND_MAX 16
+#else
+#define ROUND_MAX 8
+#endif
+
+#ifndef REFERENCE
+/* Math.Round(x, MidpointRounding.ToEven) for |x| <= ROUND_MAX + 0.5 (the only
+ * range the movement counter can be in), written as comparisons against
+ * constants so the solver needs no float->int conversion. Ties go to the even
+ * neighbour. tests/diff.sh checks it against the general version. */
+static int round_even(float x)
+{
+    MODEL_ASSUME(x >= -(ROUND_MAX + 0.5f) && x <= ROUND_MAX + 0.5f);
+    int r = 0;
+    if (x > 0.5f) r = 1;
+    if (x >= 1.5f) r = 2;
+    if (x > 2.5f) r = 3;
+    if (x >= 3.5f) r = 4;
+    if (x > 4.5f) r = 5;
+    if (x >= 5.5f) r = 6;
+    if (x > 6.5f) r = 7;
+    if (x >= 7.5f) r = 8;
+#if ROUND_MAX > 8
+    if (x > 8.5f) r = 9;
+    if (x >= 9.5f) r = 10;
+    if (x > 10.5f) r = 11;
+    if (x >= 11.5f) r = 12;
+    if (x > 12.5f) r = 13;
+    if (x >= 13.5f) r = 14;
+    if (x > 14.5f) r = 15;
+    if (x >= 15.5f) r = 16;
+#endif
+    if (x < -0.5f) r = -1;
+    if (x <= -1.5f) r = -2;
+    if (x < -2.5f) r = -3;
+    if (x <= -3.5f) r = -4;
+    if (x < -4.5f) r = -5;
+    if (x <= -5.5f) r = -6;
+    if (x < -6.5f) r = -7;
+    if (x <= -7.5f) r = -8;
+#if ROUND_MAX > 8
+    if (x < -8.5f) r = -9;
+    if (x <= -9.5f) r = -10;
+    if (x < -10.5f) r = -11;
+    if (x <= -11.5f) r = -12;
+    if (x < -12.5f) r = -13;
+    if (x <= -13.5f) r = -14;
+    if (x < -14.5f) r = -15;
+    if (x <= -15.5f) r = -16;
+#endif
+    return r;
+}
+#else
 /* Math.Round(x, MidpointRounding.ToEven) for |x| < 2^22 */
 static int round_even(float x)
 {
@@ -131,6 +191,7 @@ static int round_even(float x)
     if (frac == -0.5f) return (t & 1) ? t - 1 : t;
     return t;
 }
+#endif
 
 /* component of a direction encoded as integer signs (diagonals normalised),
  * multiplied by a constant speed exactly like (dir * speed) in C#. */
@@ -142,11 +203,12 @@ static int round_even(float x)
 /* ------------------------------------------------------------------------ */
 /* Collision against the room's SolidTiles grid (Monocle Grid.Collide)       */
 /* ROOM_COLS[c] has bit r set when tile (c, r) is solid; outside the grid is */
-/* air (Grid.CheckRect clamps to the grid).                                  */
+/* air (Grid.CheckRect clamps to the grid). room_col_t is 32 bits, or 64 for */
+/* rooms taller than 32 tiles.                                               */
 /* ------------------------------------------------------------------------ */
 static int floor8(int v) { return v >> 3; } /* arithmetic shift == floor division by 8 */
 
-static unsigned long long col_bits(int c)
+static room_col_t col_bits(int c)
 {
     if (c < 0 || c >= ROOM_W) return 0;
     return ROOM_COLS[c];
@@ -158,53 +220,196 @@ static unsigned long long col_bits(int c)
 #define MODEL_TLS
 #endif
 
-#if NZIPMOVERS > 0
-static MODEL_TLS short CUR_ZIP_BOX[NZIPMOVERS][4];
-static void load_zip_window(const State *s)
+/* Moving solids (zip movers, then falling blocks, then crumble blocks, which
+ * do not move but come and go; NMS in all): their boxes this frame, from
+ * zipTimer / fbT / crT and the tables in room.h */
+#ifndef NFALLBLOCKS
+#define NFALLBLOCKS 0
+#endif
+#ifndef NCRUMBLES
+#define NCRUMBLES 0
+#endif
+#ifndef NDASHBLOCKS
+#define NDASHBLOCKS 0
+#endif
+#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES + NDASHBLOCKS)
+#define MS_CR0 (NZIPMOVERS + NFALLBLOCKS)       /* index of the first crumble block */
+#define MS_DB0 (MS_CR0 + NCRUMBLES)             /* index of the first dash block */
+#if NMS > 0
+static MODEL_TLS short CUR_MS_BOX[NMS][4];   /* x0, y0, x1, y1 (exclusive); -32000 when not Collidable */
+#if NFALLBLOCKS > 0
+/* falling block j is gone (fell out of the room: Collidable = false) */
+static bool fb_gone(const State *s, int j) { return FB_GONE[j] && s->fbT[j] == FB_T_END[j]; }
+#endif
+#if NCRUMBLES > 0
+/* crumble block j has crumbled (Collidable = false) and is not back yet */
+static bool cr_gone(const State *s, int j) { return s->crT[j] >= CR_GONE0; }
+#endif
+#if NDASHBLOCKS > 0
+/* dash block j has been broken */
+static bool db_broken(const State *s, int j) { return (s->dbBroken >> j) & 1; }
+#endif
+#if NFALLBLOCKS > 0 || NCRUMBLES > 0 || NDASHBLOCKS > 0
+/* moving solid i is Collidable (zip movers always are) */
+static bool ms_collidable(const State *s, int i)
 {
+#if NFALLBLOCKS > 0
+    if (i >= NZIPMOVERS && i < MS_CR0) return !fb_gone(s, i - NZIPMOVERS);
+#endif
+#if NCRUMBLES > 0
+    if (i >= MS_CR0 && i < MS_DB0) return !cr_gone(s, i - MS_CR0);
+#endif
+#if NDASHBLOCKS > 0
+    if (i >= MS_DB0) return !db_broken(s, i - MS_DB0);
+#endif
+    (void)s; (void)i;
+    return true;
+}
+#endif
+static void load_ms_boxes(const State *s)
+{
+#if NZIPMOVERS > 0
     for (int i = 0; i < NZIPMOVERS; i++) {
         int t = s->zipTimer[i];
-        MODEL_ASSUME(t >= 0 && t <= ZIP_CYCLE_FRAMES);
-        short zx = ZIP_STEPS[i][t][0];
-        short zy = ZIP_STEPS[i][t][1];
-        CUR_ZIP_BOX[i][0] = zx;
-        CUR_ZIP_BOX[i][1] = zy;
-        CUR_ZIP_BOX[i][2] = zx + ZIPMOVERS[i][2];
-        CUR_ZIP_BOX[i][3] = zy + ZIPMOVERS[i][3];
+        MODEL_ASSUME(t >= 0 && t <= ZIP_T_END);
+        CUR_MS_BOX[i][0] = ZIP_POS[i][t][0];
+        CUR_MS_BOX[i][1] = ZIP_POS[i][t][1];
+        CUR_MS_BOX[i][2] = ZIP_POS[i][t][0] + ZIPMOVERS[i][2];
+        CUR_MS_BOX[i][3] = ZIP_POS[i][t][1] + ZIPMOVERS[i][3];
     }
+#endif
+#if NFALLBLOCKS > 0
+    for (int j = 0; j < NFALLBLOCKS; j++) {
+        int t = s->fbT[j], i = NZIPMOVERS + j;
+        MODEL_ASSUME(t >= 0 && t <= FB_T_END[j]);
+        if (fb_gone(s, j)) {
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        } else {
+            CUR_MS_BOX[i][0] = FALLBLOCKS[j][0];
+            CUR_MS_BOX[i][1] = FB_Y[j][t];
+            CUR_MS_BOX[i][2] = FALLBLOCKS[j][0] + FALLBLOCKS[j][2];
+            CUR_MS_BOX[i][3] = FB_Y[j][t] + FALLBLOCKS[j][3];
+        }
+    }
+#endif
+#if NCRUMBLES > 0
+    for (int j = 0; j < NCRUMBLES; j++) {
+        int i = MS_CR0 + j;
+        MODEL_ASSUME(s->crT[j] >= 0 && s->crT[j] <= CR_GONE_END);
+        if (cr_gone(s, j)) {
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        } else {
+            CUR_MS_BOX[i][0] = CRUMBLES[j][0];
+            CUR_MS_BOX[i][1] = CRUMBLES[j][1];
+            CUR_MS_BOX[i][2] = CRUMBLES[j][0] + CRUMBLES[j][2];
+            CUR_MS_BOX[i][3] = CRUMBLES[j][1] + 8;
+        }
+    }
+#endif
+#if NDASHBLOCKS > 0
+    for (int j = 0; j < NDASHBLOCKS; j++) {
+        int i = MS_DB0 + j;
+        if (db_broken(s, j)) {
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        } else {
+            CUR_MS_BOX[i][0] = DASHBLOCKS[j][0];
+            CUR_MS_BOX[i][1] = DASHBLOCKS[j][1];
+            CUR_MS_BOX[i][2] = DASHBLOCKS[j][0] + DASHBLOCKS[j][2];
+            CUR_MS_BOX[i][3] = DASHBLOCKS[j][1] + DASHBLOCKS[j][3];
+        }
+    }
+#endif
+}
+/* an 8 x h hitbox at (x, y) overlaps moving solid i */
+static bool ms_overlap(int i, int x, int y, int h)
+{
+    return x + 4 > CUR_MS_BOX[i][0] && x - 4 < CUR_MS_BOX[i][2]
+        && y > CUR_MS_BOX[i][1] && y - h < CUR_MS_BOX[i][3];
+}
+static bool any_ms_overlap(int x, int y, int h)
+{
+    for (int i = 0; i < NMS; i++)
+        if (ms_overlap(i, x, y, h)) return true;
+    return false;
+}
+/* where moving solid i is after `t` updates of its coroutine (zipTimer / fbT) */
+static int ms_pos_x(int i, int t)
+{
+#if NZIPMOVERS > 0
+    if (i < NZIPMOVERS) return ZIP_POS[i][t][0];
+#endif
+#if NFALLBLOCKS > 0
+    if (i < MS_CR0) return FALLBLOCKS[i - NZIPMOVERS][0];
+#endif
+#if NCRUMBLES > 0
+    if (i < MS_DB0) return CRUMBLES[i - MS_CR0][0];
+#endif
+#if NDASHBLOCKS > 0
+    return DASHBLOCKS[i - MS_DB0][0];
+#endif
+    (void)i; (void)t; return 0;
+}
+static int ms_pos_y(int i, int t)
+{
+#if NZIPMOVERS > 0
+    if (i < NZIPMOVERS) return ZIP_POS[i][t][1];
+#endif
+#if NFALLBLOCKS > 0
+    if (i < MS_CR0) return FB_Y[i - NZIPMOVERS][t];
+#endif
+#if NCRUMBLES > 0
+    if (i < MS_DB0) return CRUMBLES[i - MS_CR0][1];
+#endif
+#if NDASHBLOCKS > 0
+    return DASHBLOCKS[i - MS_DB0][1];
+#endif
+    (void)i; (void)t; return 0;
+}
+/* the counter its position is looked up with (crumble blocks do not move: 0) */
+static int ms_timer(const State *s, int i)
+{
+#if NZIPMOVERS > 0
+    if (i < NZIPMOVERS) return s->zipTimer[i];
+#endif
+#if NFALLBLOCKS > 0
+    if (i < MS_CR0) return s->fbT[i - NZIPMOVERS];
+#endif
+    (void)s; (void)i; return 0;
 }
 #else
-#define load_zip_window(s) ((void)0)
+#define load_ms_boxes(s) ((void)0)
+#define any_ms_overlap(x, y, h) false
+#endif
+
+static bool tiles_collide(int x, int y, int h);
+#if NPCOL > 0 && NMS > 0
+static void load_pcol_offsets(const State *s);
+#else
+#define load_pcol_offsets(s) ((void)0)
 #endif
 
 #ifdef REFERENCE
 /* bitmask of tile rows r0..r1 (inclusive), clipped to the grid */
-static unsigned long long row_span(int r0, int r1)
+static room_col_t row_span(int r0, int r1)
 {
+    const int BITS = (int)(8 * sizeof(room_col_t));
     if (r0 < 0) r0 = 0;
     if (r1 > ROOM_H - 1) r1 = ROOM_H - 1;
     if (r1 < r0) return 0;
-    unsigned long long upto = (r1 >= 63) ? ~0ULL : ((1ULL << (r1 + 1)) - 1ULL);
-    unsigned long long below = (r0 == 0) ? 0ULL : ((1ULL << r0) - 1ULL);
+    room_col_t upto = (r1 >= BITS - 1) ? (room_col_t)~(room_col_t)0 : (((room_col_t)1 << (r1 + 1)) - 1u);
+    room_col_t below = ((room_col_t)1 << r0) - 1u;
     return upto & ~below;
 }
 
-/* hitbox 8 x h with offset (-4, -h), placed at (x, y) */
-static bool collide_box(int x, int y, int h)
+/* hitbox 8 x h with offset (-4, -h), placed at (x, y): the tiles only */
+static bool tiles_collide(int x, int y, int h)
 {
-    unsigned long long rows = row_span(floor8(y - h), floor8(y - 1));
-    if (((col_bits(floor8(x - 4)) | col_bits(floor8(x + 3))) & rows) != 0)
-        return true;
-#if NZIPMOVERS > 0
-    for (int i = 0; i < NZIPMOVERS; i++) {
-        if (x + 4 > CUR_ZIP_BOX[i][0] && x - 4 < CUR_ZIP_BOX[i][2]
-            && y > CUR_ZIP_BOX[i][1] && y - h < CUR_ZIP_BOX[i][3])
-            return true;
-    }
-#endif
-    return false;
+    room_col_t rows = row_span(floor8(y - h), floor8(y - 1));
+    return ((col_bits(floor8(x - 4)) | col_bits(floor8(x + 3))) & rows) != 0;
 }
-#define LOAD_WINDOW(s) load_zip_window(s)
+/* ... and any solid */
+static bool collide_box(int x, int y, int h) { return tiles_collide(x, y, h) || any_ms_overlap(x, y, h); }
+#define LOAD_WINDOW(s) (load_ms_boxes(s), load_pcol_offsets(s))
 #else
 /* Solver build: every collision check during one frame lies within a few
  * tiles of where the frame started (moves are <= 8 px, corner corrections
@@ -219,16 +424,19 @@ static void load_window(const State *s)
     WX0 = floor8(s->x - 28);
     WY0 = floor8(s->y - 32);
     for (int i = 0; i < 8; i++) {
+#if ROOM_H <= 32
+        unsigned long long c = (unsigned long long)col_bits(WX0 + i) << 8;  /* 8 rows of padding above */
+        int sh = WY0 + 8;
+        MODEL_ASSUME(sh >= 0 && sh < 56);
+        WCOL[i] = (unsigned char)(c >> sh);
+#else
         unsigned long long c = col_bits(WX0 + i);
-        if (WY0 <= -8 || WY0 >= 64) {
-            WCOL[i] = 0;
-        } else if (WY0 < 0) {
-            WCOL[i] = (unsigned char)(c << (-WY0));
-        } else {
-            WCOL[i] = (unsigned char)(c >> WY0);
-        }
+        MODEL_ASSUME(WY0 >= -8 && WY0 < 64);
+        WCOL[i] = (unsigned char)(WY0 < 0 ? c << (-WY0) : c >> WY0);
+#endif
     }
-    load_zip_window(s);
+    load_ms_boxes(s);
+    load_pcol_offsets(s);
 }
 #define LOAD_WINDOW(s) load_window(s)
 
@@ -241,21 +449,13 @@ static unsigned wcol(int c)          /* column c (room coordinates) of the windo
     return WCOL[i];
 }
 
-static bool collide_box(int x, int y, int h)
+static bool tiles_collide(int x, int y, int h)
 {
     int r0 = floor8(y - h) - WY0, r1 = floor8(y - 1) - WY0;
     MODEL_ASSUME(r0 >= 0 && r1 < 8);
-    if (((wcol(floor8(x - 4)) | wcol(floor8(x + 3))) & span8(r0, r1)) != 0)
-        return true;
-#if NZIPMOVERS > 0
-    for (int i = 0; i < NZIPMOVERS; i++) {
-        if (x + 4 > CUR_ZIP_BOX[i][0] && x - 4 < CUR_ZIP_BOX[i][2]
-            && y > CUR_ZIP_BOX[i][1] && y - h < CUR_ZIP_BOX[i][3])
-            return true;
-    }
-#endif
-    return false;
+    return ((wcol(floor8(x - 4)) | wcol(floor8(x + 3))) & span8(r0, r1)) != 0;
 }
+static bool collide_box(int x, int y, int h) { return tiles_collide(x, y, h) || any_ms_overlap(x, y, h); }
 #endif
 
 static int collider_h(const State *s) { return s->ducking ? HB_DUCK_H : HB_NORMAL_H; }
@@ -266,10 +466,10 @@ static bool collide_at(const State *s, int x, int y) { return collide_box(x, y, 
 /* Scene.CollideCheck<Solid>(point) */
 static bool solid_point(int px, int py)
 {
-#if NZIPMOVERS > 0
-    for (int i = 0; i < NZIPMOVERS; i++) {
-        if (px >= CUR_ZIP_BOX[i][0] && px < CUR_ZIP_BOX[i][2]
-            && py >= CUR_ZIP_BOX[i][1] && py < CUR_ZIP_BOX[i][3])
+#if NMS > 0
+    for (int i = 0; i < NMS; i++) {
+        if (px >= CUR_MS_BOX[i][0] && px < CUR_MS_BOX[i][2]
+            && py >= CUR_MS_BOX[i][1] && py < CUR_MS_BOX[i][3])
             return true;
     }
 #endif
@@ -284,17 +484,42 @@ static bool solid_point(int px, int py)
 }
 
 
+/* Spikes attached to a moving solid (their StaticMover; PCOL_MS in room.h)
+ * move with it: their offset from where the room places them. Only the
+ * moving solids' updates (after hers) move them, so the offsets are worked
+ * out once per frame, with the solids' boxes (load_ms_boxes). */
+#if NPCOL > 0 && NMS > 0
+static MODEL_TLS short CUR_PCOL_D[NPCOL][2];
+static void load_pcol_offsets(const State *s)
+{
+    for (int k = 0; k < NPCOL; k++) {
+        int m = PCOL_MS[k];
+        if (m < 0) { CUR_PCOL_D[k][0] = CUR_PCOL_D[k][1] = 0; continue; }
+        int t = ms_timer(s, m);
+        CUR_PCOL_D[k][0] = (short)(ms_pos_x(m, t) - ms_pos_x(m, 0));
+        CUR_PCOL_D[k][1] = (short)(ms_pos_y(m, t) - ms_pos_y(m, 0));
+    }
+}
+#define pcol_dx(s, k) ((void)(s), CUR_PCOL_D[k][0])
+#define pcol_dy(s, k) ((void)(s), CUR_PCOL_D[k][1])
+#else
+#define pcol_dx(s, k) 0
+#define pcol_dy(s, k) 0
+#endif
+
 /* CollideCheck<Spikes>(at) with an 8 x h box: does it touch a spike strip
  * whose direction bit (1 << SPIKE_*) is in `mask`? */
-static bool box_touches_spikes(int x, int y, int h, int mask)
+static bool box_touches_spikes(const State *s, int x, int y, int h, int mask)
 {
 #if NSPIKES > 0
-    for (int i = 0; i < NPCOL; i++)
-        if (PCOL[i][0] == PC_SPIKES && ((mask >> PCOL[i][1]) & 1) && x + 4 > PCOL[i][2] && x - 4 < PCOL[i][4]
-            && y > PCOL[i][3] && y - h < PCOL[i][5])
+    for (int i = 0; i < NPCOL; i++) {
+        if (PCOL[i][0] != PC_SPIKES || !((mask >> PCOL[i][1]) & 1)) continue;
+        int dx = pcol_dx(s, i), dy = pcol_dy(s, i);
+        if (x + 4 > PCOL[i][2] + dx && x - 4 < PCOL[i][4] + dx && y > PCOL[i][3] + dy && y - h < PCOL[i][5] + dy)
             return true;
+    }
 #else
-    (void)x; (void)y; (void)h; (void)mask;
+    (void)s; (void)x; (void)y; (void)h; (void)mask;
 #endif
     return false;
 }
@@ -400,10 +625,10 @@ static bool move_h_exact_plain(State *s, int move)
             stop = b - 4;
             hit = true;
         }
-#if NZIPMOVERS > 0
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            if (s->y > CUR_ZIP_BOX[i][1] && s->y - h < CUR_ZIP_BOX[i][3]) {
-                int zx = CUR_ZIP_BOX[i][0];
+#if NMS > 0
+        for (int i = 0; i < NMS; i++) {
+            if (s->y > CUR_MS_BOX[i][1] && s->y - h < CUR_MS_BOX[i][3]) {
+                int zx = CUR_MS_BOX[i][0];
                 if (s->x + 4 <= zx && zx < s->x + 4 + move) {
                     if (!hit || zx - 4 < stop) {
                         stop = zx - 4;
@@ -419,10 +644,10 @@ static bool move_h_exact_plain(State *s, int move)
             stop = a + 4;
             hit = true;
         }
-#if NZIPMOVERS > 0
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            if (s->y > CUR_ZIP_BOX[i][1] && s->y - h < CUR_ZIP_BOX[i][3]) {
-                int zx = CUR_ZIP_BOX[i][2];
+#if NMS > 0
+        for (int i = 0; i < NMS; i++) {
+            if (s->y > CUR_MS_BOX[i][1] && s->y - h < CUR_MS_BOX[i][3]) {
+                int zx = CUR_MS_BOX[i][2];
                 if (s->x - 4 >= zx && zx > s->x - 4 + move) {
                     if (!hit || zx + 4 > stop) {
                         stop = zx + 4;
@@ -460,10 +685,10 @@ static bool move_v_exact_plain(State *s, int move)
             }
         }
 #endif
-#if NZIPMOVERS > 0
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            if (s->x + 4 > CUR_ZIP_BOX[i][0] && s->x - 4 < CUR_ZIP_BOX[i][2]) {
-                int zy = CUR_ZIP_BOX[i][1];
+#if NMS > 0
+        for (int i = 0; i < NMS; i++) {
+            if (s->x + 4 > CUR_MS_BOX[i][0] && s->x - 4 < CUR_MS_BOX[i][2]) {
+                int zy = CUR_MS_BOX[i][1];
                 if (s->y <= zy && zy < stop) {
                     stop = zy;
                     hit = true;
@@ -479,10 +704,10 @@ static bool move_v_exact_plain(State *s, int move)
             stop = a + h;
             hit = true;
         }
-#if NZIPMOVERS > 0
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            if (s->x + 4 > CUR_ZIP_BOX[i][0] && s->x - 4 < CUR_ZIP_BOX[i][2]) {
-                int zy = CUR_ZIP_BOX[i][3];
+#if NMS > 0
+        for (int i = 0; i < NMS; i++) {
+            if (s->x + 4 > CUR_MS_BOX[i][0] && s->x - 4 < CUR_MS_BOX[i][2]) {
+                int zy = CUR_MS_BOX[i][3];
                 if (s->y - h >= zy && zy + h > stop) {
                     stop = zy + h;
                     hit = true;
@@ -497,6 +722,70 @@ static bool move_v_exact_plain(State *s, int move)
 }
 #endif
 
+#if NDASHBLOCKS > 0
+/* CollideFirst<Solid> at a position where she is blocked: the tiles come
+ * first (SolidTiles is added before the room's entities), then the moving
+ * solids in order. -1: the tiles, -2: none (a jump-through), else its index.
+ * OnCollideH / OnCollideV get it as data.Hit, with the move's direction. */
+static MODEL_TLS int MS_HIT, MS_HIT_DIR;
+static int first_solid_at(int x, int y, int h)
+{
+    if (tiles_collide(x, y, h)) return -1;
+    for (int i = 0; i < NMS; i++)
+        if (ms_overlap(i, x, y, h)) return i;
+    return -2;
+}
+static bool move_h_exact_hit(State *s, int move)
+{
+    bool hit = move_h_exact_plain(s, move);
+    MS_HIT_DIR = signi(move);
+    MS_HIT = hit ? first_solid_at(s->x + MS_HIT_DIR, s->y, collider_h(s)) : -2;
+    return hit;
+}
+static bool move_v_exact_hit(State *s, int move)
+{
+    bool hit = move_v_exact_plain(s, move);
+    MS_HIT_DIR = signi(move);
+    MS_HIT = hit ? first_solid_at(s->x, s->y + MS_HIT_DIR, collider_h(s)) : -2;
+    return hit;
+}
+#define move_h_exact_plain move_h_exact_hit
+#define move_v_exact_plain move_v_exact_hit
+#endif
+
+/* Actor.MoveHExact / MoveVExact: whole pixels, stopping at the first solid.
+ * With moving solids in the room, lift boosts allow moves beyond
+ * MAX_PIXELS_*; they are done in pieces (the same pixel steps). */
+static bool move_h_exact(State *s, int move)
+{
+#if NZIPMOVERS > 0
+    bool hit = false;
+    for (int i = 0; i < (ROUND_MAX + MAX_PIXELS_H - 1) / MAX_PIXELS_H && move != 0 && !hit; i++) {
+        int step = move < -MAX_PIXELS_H ? -MAX_PIXELS_H : (move > MAX_PIXELS_H ? MAX_PIXELS_H : move);
+        hit = move_h_exact_plain(s, step);
+        move -= step;
+    }
+    return hit;
+#else
+    return move_h_exact_plain(s, move);
+#endif
+}
+
+static bool move_v_exact(State *s, int move)
+{
+#if NZIPMOVERS > 0
+    bool hit = false;
+    for (int i = 0; i < (ROUND_MAX + MAX_PIXELS_V - 1) / MAX_PIXELS_V && move != 0 && !hit; i++) {
+        int step = move < -MAX_PIXELS_V ? -MAX_PIXELS_V : (move > MAX_PIXELS_V ? MAX_PIXELS_V : move);
+        hit = move_v_exact_plain(s, step);
+        move -= step;
+    }
+    return hit;
+#else
+    return move_v_exact_plain(s, move);
+#endif
+}
+
 /* Actor.MoveH / MoveV with the player's OnCollideH / OnCollideV callbacks.
  * (C# calls onCollide from inside the loop and returns right after, so
  * calling it after the loop is the same.) */
@@ -506,13 +795,7 @@ static void move_h(State *s, float amount)
     int move = round_even(s->remX);
     if (move == 0) return;
     s->remX -= (float)move;
-    bool hit = false;
-    for (int i = 0; i < 4 && move != 0 && !hit; i++) {
-        int step = move < -MAX_PIXELS_H ? -MAX_PIXELS_H : (move > MAX_PIXELS_H ? MAX_PIXELS_H : move);
-        hit = move_h_exact_plain(s, step);
-        if (!hit) move -= step;
-    }
-    if (hit) on_collide_h(s);
+    if (move_h_exact(s, move)) on_collide_h(s);
 }
 
 static void move_v(State *s, float amount)
@@ -521,13 +804,7 @@ static void move_v(State *s, float amount)
     int move = round_even(s->remY);
     if (move == 0) return;
     s->remY -= (float)move;
-    bool hit = false;
-    for (int i = 0; i < 4 && move != 0 && !hit; i++) {
-        int step = move < -MAX_PIXELS_V ? -MAX_PIXELS_V : (move > MAX_PIXELS_V ? MAX_PIXELS_V : move);
-        hit = move_v_exact_plain(s, step);
-        if (!hit) move -= step;
-    }
-    if (hit) on_collide_v(s);
+    if (move_v_exact(s, move)) on_collide_v(s);
 }
 
 /* MoveV(float) with no callback (jump-through assist, springs) */
@@ -537,11 +814,7 @@ static void move_v_plain(State *s, float amount)
     int move = round_even(s->remY);
     if (move == 0) return;
     s->remY -= (float)move;
-    for (int i = 0; i < 4 && move != 0; i++) {
-        int step = move < -MAX_PIXELS_V ? -MAX_PIXELS_V : (move > MAX_PIXELS_V ? MAX_PIXELS_V : move);
-        if (move_v_exact_plain(s, step)) break;
-        move -= step;
-    }
+    move_v_exact(s, move);
 }
 
 /* MoveH(float) with no callback (used by duck correction) */
@@ -551,11 +824,7 @@ static void move_h_plain(State *s, float amount)
     int move = round_even(s->remX);
     if (move == 0) return;
     s->remX -= (float)move;
-    for (int i = 0; i < 4 && move != 0; i++) {
-        int step = move < -MAX_PIXELS_H ? -MAX_PIXELS_H : (move > MAX_PIXELS_H ? MAX_PIXELS_H : move);
-        if (move_h_exact_plain(s, step)) break;
-        move -= step;
-    }
+    move_h_exact(s, move);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -586,7 +855,7 @@ static bool wall_jump_check(const State *s, int dir)
 {
     int dist = WALL_JUMP_CHECK_DIST;
     if (dash_attacking(s) && s->dashDirX == 0 && s->dashDirY == -1
-        && !box_touches_spikes(s->x + dir * WALL_BOUNCE_CHECK_DIST, s->y, collider_h(s),
+        && !box_touches_spikes(s, s->x + dir * WALL_BOUNCE_CHECK_DIST, s->y, collider_h(s),
                                1 << (dir <= 0 ? SPIKE_RIGHT : SPIKE_LEFT)))
         dist = WALL_BOUNCE_CHECK_DIST;
     return climb_bounds_check(s, dir) && collide_at(s, s->x + dir * dist, s->y);
@@ -597,7 +866,7 @@ static bool wall_jump_check(const State *s, int dir)
  * jump-through nudge and the dash floor snap are skipped then. */
 static bool dash_correct_check(const State *s, int ax, int ay)
 {
-    return box_touches_spikes(s->x + ax, s->y + ay - 2, 9, ALL_SPIKES);
+    return box_touches_spikes(s, s->x + ax, s->y + ay - 2, 9, ALL_SPIKES);
 }
 
 /* a solid within 3 px to either side, also after the dash jump-through
@@ -648,45 +917,60 @@ static bool can_dash(const State *s)
     return (dash_pressed(s) || cdash_pressed(s)) && !TPOS(s->dashCooldownTimer) && s->dashes > 0;
 }
 
+/* ------------------------------------------------------------------------ */
+/* Lift speed (moving solids)                                               */
+/* ------------------------------------------------------------------------ */
+#if NZIPMOVERS > 0
+/* Actor.LiftSpeed getter: currentLiftSpeed, or while it is zero the last
+ * non-zero one (kept for LiftSpeedGraceTime) */
+static bool lift_current(const State *s) { return s->liftSpeedX != 0.0f || s->liftSpeedY != 0.0f; }
+static float lift_x(const State *s) { return lift_current(s) ? s->liftSpeedX : s->liftLastX; }
+static float lift_y(const State *s) { return lift_current(s) ? s->liftSpeedY : s->liftLastY; }
+
+/* Actor.LiftSpeed setter */
+static void set_lift(State *s, float x, float y)
+{
+    s->liftSpeedX = x;
+    s->liftSpeedY = y;
+    if (x != 0.0f || y != 0.0f) {
+        s->liftLastX = x;
+        s->liftLastY = y;
+        TSET(s->liftGraceTimer, LIFT_SPEED_GRACE_TIME);
+    }
+}
+
+/* Player.LiftBoost: LiftSpeed with |x| capped at LiftXCap, y in [LiftYCap, 0] */
 static float lift_boost_x(const State *s)
 {
-    float vx = s->liftSpeedX;
+    float vx = lift_x(s);
     if (vx > LIFT_X_CAP) return LIFT_X_CAP;
     if (vx < -LIFT_X_CAP) return -LIFT_X_CAP;
     return vx;
 }
-
 static float lift_boost_y(const State *s)
 {
-    float vy = s->liftSpeedY;
+    float vy = lift_y(s);
     if (vy > 0.0f) return 0.0f;
     if (vy < LIFT_Y_CAP) return LIFT_Y_CAP;
     return vy;
 }
+/* Speed += LiftBoost */
+#define ADD_LIFT_BOOST(s) do { (s)->spdX += lift_boost_x(s); (s)->spdY += lift_boost_y(s); } while (0)
 
-#if NZIPMOVERS > 0
-static bool zip_is_riding(const State *s, int i)
+/* Actor.Update, after the state machine: LiftSpeed = Vector2.Zero, and the
+ * grace timer runs down (lastLiftSpeed is forgotten when it ends) */
+static void actor_update_lift(State *s)
 {
-    int zx = CUR_ZIP_BOX[i][0];
-    int zy = CUR_ZIP_BOX[i][1];
-    int zx1 = CUR_ZIP_BOX[i][2];
-    int zy1 = CUR_ZIP_BOX[i][3];
-    int h = collider_h(s);
-
-    /* 1. Standing on top of the zip mover (feet at zy) */
-    if (s->onGround && s->y == zy && s->x + 4 > zx && s->x - 4 < zx1)
-        return true;
-
-    /* 2. Climbing (grabbing) the side of the zip mover */
-    if (s->state == ST_CLIMB) {
-        if (s->facing > 0 && s->x + 4 == zx && s->y > zy && s->y - h < zy1)
-            return true;
-        if (s->facing < 0 && s->x - 4 == zx1 && s->y > zy && s->y - h < zy1)
-            return true;
+    s->liftSpeedX = 0.0f;
+    s->liftSpeedY = 0.0f;
+    if (TPOS(s->liftGraceTimer)) {
+        TDEC(s->liftGraceTimer);
+        if (!TPOS(s->liftGraceTimer)) { s->liftLastX = 0.0f; s->liftLastY = 0.0f; }
     }
-
-    return false;
 }
+#else
+#define ADD_LIFT_BOOST(s) ((void)0)
+#define actor_update_lift(s) ((void)0)
 #endif
 
 /* ------------------------------------------------------------------------ */
@@ -699,6 +983,7 @@ static void jump(State *s)
     TCLR(s->jumpGraceTimer);
     TSET(s->varJumpTimer, VAR_JUMP_TIME);
     s->varJumpLong = false;
+    s->varJumpShort = false;
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
@@ -706,8 +991,7 @@ static void jump(State *s)
     /* Speed.X += JumpHBoost * moveX */
     s->spdX += (s->moveX > 0 ? JUMP_H_BOOST * 1.0f : (s->moveX < 0 ? JUMP_H_BOOST * -1.0f : JUMP_H_BOOST * 0.0f));
     s->spdY = JUMP_SPEED;
-    s->spdX += lift_boost_x(s);
-    s->spdY += lift_boost_y(s);
+    ADD_LIFT_BOOST(s);
     s->varJumpSpeed = s->spdY;
 }
 
@@ -718,18 +1002,32 @@ static void super_jump(State *s)
     TCLR(s->jumpGraceTimer);
     TSET(s->varJumpTimer, VAR_JUMP_TIME);
     s->varJumpLong = false;
+    s->varJumpShort = false;
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
     TCLR(s->wallBoostTimer);
-    s->spdX = (s->facing > 0 ? SUPER_JUMP_H : -SUPER_JUMP_H) + lift_boost_x(s);
-    s->spdY = JUMP_SPEED + lift_boost_y(s);
+#if NZIPMOVERS > 0
+    s->spdX = s->facing > 0 ? SUPER_JUMP_H : -SUPER_JUMP_H;
+    s->spdY = JUMP_SPEED;
+    ADD_LIFT_BOOST(s);
     if (s->ducking) {                     /* hyper */
         COV(C_HYPER);
         s->ducking = false;
         s->spdX *= DUCK_SUPER_JUMP_X_MULT;
         s->spdY *= DUCK_SUPER_JUMP_Y_MULT;
     }
+#else                                     /* the same products, folded */
+    s->spdX = s->facing > 0 ? SUPER_JUMP_H : -SUPER_JUMP_H;
+    s->spdY = JUMP_SPEED;
+    if (s->ducking) {                     /* hyper */
+        COV(C_HYPER);
+        s->ducking = false;
+        s->spdX = s->facing > 0 ? SUPER_JUMP_H * DUCK_SUPER_JUMP_X_MULT
+                                : (-SUPER_JUMP_H) * DUCK_SUPER_JUMP_X_MULT;
+        s->spdY = JUMP_SPEED * DUCK_SUPER_JUMP_Y_MULT;
+    }
+#endif
     s->varJumpSpeed = s->spdY;
 }
 
@@ -741,6 +1039,7 @@ static void wall_jump(State *s, int dir)
     TCLR(s->jumpGraceTimer);
     TSET(s->varJumpTimer, VAR_JUMP_TIME);
     s->varJumpLong = false;
+    s->varJumpShort = false;
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
@@ -749,29 +1048,22 @@ static void wall_jump(State *s, int dir)
         s->forceMoveX = dir;
         TSET(s->forceMoveXTimer, WALL_JUMP_FORCE_TIME);
     }
-#if NZIPMOVERS > 0
-    if (s->liftSpeedX == 0.0f && s->liftSpeedY == 0.0f) {
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            int zx = CUR_ZIP_BOX[i][0], zy = CUR_ZIP_BOX[i][1];
-            int zx1 = CUR_ZIP_BOX[i][2], zy1 = CUR_ZIP_BOX[i][3];
-            int h = collider_h(s);
-            if (s->y > zy && s->y - h < zy1) {
-                if (dir < 0 && s->x + 4 + WALL_JUMP_CHECK_DIST > zx && s->x + 4 <= zx) {
-                    s->liftSpeedX = ZIP_LIFT[i][s->zipTimer[i]][0];
-                    s->liftSpeedY = ZIP_LIFT[i][s->zipTimer[i]][1];
-                    break;
-                }
-                if (dir > 0 && s->x - 4 - WALL_JUMP_CHECK_DIST < zx1 && s->x - 4 >= zx1) {
-                    s->liftSpeedX = ZIP_LIFT[i][s->zipTimer[i]][0];
-                    s->liftSpeedY = ZIP_LIFT[i][s->zipTimer[i]][1];
-                    break;
-                }
+#if NZIPMOVERS > 0 && defined(ZIP_WALL_LIFT)
+    /* Get lift of wall jumped off of: if (LiftSpeed == Vector2.Zero) the
+     * LiftSpeed of the solid 3 px to her right (Player.cs checks +3 px
+     * whatever the direction). Off by default: a zip mover moves inside its
+     * coroutine, and Platform.Update zeroes LiftSpeed right after (so this
+     * reads zero) -- a guess to be settled by a recording. */
+    if (!lift_current(s))
+        for (int i = 0; i < NZIPMOVERS; i++)
+            if (ms_overlap(i, s->x + WALL_JUMP_CHECK_DIST, s->y, collider_h(s))) {
+                set_lift(s, ZIP_LIFT[i][s->zipTimer[i]][0], ZIP_LIFT[i][s->zipTimer[i]][1]);
+                break;
             }
-        }
-    }
 #endif
-    s->spdX = (dir > 0 ? WALL_JUMP_H_SPEED : -WALL_JUMP_H_SPEED) + lift_boost_x(s);
-    s->spdY = JUMP_SPEED + lift_boost_y(s);
+    s->spdX = dir > 0 ? WALL_JUMP_H_SPEED : -WALL_JUMP_H_SPEED;
+    s->spdY = JUMP_SPEED;
+    ADD_LIFT_BOOST(s);
     s->varJumpSpeed = s->spdY;
 }
 
@@ -783,33 +1075,14 @@ static void super_wall_jump(State *s, int dir)
     TCLR(s->jumpGraceTimer);
     TSET(s->varJumpTimer, SUPER_WALL_JUMP_VAR_TIME);
     s->varJumpLong = true;
+    s->varJumpShort = false;
     s->autoJump = false;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
     TCLR(s->wallBoostTimer);
-#if NZIPMOVERS > 0
-    if (s->liftSpeedX == 0.0f && s->liftSpeedY == 0.0f) {
-        for (int i = 0; i < NZIPMOVERS; i++) {
-            int zx = CUR_ZIP_BOX[i][0], zy = CUR_ZIP_BOX[i][1];
-            int zx1 = CUR_ZIP_BOX[i][2], zy1 = CUR_ZIP_BOX[i][3];
-            int h = collider_h(s);
-            if (s->y > zy && s->y - h < zy1) {
-                if (dir < 0 && s->x + 4 + WALL_BOUNCE_CHECK_DIST > zx && s->x + 4 <= zx) {
-                    s->liftSpeedX = ZIP_LIFT[i][s->zipTimer[i]][0];
-                    s->liftSpeedY = ZIP_LIFT[i][s->zipTimer[i]][1];
-                    break;
-                }
-                if (dir > 0 && s->x - 4 - WALL_BOUNCE_CHECK_DIST < zx1 && s->x - 4 >= zx1) {
-                    s->liftSpeedX = ZIP_LIFT[i][s->zipTimer[i]][0];
-                    s->liftSpeedY = ZIP_LIFT[i][s->zipTimer[i]][1];
-                    break;
-                }
-            }
-        }
-    }
-#endif
-    s->spdX = (dir > 0 ? SUPER_WALL_JUMP_H : -SUPER_WALL_JUMP_H) + lift_boost_x(s);
-    s->spdY = SUPER_WALL_JUMP_SPEED + lift_boost_y(s);
+    s->spdX = dir > 0 ? SUPER_WALL_JUMP_H : -SUPER_WALL_JUMP_H;
+    s->spdY = SUPER_WALL_JUMP_SPEED;
+    ADD_LIFT_BOOST(s);
     s->varJumpSpeed = s->spdY;
 }
 
@@ -818,6 +1091,15 @@ static void climb_jump(State *s)
     COV(C_CLIMBJUMP);
     if (!s->onGround) s->stamina -= CLIMB_JUMP_COST;
     jump(s);                                      /* Jump(false, false) */
+#if NMS > 0
+    /* A climb jump counts as riding the solid she jumped off (Player.IsRiding:
+     * climbTriggerDir) for the moving solids' updates of that frame: it
+     * starts a zip mover or falling block. Not in the published code; the
+     * community TAS's lvl_9 starts its zip mover this way (it plays exactly
+     * only if the zip mover starts on the climb jump's frame). Setting it on
+     * any grab next to a wall (whether or not she can climb) fits too. */
+    s->climbTriggerDir = (signed char)s->facing;
+#endif
     if (s->moveX == 0) {
         s->wallBoostDir = -s->facing;
         TSET(s->wallBoostTimer, CLIMB_JUMP_BOOST_TIME);
@@ -827,8 +1109,44 @@ static void climb_jump(State *s)
 /* ------------------------------------------------------------------------ */
 /* Collision callbacks                                                      */
 /* ------------------------------------------------------------------------ */
+#if NDASHBLOCKS > 0
+static void set_state(State *s, int next, int moveY);
+/* Player.Rebound(direction): bounced back off a dash block she broke */
+static void rebound(State *s, int dir)
+{
+    COV(C_REBOUND);
+    s->spdX = dir > 0 ? REBOUND_SPEED_X : (dir < 0 ? -REBOUND_SPEED_X : 0.0f);
+    s->spdY = REBOUND_SPEED_Y;
+    s->varJumpSpeed = s->spdY;
+    TSET(s->varJumpTimer, REBOUND_VAR_JUMP_TIME);
+    s->varJumpLong = false;
+    s->varJumpShort = true;
+    s->autoJump = true;
+    TCLR(s->dashAttackTimer);
+    WS_SET(s);
+    TCLR(s->wallBoostTimer);
+    TCLR(s->forceMoveXTimer);
+    set_state(s, ST_NORMAL, 0);
+}
+/* OnCollideH / OnCollideV: DashAttacking into a dash block (moving the way
+ * she dashed): DashBlock.OnDashed breaks it (canDash) and she rebounds */
+static bool dash_block_collide(State *s, int dashDir, int reboundDir)
+{
+    if (!dash_attacking(s) || MS_HIT < MS_DB0 || MS_HIT_DIR != dashDir) return false;
+    int j = MS_HIT - MS_DB0;
+    if (!DASHBLOCKS[j][4]) return false;                   /* !canDash: an ordinary collision */
+    s->dbBroken |= (unsigned char)(1u << j);               /* Break: Collidable = false, removed */
+    CUR_MS_BOX[MS_HIT][0] = CUR_MS_BOX[MS_HIT][1] = CUR_MS_BOX[MS_HIT][2] = CUR_MS_BOX[MS_HIT][3] = -32000;
+    rebound(s, reboundDir);
+    return true;
+}
+#endif
+
 static void on_collide_h(State *s)
 {
+#if NDASHBLOCKS > 0
+    if (dash_block_collide(s, s->dashDirX, -signf(s->spdX))) return;
+#endif
     /* dash corner correction */
     if (s->state == ST_DASH) {
         int sx = signf(s->spdX);
@@ -866,6 +1184,9 @@ static void on_collide_h(State *s)
 
 static void on_collide_v(State *s)
 {
+#if NDASHBLOCKS > 0
+    if (dash_block_collide(s, s->dashDirY, 0)) return;
+#endif
     if (s->spdY > 0) {
         /* dash corner correction */
         if (s->state == ST_DASH && !s->dashStartedOnGround) {
@@ -933,7 +1254,8 @@ static void on_collide_v(State *s)
                 s->varJumpTimer = 0;
             }
 #else
-            if (s->varJumpTimer <= (s->varJumpLong ? VJ_SUPER_WALL_JUMP_VAR_TIME : VJ_VAR_JUMP_TIME))
+            if (s->varJumpTimer <= (s->varJumpLong ? VJ_SUPER_WALL_JUMP_VAR_TIME
+                                    : s->varJumpShort ? VJ_REBOUND_VAR_JUMP_TIME : VJ_VAR_JUMP_TIME))
                 s->varJumpTimer = 0;
 #endif
         }
@@ -1037,9 +1359,16 @@ static bool is_tired(const State *s)
     return check < CLIMB_TIRED_THRESHOLD;
 }
 
-static int normal_update(State *s, Input in)
+static int normal_update(State *s, Input in, bool wasOnGround)
 {
-    /* (no lift boost, holdables, wind or climb blockers) */
+#if NZIPMOVERS > 0
+    /* Use Lift Boost if walked off platform */
+    if (lift_boost_y(s) < 0 && wasOnGround && !s->onGround && s->spdY >= 0)
+        s->spdY = lift_boost_y(s);
+#else
+    (void)wasOnGround;
+#endif
+    /* (no holdables, wind or climb blockers) */
 
     /* Climbing */
     if (in.grab && !is_tired(s) && !s->ducking) {
@@ -1062,8 +1391,7 @@ static int normal_update(State *s, Input in)
 
     /* Dashing */
     if (can_dash(s)) {
-        s->spdX += lift_boost_x(s);
-        s->spdY += lift_boost_y(s);
+        ADD_LIFT_BOOST(s);
         return start_dash(s);
     }
 
@@ -1224,7 +1552,7 @@ static bool slip_check(const State *s, int addY)
  * land, or a solid 6 px above */
 static bool climb_hop_blocked_check(const State *s)
 {
-    if (box_touches_spikes(s->x + s->facing * 8, s->y, collider_h(s),
+    if (box_touches_spikes(s, s->x + s->facing * 8, s->y, collider_h(s),
                            (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
         COV(C_HOPBLOCKED);
         return true;
@@ -1237,6 +1565,16 @@ static void climb_hop(State *s)
     COV(C_CLIMBHOP);
     if (collide_at(s, s->x + s->facing, s->y)) {   /* climbHopSolid != null: wait until clear */
         s->hopWaitX = s->facing;
+#if NMS > 0
+        /* CollideFirst<Solid>: the tiles come first; a moving solid is followed */
+        s->hopZip = 0;
+        if (!tiles_collide(s->x + s->facing, s->y, collider_h(s)))
+            for (int i = NMS - 1; i >= 0; i--)
+                if (ms_overlap(i, s->x + s->facing, s->y, collider_h(s))) {
+                    s->hopZip = (signed char)(i + 1);
+                    s->hopZipT = (short)ms_timer(s, i);
+                }
+#endif
     } else {
         s->hopWaitX = 0;
         s->spdX = s->facing > 0 ? CLIMB_HOP_X : -CLIMB_HOP_X;
@@ -1263,15 +1601,13 @@ static int climb_update(State *s, Input in)
 
     /* Dashing */
     if (can_dash(s)) {
-        s->spdX += lift_boost_x(s);
-        s->spdY += lift_boost_y(s);
+        ADD_LIFT_BOOST(s);
         return start_dash(s);
     }
 
     /* Let go */
     if (!in.grab) {
-        s->spdX += lift_boost_x(s);
-        s->spdY += lift_boost_y(s);
+        ADD_LIFT_BOOST(s);
         return ST_NORMAL;
     }
 
@@ -1331,8 +1667,7 @@ static int climb_update(State *s, Input in)
     /* too tired */
     if (s->stamina <= 0) {
         COV(C_TIRED);
-        s->spdX += lift_boost_x(s);
-        s->spdY += lift_boost_y(s);
+        ADD_LIFT_BOOST(s);
         return ST_NORMAL;
     }
     return ST_CLIMB;
@@ -1446,6 +1781,7 @@ static void super_bounce(State *s, int fromY)
     TCLR(s->jumpGraceTimer);
     TSET(s->varJumpTimer, SUPER_BOUNCE_VAR_JUMP_TIME);
     s->varJumpLong = false;
+    s->varJumpShort = false;
     s->autoJump = true;
     TCLR(s->dashAttackTimer);
     WS_SET(s);
@@ -1470,19 +1806,35 @@ static void player_colliders(State *s)
         int hl = s->x - 4, hr = s->x + 4;
         int ht = s->y - (s->ducking ? 6 : 11), hb = s->y - 2;
         if (PCOL[i][0] == PC_SPIKES) {
-            if (hr > PCOL[i][2] && hl < PCOL[i][4] && hb > PCOL[i][3] && ht < PCOL[i][5]) {
+            int dx = pcol_dx(s, i), dy = pcol_dy(s, i);
+            if (hr > PCOL[i][2] + dx && hl < PCOL[i][4] + dx && hb > PCOL[i][3] + dy && ht < PCOL[i][5] + dy) {
                 int d = PCOL[i][1];
                 bool kill = false;
-                if (d == SPIKE_UP    && s->spdY >= 0 && hb <= PCOL[i][5]) { COV(C_SPIKE_U); kill = true; }
+                if (d == SPIKE_UP    && s->spdY >= 0 && hb <= PCOL[i][5] + dy) { COV(C_SPIKE_U); kill = true; }
                 if (d == SPIKE_DOWN  && s->spdY <= 0) { COV(C_SPIKE_D); kill = true; }
                 if (d == SPIKE_LEFT  && s->spdX >= 0) { COV(C_SPIKE_L); kill = true; }
                 if (d == SPIKE_RIGHT && s->spdX <= 0) { COV(C_SPIKE_R); kill = true; }
                 if (kill) { s->dead = true; return; }
             }
-        } else {
+        } else if (PCOL[i][0] == PC_SPRING) {
             int sx = PCOL[i][1], sy = PCOL[i][2];
             if (hr > sx - 8 && hl < sx + 8 && hb > sy - 6 && ht < sy && s->spdY >= 0)
                 super_bounce(s, sy - 6);
+        } else {
+#if NREFILLS > 0
+            /* Refill.OnPlayer: while it is there (Collidable), Player.UseRefill() takes it when
+             * she can use it (a dash missing, or stamina below the tired threshold); its
+             * RefillRoutine freezes the game for 0.05 s, and it comes back after 2.5 s */
+            int rx = PCOL[i][1], ry = PCOL[i][2], k = PCOL[i][3];
+            if (!TPOS(s->refillTimer[k]) && hr > rx - 8 && hl < rx + 8 && hb > ry - 8 && ht < ry + 8
+                && (s->dashes < MAX_DASHES || s->stamina < CLIMB_TIRED_THRESHOLD)) {
+                COV(C_REFILL);
+                s->dashes = MAX_DASHES;
+                s->stamina = CLIMB_MAX_STAMINA;
+                TSET(s->refillTimer[k], REFILL_RESPAWN_TIME);
+                if (TLESS(s->freezeTimer, DASH_FREEZE_TIME)) TSET(s->freezeTimer, DASH_FREEZE_TIME);
+            }
+#endif
         }
     }
 #else
@@ -1557,15 +1909,10 @@ static void player_update(State *s, Input in)
 {
     LOAD_WINDOW(s);
     FRAME_HOOK(s, in);
-
     /* Get ground (a solid, or a jump-through from above) */
-    bool was_on_ground = s->onGround;
+    bool wasOnGround = s->onGround;               /* set at the end of the last Player.Update */
     if (s->spdY >= 0) s->onGround = on_ground_at(s, s->x, s->y);
     else s->onGround = false;
-    if (s->state == ST_NORMAL && was_on_ground && !s->onGround && s->spdY >= 0.0f) {
-        float lby = lift_boost_y(s);
-        if (lby < 0.0f) s->spdY = lby;
-    }
 
     /* Wall slide */
     if (s->wallSlideDir != 0) {
@@ -1602,7 +1949,7 @@ static void player_update(State *s, Input in)
     if (TPOS(s->dashCooldownTimer)) TDEC(s->dashCooldownTimer);
     if (TPOS(s->dashRefillCooldownTimer)) TDEC(s->dashRefillCooldownTimer);
     else if (s->onGround && s->dashes < MAX_DASHES) {
-        if (!box_touches_spikes(s->x, s->y, collider_h(s), 15)) s->dashes = MAX_DASHES;
+        if (!box_touches_spikes(s, s->x, s->y, collider_h(s), 15)) s->dashes = MAX_DASHES;
         else COV(C_NOSPIKEREFILL);
     }
 
@@ -1615,7 +1962,29 @@ static void player_update(State *s, Input in)
         s->moveX = s->forceMoveX;
     } else {
         s->moveX = in.mx;
+#if NMS > 0
+        s->hopZip = 0;                            /* climbHopSolid = null */
+#endif
     }
+
+#if NMS > 0
+    /* Climb hop solid movement: after a climb hop onto a moving solid she
+     * moves with it (MoveHExact, MoveVExact) until the hop's forced move ends;
+     * a solid that is no longer Collidable is forgotten */
+#if NFALLBLOCKS > 0 || NCRUMBLES > 0 || NDASHBLOCKS > 0
+    if (s->hopZip > NZIPMOVERS && !ms_collidable(s, s->hopZip - 1)) s->hopZip = 0;
+#endif
+    if (s->hopZip) {
+        int i = s->hopZip - 1, t = ms_timer(s, i), t0 = s->hopZipT;
+        int dx = ms_pos_x(i, t) - ms_pos_x(i, t0), dy = ms_pos_y(i, t) - ms_pos_y(i, t0);
+        if (dx || dy) {
+            COV(C_ZIPHOP);
+            s->hopZipT = (short)t;
+            move_h_exact(s, dx);
+            move_v_exact(s, dy);
+        }
+    }
+#endif
 
     /* Facing (not while climbing) */
     if (s->moveX != 0 && s->state != ST_CLIMB) s->facing = s->moveX;
@@ -1649,17 +2018,18 @@ static void player_update(State *s, Input in)
     }
 
     /* base.Update() -> StateMachine.Update() */
-    int next = s->state == ST_NORMAL ? normal_update(s, in)
+    int next = s->state == ST_NORMAL ? normal_update(s, in, wasOnGround)
              : s->state == ST_CLIMB  ? climb_update(s, in)
              : dash_update(s, in);
     set_state(s, next, in.my);
     if (s->coActive) coroutine_update(s);
+    actor_update_lift(s);                         /* rest of Actor.Update */
 
     /* Jump-through assist: rising inside a jump-through nudges her up
      * (unless spikes would block the hop) */
     if (!s->onGround && s->spdY <= 0 && (s->state != ST_CLIMB || s->lastClimbMove == -1)
         && jumpthru_inside(s)
-        && !box_touches_spikes(s->x, s->y - 2, collider_h(s), (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
+        && !box_touches_spikes(s, s->x, s->y - 2, collider_h(s), (1 << SPIKE_UP) | (1 << SPIKE_LEFT) | (1 << SPIKE_RIGHT))) {
         COV(C_JTASSIST);
         move_v_plain(s, JUMPTHRU_ASSIST_SPEED * DT);
     }
@@ -1675,8 +2045,11 @@ static void player_update(State *s, Input in)
         }
     }
 
-    /* Falling unducking */
-    if (s->spdY > 0 && can_unduck(s) && !s->onGround) s->ducking = false;
+    /* Falling unducking -- not during coyote time (jumpGraceTimer > 0): the
+     * published Player.cs has no such condition, but the game (1.4) keeps her
+     * ducked there (recordings/celeste-sat-community-lvl4.txt, lvl_4: she walks
+     * off a ledge ducked, jumps in coyote time and goes on ducked under a wall) */
+    if (s->spdY > 0 && can_unduck(s) && !s->onGround && !TPOS(s->jumpGraceTimer)) s->ducking = false;
 
     /* Physics */
     move_h(s, s->spdX * DT);
@@ -1689,6 +2062,211 @@ static void player_update(State *s, Input in)
     /* Level.EnforceBounds */
     enforce_bounds(s);
 }
+
+#if NMS > 0
+/* ------------------------------------------------------------------------ */
+/* Moving solids: zip movers (ZipMover : Solid), falling blocks              */
+/* (FallingBlock : Solid)                                                    */
+/* ------------------------------------------------------------------------ */
+/* Once the level is loaded, the player's entity comes before the room's
+ * entities (she is carried over from the previous room), so every frame the
+ * moving solids update after her: they see where her update left her, and
+ * she sees their LiftSpeed on the next frame. (A room loaded from scratch
+ * adds her after its entities; that order is not modelled.) Zip movers
+ * update before falling blocks (in the game: the order of the map's entity
+ * list; it only matters if they touch each other or her in the same frame). */
+
+/* Player.IsRiding(Solid): climbing, the solid 1 px in front of her; otherwise
+ * Actor.IsRiding: standing on it (1 px below) */
+static bool riding_ms(const State *s, int i)
+{
+    if (s->state == ST_CLIMB) return ms_overlap(i, s->x + s->facing, s->y, collider_h(s));
+    if (s->climbTriggerDir) return ms_overlap(i, s->x + s->climbTriggerDir, s->y, collider_h(s));
+    return ms_overlap(i, s->x, s->y + 1, collider_h(s));
+}
+
+static void ms_shift(int i, int dx, int dy)
+{
+    CUR_MS_BOX[i][0] += dx; CUR_MS_BOX[i][2] += dx;
+    CUR_MS_BOX[i][1] += dy; CUR_MS_BOX[i][3] += dy;
+}
+
+/* squished: Player.OnSquish ducks or wiggles out when it can (not modelled) */
+#define SQUISH(s) do { COV(C_SQUISH); (s)->dead = true; } while (0)
+
+#if NZIPMOVERS > 0
+/* Solid.MoveHExact(move): riders ride along, an overlapped actor is pushed;
+ * either way she gets the solid's LiftSpeed (x from this MoveH, y still 0) */
+static void ms_move_h(State *s, Input in, int i, int move, float lx)
+{
+    int h = collider_h(s);
+    bool rider = riding_ms(s, i);                            /* GetRiders() */
+    int left = CUR_MS_BOX[i][0], right = CUR_MS_BOX[i][2];
+    /* running the same way just above its top edge: pushed down 1 px, Actor.MoveV(1f) */
+    if (in.mx == signi(move) && signf(s->spdX) == signi(move) && !rider) {
+        ms_shift(i, move, -1);
+        bool below = ms_overlap(i, s->x, s->y, h);
+        ms_shift(i, -move, 1);
+        if (below) { COV(C_ZIPNUDGE); move_v_plain(s, 1.0f); }
+    }
+    ms_shift(i, move, 0);
+    short keep[4] = { CUR_MS_BOX[i][0], CUR_MS_BOX[i][1], CUR_MS_BOX[i][2], CUR_MS_BOX[i][3] };
+    bool pushed = ms_overlap(i, s->x, s->y, h);
+    if (pushed || rider) {
+        int m = !pushed ? move : move > 0 ? move - ((s->x - 4) - right) : move - ((s->x + 4) - left);
+        CUR_MS_BOX[i][0] = CUR_MS_BOX[i][2] = -32000;           /* Collidable = false */
+        CUR_MS_BOX[i][1] = CUR_MS_BOX[i][3] = -32000;
+        bool hit = move_h_exact(s, m);
+        for (int k = 0; k < 4; k++) CUR_MS_BOX[i][k] = keep[k];
+        if (pushed) { COV(C_ZIPPUSH); if (hit) SQUISH(s); } else COV(C_ZIPRIDE);
+        set_lift(s, lx, 0.0f);
+    }
+}
+
+#endif
+
+/* Solid.MoveVExact(move): the same, LiftSpeed (x, y) of this MoveTo (a
+ * falling block: (0, y); a downward LiftBoost is 0, so without zip movers in
+ * the room it is not tracked) */
+static void ms_move_v(State *s, int i, int move, float lx, float ly)
+{
+    int h = collider_h(s);
+    bool rider = riding_ms(s, i);
+    int top = CUR_MS_BOX[i][1], bottom = CUR_MS_BOX[i][3];
+    ms_shift(i, 0, move);
+    short keep[4] = { CUR_MS_BOX[i][0], CUR_MS_BOX[i][1], CUR_MS_BOX[i][2], CUR_MS_BOX[i][3] };
+    bool pushed = ms_overlap(i, s->x, s->y, h);
+    if (pushed || rider) {
+        int m = !pushed ? move : move <= 0 ? move - (s->y - top) : move - ((s->y - h) - bottom);
+        CUR_MS_BOX[i][0] = CUR_MS_BOX[i][2] = -32000;
+        CUR_MS_BOX[i][1] = CUR_MS_BOX[i][3] = -32000;
+        bool hit = move_v_exact(s, m);
+        for (int k = 0; k < 4; k++) CUR_MS_BOX[i][k] = keep[k];
+        if (pushed) { COV(C_ZIPPUSH); if (hit) SQUISH(s); } else COV(C_ZIPRIDE);
+#if NZIPMOVERS > 0
+        set_lift(s, lx, ly);
+#else
+        (void)lx; (void)ly;
+#endif
+    }
+}
+
+#if NZIPMOVERS > 0
+/* ZipMover.Update -> its Sequence() coroutine, one step (tables in room.h) */
+static void zip_update(State *s, Input in)
+{
+    for (int i = 0; i < NZIPMOVERS && !s->dead; i++) {
+        int t = s->zipTimer[i];
+        if (t != 0) t = t < ZIP_T_END ? t + 1 : 0;
+        if (t == 0) {                                  /* while (!HasPlayerRider()) yield return null */
+            if (riding_ms(s, i)) { COV(C_ZIPSTART); t = 1; }
+            s->zipTimer[i] = (short)t;
+            continue;
+        }
+        s->zipTimer[i] = (short)t;
+        if (ZIP_MOVE[i][t][0] != 0) ms_move_h(s, in, i, ZIP_MOVE[i][t][0], ZIP_LIFT[i][t][0]);
+        if (ZIP_MOVE[i][t][1] != 0) ms_move_v(s, i, ZIP_MOVE[i][t][1], ZIP_LIFT[i][t][0], ZIP_LIFT[i][t][1]);
+        MODEL_ASSUME(CUR_MS_BOX[i][0] == ZIP_POS[i][t][0] && CUR_MS_BOX[i][1] == ZIP_POS[i][t][1]);
+    }
+}
+#endif
+
+#if NFALLBLOCKS > 0
+/* FallingBlock.Sequence(), one step per update. fbT (see make_room.py):
+ *   0                        while (!PlayerFallCheck()) yield return null
+ *   1 .. FB_SHAKE_END - 1    shaking: yield return 0.2f
+ *   FB_SHAKE_END .. FB_WAIT_END
+ *                            timer = 0.4f; while (timer > 0 && PlayerWaitCheck())
+ *                            { yield return null; timer -= DeltaTime; }
+ *   FB_FALL0 .. FB_T_END[j]  falling: speed = Approach(speed, 160, 500 * dt),
+ *                            MoveVCollideSolids(speed * dt); FB_T_END[j] is the
+ *                            update it landed (on the tiles) or fell out of the
+ *                            room (Collidable = false), and stays */
+/* PlayerFallCheck: climbFall ? HasPlayerRider() : HasPlayerOnTop() */
+static bool fb_fall_check(const State *s, int j)
+{
+    int i = NZIPMOVERS + j;
+    if (FALLBLOCKS[j][4]) return riding_ms(s, i);
+    return ms_overlap(i, s->x, s->y + 1, collider_h(s));
+}
+/* PlayerWaitCheck (Triggered -- by a spring on it -- is not modelled) */
+static bool fb_wait_check(const State *s, int j)
+{
+    int i = NZIPMOVERS + j, h = collider_h(s);
+    if (fb_fall_check(s, j)) return true;
+    return FALLBLOCKS[j][4] && (ms_overlap(i, s->x + 1, s->y, h) || ms_overlap(i, s->x - 1, s->y, h));
+}
+static void fb_update(State *s)
+{
+    for (int j = 0; j < NFALLBLOCKS && !s->dead; j++) {
+        int i = NZIPMOVERS + j, t = s->fbT[j];
+        if (t == FB_T_END[j]) continue;                 /* landed, or gone */
+        if (t == 0) {
+            if (fb_fall_check(s, j)) { COV(C_FBSTART); s->fbT[j] = 1; }
+            continue;
+        }
+        if (t < FB_SHAKE_END) { s->fbT[j] = (short)(t + 1); continue; }
+        if (t < FB_FALL0) {
+            if (t < FB_WAIT_END && fb_wait_check(s, j)) { COV(C_FBWAIT); s->fbT[j] = (short)(t + 1); continue; }
+            t = FB_FALL0;                               /* the first fall step, this update */
+        } else
+            t++;
+        s->fbT[j] = (short)t;
+        if (FB_MOVE[j][t] != 0) { COV(C_FBMOVE); ms_move_v(s, i, FB_MOVE[j][t], 0.0f, FB_LIFT[j][t]); }
+        if (fb_gone(s, j)) CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        else MODEL_ASSUME(CUR_MS_BOX[i][1] == FB_Y[j][t]);
+    }
+}
+#endif
+
+#if NCRUMBLES > 0
+/* CrumblePlatform.Sequence(), one step per update. crT (constants in room.h):
+ *   0                       there: GetPlayerOnTop() or GetPlayerClimbing()?
+ *   1 .. CR_TOP_END         she stood on it: yield return 0.2f (shaking), then
+ *                           timer = 0.4f; while (timer > 0 && GetPlayerOnTop()) ...
+ *                           from CR_TOP_CHK on; then Collidable = false
+ *   CR_CLIMB0 .. CR_CLIMB_END  she climbed it: 3 x 0.2 s, then 0.4 s, then gone
+ *   CR_GONE0 .. CR_GONE_END gone: yield return 2f; then, once nothing overlaps
+ *                           it (CollideCheck<Actor>), back: Collidable = true,
+ *                           and the same update looks for her again */
+static bool cr_on_top(const State *s, int j)        /* GetPlayerOnTop: CollideFirst<Player>(Position - UnitY) */
+{
+    return ms_overlap(MS_CR0 + j, s->x, s->y + 1, collider_h(s));
+}
+static bool cr_climbed(const State *s, int j)       /* GetPlayerClimbing: climbing, the block 1 px in front */
+{
+    return s->state == ST_CLIMB && ms_overlap(MS_CR0 + j, s->x + s->facing, s->y, collider_h(s));
+}
+static void cr_update(State *s)
+{
+    for (int j = 0; j < NCRUMBLES; j++) {
+        int i = MS_CR0 + j, t = s->crT[j];
+        if (t == CR_GONE_END) {
+            int x0 = CRUMBLES[j][0], y0 = CRUMBLES[j][1], x1 = x0 + CRUMBLES[j][2], y1 = y0 + 8;
+            if (s->x + 4 > x0 && s->x - 4 < x1 && s->y > y0 && s->y - collider_h(s) < y1) continue;   /* she is in the way */
+            COV(C_CRBACK);
+            CUR_MS_BOX[i][0] = (short)x0; CUR_MS_BOX[i][1] = (short)y0;
+            CUR_MS_BOX[i][2] = (short)x1; CUR_MS_BOX[i][3] = (short)y1;
+            t = 0;                                   /* back, and looking for her in this update */
+        }
+        if (t == 0) {
+            if (cr_on_top(s, j)) { COV(C_CRSTART); t = 1; }
+            else if (cr_climbed(s, j)) { COV(C_CRSTART); t = CR_CLIMB0; }
+        } else if (t < CR_TOP_CHK || (t >= CR_CLIMB0 && t < CR_CLIMB_END) || (t >= CR_GONE0 && t < CR_GONE_END)) {
+            t++;
+        } else if (t <= CR_TOP_END && t < CR_TOP_END && cr_on_top(s, j)) {
+            t++;
+        } else {                                     /* the wait is over: Collidable = false */
+            COV(C_CRGONE);
+            t = CR_GONE0;
+            CUR_MS_BOX[i][0] = CUR_MS_BOX[i][1] = CUR_MS_BOX[i][2] = CUR_MS_BOX[i][3] = -32000;
+        }
+        s->crT[j] = (short)t;
+    }
+}
+#endif
+#endif
+
 
 /* ------------------------------------------------------------------------ */
 /* Public API                                                               */
@@ -1750,31 +2328,26 @@ MODEL_API void celeste_step(State *s, Input in)
         return;
     }
 
-#if NZIPMOVERS > 0
-    /* Advance zip movers and carry riding player */
-    load_zip_window(s);
-    float new_lsx = 0.0f, new_lsy = 0.0f;
-    for (int i = 0; i < NZIPMOVERS; i++) {
-        bool riding = zip_is_riding(s, i);
-        if (s->zipTimer[i] == 0) {
-            if (riding) s->zipTimer[i] = 1;
-        } else {
-            s->zipTimer[i]++;
-            if (s->zipTimer[i] > ZIP_CYCLE_FRAMES) s->zipTimer[i] = 0;
-        }
-        int t = s->zipTimer[i];
-        if (riding && t > 0) {
-            s->x += ZIP_STEPS[i][t][2];
-            s->y += ZIP_STEPS[i][t][3];
-            new_lsx = ZIP_LIFT[i][t][0];
-            new_lsy = ZIP_LIFT[i][t][1];
-        }
-    }
-    s->liftSpeedX = new_lsx;
-    s->liftSpeedY = new_lsy;
-#endif
-
     player_update(s, in);
+#if NMS > 0
+    if (!s->exited && !s->dead) {                     /* entities added after her update after her */
+        LOAD_WINDOW(s);
+#if NZIPMOVERS > 0
+        zip_update(s, in);
+#endif
+#if NFALLBLOCKS > 0
+        fb_update(s);
+#endif
+#if NCRUMBLES > 0
+        cr_update(s);
+#endif
+    }
+    s->climbTriggerDir = 0;                          /* only for this frame's riders */
+#endif
+#if NREFILLS > 0
+    for (int k = 0; k < NREFILLS; k++)                /* Refill.Update: respawnTimer */
+        if (TPOS(s->refillTimer[k])) TDEC(s->refillTimer[k]);
+#endif
 }
 
 #ifdef MODEL_PREFIX
