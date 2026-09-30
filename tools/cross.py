@@ -91,9 +91,10 @@ def chain(out, route, *extra):
 
 
 def cbmc_cmd(out, a_steps, b_steps):
-    return ["cbmc", f"{ROOT}/harness/cross.c", f"{out}/model_a.c", f"{out}/model_b.c", "-I", out,
-            "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness", "-DCROSS_CBMC",
-            f"-DA_STEPS={a_steps}", f"-DB_STEPS={b_steps}", "--trace", "--json-ui"]
+    return ["cbmc"] + (["--gcc"] if sys.platform == "win32" else []) + [
+        f"{ROOT}/harness/cross.c", f"{out}/model_a.c", f"{out}/model_b.c", "-I", out,
+        "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness", "-DCROSS_CBMC",
+        f"-DA_STEPS={a_steps}", f"-DB_STEPS={b_steps}", "--trace", "--json-ui"]
 
 
 def cbmc_result(path):
