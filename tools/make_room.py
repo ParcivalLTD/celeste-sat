@@ -31,6 +31,8 @@ Lines starting with ';' are comments, except these directives:
     ; fallingblock X Y W H CLIMBFALL  a falling block (W x H at (X, Y));
                             CLIMBFALL 1: climbing on it also sets it off
     ; crumble X Y W         a crumble block (W x 8 at (X, Y))
+    ; dashblock X Y W H CANDASH  a dash block (W x H at (X, Y)); CANDASH 1: a
+                            dash into it breaks it (and she rebounds)
 Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
 are attached to it and move with it.
 Spikes and springs act in the order they are listed (the game checks them in
@@ -65,7 +67,8 @@ def spike_cells(d, x, y, n):
 def parse(path):
     """-> rows, spawn, exits [(side, a, b, goal)], colliders, jumpthrus [(x0, y, x1)]
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
-    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles = [], None, [], [], [], [], [], []
+    rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles, dashblocks = \
+        [], None, [], [], [], [], [], [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -93,6 +96,8 @@ def parse(path):
             fallblocks.append(tuple(int(v) for v in words[2:7]))
         elif line.startswith("; crumble "):
             crumbles.append(tuple(int(v) for v in words[2:5]))
+        elif line.startswith("; dashblock "):
+            dashblocks.append(tuple(int(v) for v in words[2:7]))
         if not line or line.startswith(";"):
             continue
         rows.append(line)
@@ -161,6 +166,7 @@ def parse(path):
                 cx += 1
     parse.fallblocks = fallblocks
     parse.crumbles = crumbles
+    parse.dashblocks = dashblocks
     return rows, spawn, exits, tile_spikes + ordered, jumpthrus, zipmovers
 
 
@@ -375,9 +381,9 @@ def main():
                 out.append(f"    {{ PC_SPRING, {c[1]}, {c[2]}, 0, 0, 0 }},")
         out.append("};")
     fallblocks = parse.fallblocks
-    crumbles = parse.crumbles
+    crumbles, dashblocks = parse.crumbles, parse.dashblocks
     solids = ([(x, y, w_, h_) for x, y, w_, h_, _, _ in zipmovers] + [(x, y, w_, h_) for x, y, w_, h_, _ in fallblocks]
-              + [(x, y, w_, 8) for x, y, w_ in crumbles])
+              + [(x, y, w_, 8) for x, y, w_ in crumbles] + [(x, y, w_, h_) for x, y, w_, h_, _ in dashblocks])
     if colliders and solids:
         att = [spike_attached(c, solids) if c[0] == "spikes" else -1 for c in colliders]
         out.append("/* spikes attached to a moving solid (zip movers first, then falling blocks): its index, or -1 */")
@@ -461,6 +467,12 @@ def main():
                 f"#define CR_GONE_END {gone_end}",
                 "static const short CRUMBLES[NCRUMBLES][3] = {"]
         out += [f"    {{ {x}, {y}, {w_} }}," for x, y, w_ in crumbles]
+        out.append("};")
+    out += ["", "/* dash blocks: { x, y, w, h, canDash } */", f"#define NDASHBLOCKS {len(dashblocks)}"]
+    assert len(dashblocks) <= 8, "at most 8 dash blocks (State.dbBroken is 8 bits)"
+    if dashblocks:
+        out.append("static const short DASHBLOCKS[NDASHBLOCKS][5] = {")
+        out += [f"    {{ {x}, {y}, {w_}, {h_}, {c} }}," for x, y, w_, h_, c in dashblocks]
         out.append("};")
     out += ["#endif", ""]
     open(dst, "w").write("\n".join(out))

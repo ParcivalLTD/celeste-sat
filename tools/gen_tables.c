@@ -51,6 +51,7 @@ int main(void)
     K(CLIMB_HOP_FORCE_TIME);
     K(CLIMB_JUMP_BOOST_TIME);
     K(SUPER_BOUNCE_VAR_JUMP_TIME);
+    K(REBOUND_VAR_JUMP_TIME);
     K(LIFT_SPEED_GRACE_TIME);
     K(REFILL_RESPAWN_TIME);
 
@@ -60,6 +61,8 @@ int main(void)
            frames_positive(VAR_JUMP_TIME) - frames_until_below(VAR_JUMP_TIME, thr));
     printf("#define VJ_SUPER_WALL_JUMP_VAR_TIME %d\n",
            frames_positive(SUPER_WALL_JUMP_VAR_TIME) - frames_until_below(SUPER_WALL_JUMP_VAR_TIME, thr));
+    printf("#define VJ_REBOUND_VAR_JUMP_TIME %d\n",
+           frames_positive(REBOUND_VAR_JUMP_TIME) - frames_until_below(REBOUND_VAR_JUMP_TIME, thr));
 
     /* wallSlideTimer: steps k since set to WallSlideTime, clamped at 0 */
     {

@@ -102,6 +102,12 @@
 #define MAX_ZIP_MOVERS             4
 #define MAX_FALL_BLOCKS            4
 #define MAX_CRUMBLES               8
+#define MAX_DASH_BLOCKS            8
+
+/* Player.Rebound (dashing into a dash block) */
+#define REBOUND_SPEED_X          120.0f
+#define REBOUND_SPEED_Y         (-120.0f)
+#define REBOUND_VAR_JUMP_TIME      0.15f
 #define REFILL_RESPAWN_TIME        2.5f    /* Refill: respawnTimer */
 #define MAX_REFILLS                8
 
@@ -163,6 +169,8 @@ typedef struct {
     /* crumble blocks: 0 = there, waiting for her; else where its Sequence()
      * is (shaking, gone, coming back; see celeste.c) */
     short crT[MAX_CRUMBLES];
+    /* dash blocks broken by dashing into them (bit j: DASHBLOCKS[j]) */
+    unsigned char dbBroken;
     /* climbHopSolid when it is a moving solid: its index + 1 (zip movers
      * first, then falling blocks, then crumble blocks; 0: none or the
      * tiles), and its zipTimer / fbT when she last moved with it */
@@ -197,6 +205,7 @@ typedef struct {
     Timer jumpGraceTimer;
     Timer varJumpTimer;
     bool  varJumpLong;       /* varJumpTimer was set to SuperWallJumpVarTime */
+    bool  varJumpShort;      /* varJumpTimer was set to ReboundVarJumpTime */
     Timer dashCooldownTimer;
     Timer dashRefillCooldownTimer;
     Timer dashAttackTimer;

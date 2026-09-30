@@ -47,7 +47,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 
 | path | what it is |
 |---|---|
-| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, refills, zip movers, falling blocks and lift boost, room transitions |
+| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, refills, zip movers, falling, crumble and dash blocks, lift boost, room transitions |
 | `tools/gen_tables.c` | computes the exact timer frame counts with the game's float arithmetic |
 | `tools/make_room.py` | ASCII room → `room.h` (with each zip mover's path and falling block's fall, computed in single precision) |
 | `tools/import_map.py` | lists the rooms in a Celeste map file (`Content/Maps/*.bin`) and exports one to ASCII |
@@ -91,6 +91,7 @@ top of the tile. Directives:
 ; refill 152 72         a dash refill centred at (152, 72)
 ; fallingblock 152 160 32 24 1   a falling block: top-left (152, 160), 32 x 24; 1 = climbing it sets it off too
 ; crumble 232 152 24    a crumble block: top-left (232, 152), 24 x 8
+; dashblock 304 240 24 32 1   a dash block, 24 x 32; 1 = a dash breaks it
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -162,6 +163,10 @@ From `Player.cs` and the Monocle engine:
   after 1 s whatever she does; it is back after 2 s, once she is out of its
   way (same code as the moving solids, so from memory of the decompiled
   source too)
+- dash blocks: a solid that a dash breaks (still dash-attacking, moving the
+  way she dashed: `DashBlock.OnDashed`), bouncing her back
+  (`Player.Rebound`: 120 px/s away from it, 120 px/s up, 0.15 s of
+  variable jump); fake walls are not solid and change nothing
 
 Inputs are those of the game with its default bindings, as CelesteTAS writes
 them: directions, Grab (held), and Jump, Dash and Crouch Dash with **two keys
@@ -191,8 +196,8 @@ code (Extended Variant Mode, GravityHelper), for the 5 px wallbounce reach,
 the variable ceiling correction reach and the spike checks; and memory of the
 current code for the rest, listed under "Things to check".
 
-Not modelled yet: every other entity (wall springs, dash blocks, fake walls,
-two-dash refills, other moving platforms, …), wind,
+Not modelled yet: every other entity (wall springs, two-dash refills, other
+moving platforms, … none of them in Chapter 1's rooms on the TAS's way), wind,
 water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
 
 ### Fidelity details
@@ -218,10 +223,11 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   `tests/diff.sh` runs both builds on 40 random rooms (with spikes, jump-throughs,
   springs, exits on all sides, zip movers in every other room and falling
   blocks, some with spikes on them, in the others, crumble blocks in every
-  third) × 300 random input runs: **2.96 million frames, bit-identical**,
-  with every mechanic above exercised (riding, pushing and squishing
-  included; falling and crumble blocks set off hundreds of times, crumble
-  blocks coming back 300 times).
+  third, dash blocks in every fifth) × 300 random input runs: **3.02 million
+  frames, bit-identical**, with every mechanic above exercised (riding,
+  pushing and squishing included; falling and crumble blocks set off
+  hundreds of times, crumble blocks coming back 300 times, dash blocks
+  broken 151 times).
 - The harness never lets the solver choose an input that cannot matter, which
   keeps the formula small: directions and Grab during freeze frames, Up outside
   climbing and the dash-direction frame, Grab away from walls, a second-key
@@ -238,7 +244,7 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   value behind an expired timer, the previous frame's aim, …). The fuzzing
   checks that too: on every random frame it scrambles those fields in a copy,
   runs both on with the same random inputs for up to 40 frames, and they must
-  keep agreeing on everything `same_future` compares. 6.8 million checks, none
+  keep agreeing on everything `same_future` compares. 7.0 million checks, none
   broken.
 
 ### Zip movers
@@ -530,7 +536,10 @@ the TAS goes, from the spawn in `lvl_1`:
 | `lvl_9` | 97 | never | a zip mover with spikes on it |
 
 1,452 frames of control in a row, through 14 rooms, three sideways and ten
-upward transitions. In `lvl_9` the TAS climbs the side of a zip mover and
+upward transitions. Every entity in the rooms of the TAS's way through
+Chapter 1 is now in the model (zip movers, falling, crumble and dash blocks,
+refills, springs; fake walls are not solid), so the rooms the TAS does not
+touch them in can also be searched without leaving them out. In `lvl_9` the TAS climbs the side of a zip mover and
 crouch-dashes up along it as it starts; in the model the dash stops under
 the ceiling and she falls. `results/celestetas/celeste-sat-community-1a.tas`
 is the whole community `1A.tas` recording every frame of the chapter (with

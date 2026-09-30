@@ -125,7 +125,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
         e["spdY"] = e["varJumpSpeed"] = -105.0
         to_normal()
         e["autoJump"] = 1
-        e["varJumpTimer"], e["varJumpLong"] = K["VAR_JUMP_TIME"], 0
+        e["varJumpTimer"], e["varJumpLong"], e["varJumpShort"] = K["VAR_JUMP_TIME"], 0, 0
         e["dashCooldownTimer"] = K["DASH_COOLDOWN"]
     elif side == "down":                               # Player.BeforeDownTransition
         to_normal()
@@ -164,6 +164,7 @@ def enter_room(st, side, old_origin, new_origin, new_w, new_h, K):
     e["zipTimer"] = [0] * len(e.get("zipTimer", [0, 0, 0, 0]))
     e["fbT"] = [0] * len(e.get("fbT", [0, 0, 0, 0]))
     e["crT"] = [0] * len(e.get("crT", [0] * 8))
+    e["dbBroken"] = 0
     e["hopZip"] = e["hopZipT"] = 0
     e["refillTimer"] = [0] * len(e.get("refillTimer", [0] * 8))
     return e

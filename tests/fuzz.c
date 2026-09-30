@@ -108,7 +108,7 @@ static void scramble(State *s)
     s->jumpEdge = rnd2() & 1; s->dashEdge = rnd2() & 1; s->cdashEdge = rnd2() & 1;
     s->lastClimbMove = (int)(rnd2() % 3) - 1;
     s->demoDashed = rnd2() & 1;
-    if (!TPOS(s->varJumpTimer)) { s->varJumpSpeed = -(float)(rnd2() % 300); s->varJumpLong = rnd2() & 1; }
+    if (!TPOS(s->varJumpTimer)) { s->varJumpSpeed = -(float)(rnd2() % 300); s->varJumpLong = rnd2() & 1; s->varJumpShort = rnd2() & 1; }
     if (!TPOS(s->wallSpeedRetentionTimer)) s->wallSpeedRetained = (float)((int)(rnd2() % 600) - 300);
     if (!TPOS(s->forceMoveXTimer)) s->forceMoveX = (int)(rnd2() % 3) - 1;
     if (!TPOS(s->wallBoostTimer)) s->wallBoostDir = (rnd2() & 1) ? 1 : -1;
@@ -184,10 +184,10 @@ int main(int argc, char **argv)
                                             s.remX, s.remY, s.spdX, s.spdY);
             }
 #endif
-            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d %d %d %d %d %d %d\n", r, s.x, s.y, s.remX, s.remY,
+            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d %d %d %d %d %d %d %d\n", r, s.x, s.y, s.remX, s.remY,
                    s.spdX, s.spdY, s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX,
                    s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY, s.zipTimer[0], s.zipTimer[1],
-                   s.fbT[0], s.fbT[1], s.hopZip, s.hopZipT, s.crT[0], s.crT[1]);
+                   s.fbT[0], s.fbT[1], s.hopZip, s.hopZipT, s.crT[0], s.crT[1], s.dbBroken);
             if (s.exited || s.dead) break;
         }
     }

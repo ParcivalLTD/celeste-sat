@@ -60,14 +60,18 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
     for (int j = 0; j < NCRUMBLES; j++)
         if (a->crT[j] != t->crT[j]) return false;
 #endif
-#if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0)
+#if defined(NDASHBLOCKS) && NDASHBLOCKS > 0
+    if (a->dbBroken != t->dbBroken) return false;
+#endif
+#if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0) \
+    || (defined(NDASHBLOCKS) && NDASHBLOCKS > 0)
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;
 #endif
 #if NREFILLS > 0
     for (int k = 0; k < NREFILLS; k++)
         if (a->refillTimer[k] != t->refillTimer[k]) return false;
 #endif
-    if (!(ign & SF_VARJUMP) && t->varJumpTimer > 0 && !(EQ(varJumpSpeed) && EQ(varJumpLong))) return false;
+    if (!(ign & SF_VARJUMP) && t->varJumpTimer > 0 && !(EQ(varJumpSpeed) && EQ(varJumpLong) && EQ(varJumpShort))) return false;
     if (!(ign & SF_RETENTION) && t->wallSpeedRetentionTimer > 0 && !EQ(wallSpeedRetained)) return false;
     if (!(ign & SF_FORCEMOVE) && t->forceMoveXTimer > 0 && !EQ(forceMoveX)) return false;
     if (!(ign & SF_WALLBOOST) && t->wallBoostTimer > 0 && !EQ(wallBoostDir)) return false;

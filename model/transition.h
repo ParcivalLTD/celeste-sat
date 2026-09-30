@@ -44,6 +44,7 @@ static State enter_room(State st)
             e.autoJump = true;
             e.varJumpTimer = K_VAR_JUMP_TIME;
             e.varJumpLong = false;
+            e.varJumpShort = false;
             e.dashCooldownTimer = K_DASH_COOLDOWN;
         } else {
             if (e.spdY < 0.0f) e.spdY = 0.0f;
@@ -79,6 +80,7 @@ static State enter_room(State st)
     for (int i = 0; i < MAX_ZIP_MOVERS; i++) e.zipTimer[i] = 0;
     for (int i = 0; i < MAX_FALL_BLOCKS; i++) e.fbT[i] = 0;
     for (int i = 0; i < MAX_CRUMBLES; i++) e.crT[i] = 0;
+    e.dbBroken = 0;
     e.hopZip = 0; e.hopZipT = 0;
     for (int i = 0; i < MAX_REFILLS; i++) e.refillTimer[i] = 0;
     return e;

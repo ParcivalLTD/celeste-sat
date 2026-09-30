@@ -51,6 +51,7 @@ static void dump_state(const State *s, const char *path, int k)
     fprintf(f, "    .crT = {");
     for (int z = 0; z < MAX_CRUMBLES; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->crT[z]);
     fprintf(f, "},\n");
+    I(dbBroken);
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);
@@ -59,7 +60,7 @@ static void dump_state(const State *s, const char *path, int k)
     I(autoJump); I(dashStartedOnGround); I(aimX); I(aimY); I(dashDirX); I(dashDirY);
     F(beforeDashSpdX); F(beforeDashSpdY); F(varJumpSpeed); F(wallSpeedRetained); F(maxFall);
     F(stamina); I(wallBoostDir); I(lastClimbMove); I(hopWaitX);
-    I(jumpGraceTimer); I(varJumpTimer); I(varJumpLong); I(dashCooldownTimer); I(dashRefillCooldownTimer);
+    I(jumpGraceTimer); I(varJumpTimer); I(varJumpLong); I(varJumpShort); I(dashCooldownTimer); I(dashRefillCooldownTimer);
     I(dashAttackTimer); I(wallSlideTimer); I(wallSpeedRetentionTimer); I(forceMoveXTimer);
     I(wallBoostTimer); I(climbNoMoveTimer);
     I(coActive); I(coStage); I(coWait); I(freezeTimer); I(prevJump); I(prevDash); I(prevCDash);
