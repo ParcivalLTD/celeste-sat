@@ -138,4 +138,24 @@ if seed % 3 == 2:
                 g[y][x] = 'c'
     g = [[ch if ch != 'c' else '.' for ch in r] for r in g]
 
-print("\n".join(exits + extra + springs + zips + refills + falls + crumbles + ["".join(r) for r in g]))
+# dash blocks (every fifth room): boxes in the air or against a wall, out of
+# the falling blocks' columns and away from the crumble blocks
+dashblocks = []
+if seed % 5 == 3:
+    fall_cols = used if seed % 2 == 1 else set()
+    want = random.randint(1, 3)
+    for _ in range(40):
+        if len(dashblocks) == want:
+            break
+        bw, bh = random.randint(1, 3), random.randint(1, 4)
+        bx, by = random.randint(1, W - 1 - bw), random.randint(1, H - 1 - bh)
+        cells = [(x, y) for x in range(bx, bx + bw) for y in range(by, by + bh)]
+        if all(g[y][x] == '.' for x, y in cells) and all(abs(x - spawn_col) > 1 for x, _ in cells) \
+                and not any(x in fall_cols for x, _ in cells) \
+                and not any(f"crumble {x * 8} " in c for c in crumbles for x, _ in cells):
+            dashblocks.append(f"; dashblock {bx * 8} {by * 8} {bw * 8} {bh * 8} {int(random.random() < 0.85)}")
+            for x, y in cells:
+                g[y][x] = 'd'
+    g = [[ch if ch != 'd' else '.' for ch in r] for r in g]
+
+print("\n".join(exits + extra + springs + zips + refills + falls + crumbles + dashblocks + ["".join(r) for r in g]))

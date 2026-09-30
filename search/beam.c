@@ -215,7 +215,7 @@ static uint64_t hash_state(const State *s)
     MIXF(s->beforeDashSpdX); MIXF(s->beforeDashSpdY); MIXF(s->varJumpSpeed); MIXF(s->wallSpeedRetained); MIXF(s->maxFall);
     MIXF(s->stamina); MIX(s->wallBoostDir); MIX(s->lastClimbMove); MIX(s->hopWaitX);
     MIX(s->wallBoostTimer); MIX(s->climbNoMoveTimer);
-    MIX(s->jumpGraceTimer); MIX(s->varJumpTimer); MIX(s->varJumpLong); MIX(s->dashCooldownTimer);
+    MIX(s->jumpGraceTimer); MIX(s->varJumpTimer); MIX(s->varJumpLong); MIX(s->varJumpShort); MIX(s->dashCooldownTimer);
     MIX(s->dashRefillCooldownTimer); MIX(s->dashAttackTimer); MIX(s->wallSlideTimer);
     MIX(s->wallSpeedRetentionTimer); MIX(s->forceMoveXTimer); MIX(s->coActive); MIX(s->coStage); MIX(s->coWait);
     MIX(s->freezeTimer); MIX(s->prevJump); MIX(s->prevDash); MIX(s->prevCDash);
@@ -230,6 +230,9 @@ static uint64_t hash_state(const State *s)
 #endif
 #if NCRUMBLES > 0
     for (int j = 0; j < NCRUMBLES; j++) MIX(s->crT[j]);
+#endif
+#if NDASHBLOCKS > 0
+    MIX(s->dbBroken);
 #endif
 #if NZIPMOVERS > 0 || NFALLBLOCKS > 0 || NCRUMBLES > 0
     MIX(s->hopZip); MIX(s->hopZipT);
