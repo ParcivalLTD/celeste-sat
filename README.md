@@ -23,11 +23,13 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (204s)
 ```
 
 It also runs on rooms from the game itself, and it agrees with the game: the
-community TAS of Chapter 1 (played in the real game) replays in the model
-room after room, each room's inputs leaving that room on exactly their last
-frame, and routes found here, recorded in Celeste 1.4 with CelesteTAS, match
-the model in every frame, subpixels included (see "Checked against the real
-game"). A query can also span a room
+whole community TAS of Chapter 1 (played in the real game; 19 rooms, 2,275
+frames of control, with zip movers, falling, crumble and dash blocks,
+refills and springs) replays in the model room after room from the spawn,
+each room's inputs leaving that room on exactly their last frame, and
+recordings made in Celeste 1.4 with CelesteTAS match the model in every
+frame, subpixels included (see "Checked against the real game" and "Real
+rooms"). A query can also span a room
 transition, since the fastest way out of one room is not always the fastest
 way through the next (see "Across room boundaries").
 
@@ -562,7 +564,45 @@ climb" would fit the TAS equally well; the model uses the climb jump.
 `1A.tas` recording every frame of the chapter (with zip movers, falling
 blocks, crumble and dash blocks); `tests/recordings.py` checks it room by
 room and shows the first frame that differs. It would check the rooms from
-`lvl_5` on frame by frame, and settle which of the two rules is the game's.
+`lvl_5` on frame by frame; it cannot tell the two climb-trigger rules apart,
+since in the TAS both start the zip mover on the same frame (the model has
+the other one as `-DCLIMB_TRIGGER_GRAB` for a probe that does).
+
+**Can the TAS leave a room sooner?** (`tests/tas_endings.py`) For every
+room of the chained TAS: keep its inputs up to 10 frames before it leaves,
+and ask CBMC whether any inputs get out one frame sooner (one query per
+room, 20 s to 14 min).
+
+| room | TAS leaves on | one frame sooner, last 10 frames free | the next room's TAS inputs after that ending |
+|---|---|---|---|
+| `lvl_1` | 92 | no | |
+| `lvl_2` | 118 | **117** | fail (`lvl_3`) |
+| `lvl_3` | 107 | **106** | fail (`lvl_4`: in the game too, see below) |
+| `lvl_4` | 91 | **90** | fail (`lvl_3b`) |
+| `lvl_3b` | 98 | **97** | fail (`lvl_5`) |
+| `lvl_5` | 139 | no | |
+| `lvl_6` | 117 | no | |
+| `lvl_6a` | 161 | no | |
+| `lvl_6b` | 110 | no | |
+| `lvl_6c` | 110 | no | |
+| `lvl_7` | 103 | no | |
+| `lvl_8` | 107 | **106** | fail (`lvl_8b`) |
+| `lvl_8b` | 99 | no | |
+| `lvl_9` | 97 | no | |
+| `lvl_9b` | 73 | no | |
+| `lvl_10a` | 204 | no | |
+| `lvl_11` | 161 | no | |
+| `lvl_12` | 147 | **146** | fail (`lvl_12a`) |
+| `lvl_12a` | 141 | no | |
+
+Where a room can be left sooner, the TAS leaves it later on purpose: in a
+state the next room's route is built on (`lvl_8` leaves with a jump at
+−105 px/s rather than falling; `lvl_12` dashes up-right rather than
+right; `lvl_2` keeps its wall speed retention). The faster endings are
+worth something only if the next room can make up for the state it gets,
+which `tests/tas_crossings.py` (`tools/cross.py` at each room change) asks
+next: can she be in the TAS's exact state a few frames into the next room,
+one frame sooner?
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
