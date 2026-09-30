@@ -7,6 +7,13 @@
 #define MODEL_ASSUME(c) assert(c)
 #include "../model/celeste.c"
 #include "../model/state_eq.h"
+#if NZIPMOVERS > 0                       /* the bounds harness/input_rules.h assumes */
+#define MAX_SPEED_X 1000.0f
+#define MAX_SPEED_Y 400.0f
+#else
+#define MAX_SPEED_X 400.0f
+#define MAX_SPEED_Y 250.0f
+#endif
 
 static unsigned long long rng;
 static unsigned rnd(void) { rng = rng * 6364136223846793005ULL + 1442695040888963407ULL; return (unsigned)(rng >> 33); }
@@ -17,7 +24,7 @@ static unsigned rnd(void) { rng = rng * 6364136223846793005ULL + 144269504088896
  * forbidden variant must give exactly the same state. The dominance rules
  * (presses that only fill a buffer) are checked in their narrower form:
  * such a press changes nothing but the buffer and the press flags. */
-static long symChecks, symFail;
+static long symChecks, symFail, invFail;
 enum { IGNORE_JUMPBUF = 1, IGNORE_DASHBUF = 2 };
 static void same_after(const State *s, Input a, Input b, const char *rule, int ignore)
 {
@@ -101,7 +108,7 @@ static void scramble(State *s)
     s->jumpEdge = rnd2() & 1; s->dashEdge = rnd2() & 1; s->cdashEdge = rnd2() & 1;
     s->lastClimbMove = (int)(rnd2() % 3) - 1;
     s->demoDashed = rnd2() & 1;
-    if (!TPOS(s->varJumpTimer)) { s->varJumpSpeed = -(float)(rnd2() % 300); s->varJumpLong = rnd2() & 1; }
+    if (!TPOS(s->varJumpTimer)) { s->varJumpSpeed = -(float)(rnd2() % 300); s->varJumpLong = rnd2() & 1; s->varJumpShort = rnd2() & 1; }
     if (!TPOS(s->wallSpeedRetentionTimer)) s->wallSpeedRetained = (float)((int)(rnd2() % 600) - 300);
     if (!TPOS(s->forceMoveXTimer)) s->forceMoveX = (int)(rnd2() % 3) - 1;
     if (!TPOS(s->wallBoostTimer)) s->wallBoostDir = (rnd2() & 1) ? 1 : -1;
@@ -170,8 +177,17 @@ int main(int argc, char **argv)
             if (f % 17 == 5) check_same_future(&s);
 #endif
             celeste_step(&s, in);
-            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d\n", r, s.x, s.y, s.remX, s.remY, s.spdX, s.spdY,
-                   s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX);
+#ifndef REFERENCE
+            if (!s.dead && !s.exited && !(s.remX >= -0.5f && s.remX <= 0.5f && s.remY >= -0.5f && s.remY <= 0.5f
+                  && s.spdX >= -MAX_SPEED_X && s.spdX <= MAX_SPEED_X && s.spdY >= -MAX_SPEED_Y && s.spdY <= MAX_SPEED_Y)) {
+                if (invFail++ < 10) fprintf(stderr, "harness invariant broken: rem (%g, %g) speed (%g, %g)\n",
+                                            s.remX, s.remY, s.spdX, s.spdY);
+            }
+#endif
+            printf("%d %d %d %a %a %a %a %d %d %d %d %d %d %a %d %a %a %a %a %d %d %d %d %d %d %d %d %d\n", r, s.x, s.y, s.remX, s.remY,
+                   s.spdX, s.spdY, s.state, s.ducking, s.onGround, s.dashes, s.exited, s.dead, s.stamina, s.hopWaitX,
+                   s.liftSpeedX, s.liftSpeedY, s.liftLastX, s.liftLastY, s.zipTimer[0], s.zipTimer[1],
+                   s.fbT[0], s.fbT[1], s.hopZip, s.hopZipT, s.crT[0], s.crT[1], s.dbBroken);
             if (s.exited || s.dead) break;
         }
     }
@@ -181,7 +197,8 @@ int main(int argc, char **argv)
 #ifndef REFERENCE
     fprintf(stderr, "symmetry checks: %ld, broken: %ld\n", symChecks, symFail);
     fprintf(stderr, "same_future checks: %ld, broken: %ld\n", eqChecks, eqFail);
-    if (symFail || eqFail) return 3;
+    if (invFail) fprintf(stderr, "harness invariants broken: %ld\n", invFail);
+    if (symFail || eqFail || invFail) return 3;
 #endif
     return 0;
 }

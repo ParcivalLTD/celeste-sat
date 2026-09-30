@@ -33,6 +33,22 @@ _Bool nondet_bool(void);
 #define TPOS(t) ((t) > 0)
 #endif
 
+/* Speed bounds for the invariants in after_step (tests/fuzz.c checks them).
+ * Lift boosts from moving solids go well past the usual ones: a hyper off a
+ * zip mover is (260 + 250) * 1.25 px/s, and a dash keeps a faster speed.
+ * ANY_ZIPMOVERS: set by tools/cross.py when either room has one. */
+#if (defined(NZIPMOVERS) && NZIPMOVERS > 0) || defined(ANY_ZIPMOVERS)
+#define MAX_SPEED_X 1000.0f
+#define MAX_SPEED_Y 400.0f
+#else
+#define MAX_SPEED_X 400.0f
+#define MAX_SPEED_Y 250.0f
+#endif
+
+/* The dominance rules can be switched off for some frames (harness/window.c:
+ * a press near the end of a window may leave a buffer the target state has). */
+static bool rules_dominance = true;
+
 static Input free_input(const State *s)
 {
     Input in;
@@ -51,9 +67,13 @@ static Input free_input(const State *s)
     if (s->exited) { __CPROVER_assume(!in.jump && !in.dash && !in.cdash); }
     if (!(s->state == ST_DASH && s->coStage == 1) && s->state != ST_CLIMB) { __CPROVER_assume(in.my != -1); }
     __CPROVER_assume(in.jump != BTN_REPRESS || s->prevJump);
-    __CPROVER_assume(in.dash == 0 || in.dash == (s->prevDash ? BTN_REPRESS : 1));
-    __CPROVER_assume(in.cdash == 0 || in.cdash == (s->prevCDash ? BTN_REPRESS : 1));
-    __CPROVER_assume(!(in.dash && in.cdash));
+    __CPROVER_assume(in.dash != BTN_REPRESS || s->prevDash);
+    __CPROVER_assume(in.cdash != BTN_REPRESS || s->prevCDash);
+    if (rules_dominance) {
+        __CPROVER_assume(in.dash == 0 || in.dash == (s->prevDash ? BTN_REPRESS : 1));
+        __CPROVER_assume(in.cdash == 0 || in.cdash == (s->prevCDash ? BTN_REPRESS : 1));
+        __CPROVER_assume(!(in.dash && in.cdash));
+    }
 #endif
 #ifdef NODASH
     __CPROVER_assume(!in.dash && !in.cdash);
@@ -72,17 +92,19 @@ static void after_step(Input in, const State *s)
 {
     __CPROVER_assume(!s->dead);
 #ifndef NO_SYMMETRY
-    __CPROVER_assume(in.jump != BTN_REPRESS || !TPOS(s->jumpBuf));
-    __CPROVER_assume(!in.dash || !TPOS(s->dashBuf));
-    __CPROVER_assume(!in.cdash || !TPOS(s->cdashBuf));
+    if (rules_dominance) {
+        __CPROVER_assume(in.jump != BTN_REPRESS || !TPOS(s->jumpBuf));
+        __CPROVER_assume(!in.dash || !TPOS(s->dashBuf));
+        __CPROVER_assume(!in.cdash || !TPOS(s->cdashBuf));
+    }
 #endif
 #ifndef NO_INVARIANTS
     /* Redundant facts that always hold (the simulator checks them); they
      * give the SAT solver bounds it would otherwise have to rediscover. */
     __CPROVER_assume(s->remX >= -0.5f && s->remX <= 0.5f);
     __CPROVER_assume(s->remY >= -0.5f && s->remY <= 0.5f);
-    __CPROVER_assume(s->spdX >= -400.0f && s->spdX <= 400.0f);
-    __CPROVER_assume(s->spdY >= -250.0f && s->spdY <= 250.0f);
+    __CPROVER_assume(s->spdX >= -MAX_SPEED_X && s->spdX <= MAX_SPEED_X);
+    __CPROVER_assume(s->spdY >= -MAX_SPEED_Y && s->spdY <= MAX_SPEED_Y);
 #endif
 }
 

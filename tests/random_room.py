@@ -71,4 +71,91 @@ for _ in range(random.randint(0, 2)):                   # a few spikes off the t
     d = random.choice(["up", "down", "left", "right"])
     extra.append(f"; spikes {d} {random.randint(8, W * 8 - 16)} {random.randint(8, H * 8 - 16)} {random.choice([8, 12, 16])}")
 
-print("\n".join(exits + extra + springs + ["".join(r) for r in g]))
+# zip movers (every other room; drawn last so the other rooms stay as they were)
+zips = []
+if seed % 2 == 0:
+    for _ in range(random.randint(1, 2)):
+        for _try in range(60):
+            zw, zh = random.randint(2, 4), random.randint(1, 2)          # tiles
+            zx, zy = random.randint(1, W - 1 - zw), random.randint(2, H - 1 - zh)
+            cells = [(x, y) for x in range(zx, zx + zw) for y in range(zy, zy + zh)]
+            if any(g[y][x] != '.' for x, y in cells) or any(abs(x - spawn_col) <= 1 and y >= H - 5 for x, y in cells):
+                continue
+            tx = min(max(zx * 8 + random.randint(-80, 80), 8), W * 8 - 8 - zw * 8)
+            ty = min(max(zy * 8 + random.randint(-48, 32), 8), H * 8 - 8 - zh * 8)
+            zips.append(f"; zipmover {zx * 8} {zy * 8} {zw * 8} {zh * 8} {tx} {ty}")
+            for x, y in cells:
+                g[y][x] = 'z'                                            # keep later zip movers apart
+            break
+    g = [[c if c != 'z' else '.' for c in r] for r in g]
+
+# refills (every third room)
+refills = []
+if seed % 3 == 1:
+    for _ in range(random.randint(1, 2)):
+        x, y = random.randint(2, W - 3), random.randint(2, H - 3)
+        if g[y][x] == '.' and abs(x - spawn_col) > 1:
+            refills.append(f"; refill {x * 8 + random.choice([0, 4])} {y * 8 + random.choice([0, 4])}")
+
+# falling blocks (odd rooms, which have no zip movers), sometimes with spikes on
+# them; each in its own columns, so none falls onto another
+falls = []
+if seed % 2 == 1:
+    used = set()
+    for _ in range(random.randint(1, 2)):
+        for _try in range(60):
+            fw, fh = random.randint(1, 4), random.randint(1, 3)          # tiles
+            fx, fy = random.randint(1, W - 1 - fw), random.randint(1, H - 2 - fh)
+            cells = [(x, y) for x in range(fx, fx + fw) for y in range(fy, fy + fh)]
+            if any(g[y][x] != '.' for x, y in cells) or any(abs(x - spawn_col) <= 1 for x, _ in cells) \
+                    or any(x in used for x, _ in cells):
+                continue
+            falls.append(f"; fallingblock {fx * 8} {fy * 8} {fw * 8} {fh * 8} {random.randint(0, 1)}")
+            used |= {x for x, _ in cells} | {fx - 1, fx + fw}
+            r = random.random()                                          # spikes riding on it
+            if r < 0.25:
+                falls.append(f"; spikes up {fx * 8} {fy * 8} {fw * 8}")
+            elif r < 0.4:
+                falls.append(f"; spikes down {fx * 8} {(fy + fh) * 8} {fw * 8}")
+            elif r < 0.55:
+                falls.append(f"; spikes {random.choice(['left', 'right'])} "
+                             f"{fx * 8 if random.random() < 0.5 else (fx + fw) * 8} {fy * 8} {fh * 8}")
+            break
+
+# crumble blocks (every third room): 8 px tall platforms in the air, out of
+# the falling blocks' columns
+crumbles = []
+if seed % 3 == 2:
+    fall_cols = used if seed % 2 == 1 else set()
+    for _ in range(random.randint(1, 3)):
+        cw = random.randint(1, 4)
+        cx, cy = random.randint(1, W - 1 - cw), random.randint(2, H - 3)
+        cells = [(x, cy) for x in range(cx, cx + cw)]
+        if all(g[y][x] == '.' for x, y in cells) and all(abs(x - spawn_col) > 1 for x, _ in cells) \
+                and not any(x in fall_cols for x, _ in cells):
+            crumbles.append(f"; crumble {cx * 8} {cy * 8} {cw * 8}")
+            for x, y in cells:
+                g[y][x] = 'c'
+    g = [[ch if ch != 'c' else '.' for ch in r] for r in g]
+
+# dash blocks (every fifth room): boxes in the air or against a wall, out of
+# the falling blocks' columns and away from the crumble blocks
+dashblocks = []
+if seed % 5 == 3:
+    fall_cols = used if seed % 2 == 1 else set()
+    want = random.randint(1, 3)
+    for _ in range(40):
+        if len(dashblocks) == want:
+            break
+        bw, bh = random.randint(1, 3), random.randint(1, 4)
+        bx, by = random.randint(1, W - 1 - bw), random.randint(1, H - 1 - bh)
+        cells = [(x, y) for x in range(bx, bx + bw) for y in range(by, by + bh)]
+        if all(g[y][x] == '.' for x, y in cells) and all(abs(x - spawn_col) > 1 for x, _ in cells) \
+                and not any(x in fall_cols for x, _ in cells) \
+                and not any(f"crumble {x * 8} " in c for c in crumbles for x, _ in cells):
+            dashblocks.append(f"; dashblock {bx * 8} {by * 8} {bw * 8} {bh * 8} {int(random.random() < 0.85)}")
+            for x, y in cells:
+                g[y][x] = 'd'
+    g = [[ch if ch != 'd' else '.' for ch in r] for r in g]
+
+print("\n".join(exits + extra + springs + zips + refills + falls + crumbles + dashblocks + ["".join(r) for r in g]))
