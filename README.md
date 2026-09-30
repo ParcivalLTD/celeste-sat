@@ -49,7 +49,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 
 | path | what it is |
 |---|---|
-| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, refills, zip movers, falling, crumble and dash blocks, lift boost, room transitions |
+| `model/celeste.h`, `model/celeste.c` | the port: normal, climb and dash states, collisions, freeze frames, input buffers, spikes, refills, zip movers, falling, crumble and dash blocks, lift boost, room transitions; Chapter 2: dream blocks, Badeline chasers, switch gates and touch switches |
 | `tools/gen_tables.c` | computes the exact timer frame counts with the game's float arithmetic |
 | `tools/make_room.py` | ASCII room → `room.h` (with each zip mover's path and falling block's fall, computed in single precision) |
 | `tools/import_map.py` | lists the rooms in a Celeste map file (`Content/Maps/*.bin`) and exports one to ASCII |
@@ -73,6 +73,8 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tools/run_tests.sh` | builds and checks everything on your machine |
 | `tools/celestetas.py` | writes CelesteTAS files for routes and compares the game's recording with the model |
 | `tools/chapter.py` | solves rooms in sequence, each starting in the state the previous one left her in |
+| `tools/import_chapter2.py`, `tools/chain_chapter2.py` | Chapter 2: exports the rooms from `2-OldSite.bin`; solves the Badeline chase room after room (see "Chapter 2 in the game") |
+| `tests/test_chapter2.py` | dream blocks and the Badeline chaser on small test rooms |
 | `tools/transition.py` | the entry state for the next room from a dumped exit state (what `tools/chapter.py` does between rooms) |
 | `rooms/*.txt` | demo rooms (`shaft_a` and `shaft_b` are stacked, for the cross-room check) |
 
@@ -420,6 +422,56 @@ For rooms of the community TAS, `tools/celestetas.py community lvl_4 lvl_3b
 of the zip movers: `--entities`), optionally with a changed ending
 (`--replace 'lvl_3:16,U,X=4,U,X/1,U/9/1,J'`); `tests/recordings.py` checks
 the result from the entry state `tests/community_tas.py` computes.
+
+### Chapter 2 in the game
+
+The Badeline chase (rooms 3 to 12 of 2A, `rooms/vanilla/2a_*.txt`, exported
+by `tools/import_chapter2.py` from `2-OldSite.bin`) is solved room after room,
+each from the state the previous one leaves her in, and played in the game as
+one recorded file:
+
+```
+python3 tools/chain_chapter2.py                     # build/chapter2_chase/2A_chase.tas
+python3 tools/celestetas.py chain build/chapter2_chase/2A_chase.tas --load "2 3" --skip-cutscene \
+    --dump celeste-sat-2a-chase.txt -o results/celestetas/2a_chase.tas
+```
+
+`chain` replays every room in the model first (each must be left on its last
+frame), then writes: `console load 2 3` (the game's room names drop the map's
+`lvl_` prefix), 300 idle frames, a pause and Skip Cutscene, 60 idle frames,
+and every room's inputs with the 40 idle frames of each room transition, all
+inside `ExportGameInfo`. Play `results/celestetas/2a_chase.tas` in Celeste
+Studio, then `python3 tests/recordings.py <folder with celeste-sat-2a-chase.txt>`
+checks it room by room (recordings named `celeste-sat-2a-*` are checked
+against the 2A rooms).
+
+What the Chapter 2 rooms need, from the game's code (`Celeste.exe`,
+disassembled):
+
+- **The intro cutscene.** `BadelineOldsite.Added` starts `CS02_BadelineIntro`
+  in room 3 until the session flag `evil_maddy_intro` is set, so a
+  `console load 2 3` plays it. Skipped, `OnEnd` leaves her where she stood,
+  in the normal state, **facing left** (`; spawn 120 168 -1`), with
+  `JustRespawned` set.
+- **Badeline.** Each chaser (`darkChaser`, index i in the room) follows the
+  positions the player recorded (`Player.ChaserStates`) from
+  1.55 s + 0.4 s × i ago (`GetChasePosition`), approaching them at 500 px/s,
+  and kills her when its 6 × 6 hitbox at (−3, −7) touches her hurtbox. After a
+  respawn it waits until she moves. Its delay runs in game time, across rooms:
+  the transition's 40 frames count, so in the next room the chasers first
+  replay the end of the previous one and then wait at her entry point.
+  The model keeps her last 256 positions (`tools/chapter.py` carries them into
+  the next room) and checks the frames 91–93 (+24 × i) back, since which one
+  "1.55 s ago" picks depends on the rounding of `Scene.TimeActive`.
+- **Switch gates** (rooms 6, 7, 9, 10). `TouchSwitch`: a 30 × 30
+  `PlayerCollider`; when every switch in the room is on they all finish at
+  once. `SwitchGate.Sequence()`: `yield 0.1 s`, the icon spin-up
+  (`Rate += 2 dt` per frame to 1), `yield 0.1 s`, then a 2 s `Ease.CubeOut`
+  tween to its node (`Platform.MoveTo`), updated from the next frame. It is
+  modelled as a zip mover of kind 1 (`ZIP_KIND`): tables from `gate_cycle`
+  in `tools/make_room.py`; it starts moving 46 updates after the last switch
+  and arrives after 165. The beam search aims for the switches it still
+  needs (in the best order) before the exit.
 
 ### Things to check against the real game
 

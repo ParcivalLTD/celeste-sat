@@ -5,3 +5,4 @@ __pycache__/
 # rooms extracted from your own copy of the game stay local
 rooms/vanilla/
 results/vanilla/
+2-OldSite.bin

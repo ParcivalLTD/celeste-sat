@@ -63,6 +63,9 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
 #if defined(NDASHBLOCKS) && NDASHBLOCKS > 0
     if (a->dbBroken != t->dbBroken) return false;
 #endif
+#if defined(NTOUCH) && NTOUCH > 0
+    if (a->tsOn != t->tsOn) return false;
+#endif
 #if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0) \
     || (defined(NDASHBLOCKS) && NDASHBLOCKS > 0)
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;

@@ -79,6 +79,100 @@ def probe(a):
           f"  python3 tools/celestetas.py show <path to {a.dump}>")
 
 
+TRANSITION_WAIT = 40   # idle frames after a room's exit frame: the game's transition (measured,
+                       # recordings/celeste-sat-probe-1to2.txt; the community TASes wait 40 too)
+
+
+def chain_segments(path):
+    """(room, frames) per room of a chained TAS whose header lists '#   ROOM: N frames'"""
+    counts = [(m.group(1), int(m.group(2))) for m in
+              (re.match(r"#\s+(\S+):\s+(\d+) frames", l) for l in open(path)) if m]
+    if not counts:
+        sys.exit(f"{path}: no '#   ROOM: N frames' header lines (write it with tools/chain_chapter2.py)")
+    frames, segs, i = read_tas(path), [], 0
+    for room, n in counts:
+        segs.append((room, frames[i:i + n]))
+        i += n
+    if i != len(frames):
+        sys.exit(f"{path}: the header counts {i} frames, the inputs have {len(frames)}")
+    return segs
+
+
+def chain_check(segs, rdir):
+    """replay the rooms in the model, each from the state the previous one leaves her in;
+    returns the frame each room is left on (None if it is not)"""
+    from chapter import enter_room, exit_side, origin_of, read_state, tables, write_state
+    from make_room import parse
+    exits, start = [], None
+    for k, (room, frames) in enumerate(segs):
+        path = os.path.join(rdir, f"{room}.txt")
+        bdir = os.path.join(ROOT, "build", "ingame_check", room)
+        build(path, bdir, start)
+        route = os.path.join(bdir, "route.tas")
+        write_tas(route, frames, [room])
+        out = subprocess.run([os.path.join(bdir, "sim"), route], capture_output=True, text=True).stdout
+        m = re.search(r"EXIT at frame (\d+)", out)
+        exits.append(int(m.group(1)) if m else None)
+        dead = re.search(r"died at frame (\d+)", out)
+        print(f"  {room:12s} {len(frames):4d} frames: " + (f"leaves on frame {m.group(1)}" if m else
+              f"dies on frame {dead.group(1)}" if dead else "does not leave"))
+        if not m or k + 1 == len(segs):
+            break
+        exit_h = os.path.join(bdir, "exit.h")
+        subprocess.run([os.path.join(bdir, "sim"), "-s", m.group(1), exit_h, route], capture_output=True)
+        st = read_state(exit_h)
+        nxt = os.path.join(rdir, f"{segs[k + 1][0]}.txt")
+        r0, r1 = parse(path)[0], parse(nxt)[0]
+        e = enter_room(st, exit_side(st, len(r0[0]) * 8, len(r0) * 8), origin_of(path), origin_of(nxt),
+                       len(r1[0]) * 8, len(r1) * 8, tables(bdir))
+        start = os.path.join(bdir, "next_entry.h")
+        write_state(e, start, f"entering {segs[k + 1][0]} from {room}")
+    return exits
+
+
+def chain(a):
+    """a chained route (tools/chain_chapter2.py) as one CelesteTAS file: load the first room,
+    play every room's inputs with the transition's idle frames between them, record all of it"""
+    segs = chain_segments(a.tas)
+    if a.last:
+        names = [r for r, _ in segs]
+        if a.last not in names:
+            sys.exit(f"--last {a.last}: not one of {', '.join(names)}")
+        segs = segs[:names.index(a.last) + 1]
+    print(f"replaying {len(segs)} rooms in the model:")
+    exits = chain_check(segs, a.rooms)
+    for (room, frames), ex in zip(segs, exits):
+        if ex != len(frames):
+            sys.exit(f"{room}: the model leaves on frame {ex}, the route has {len(frames)} frames; "
+                     "the chained file does not replay (re-run tools/chain_chapter2.py?)")
+    total = sum(len(f) for _, f in segs)
+    lines = [
+        f"# celeste-sat: {os.path.basename(a.tas)}, {len(segs)} rooms, {total} frames of control "
+        f"(+ {TRANSITION_WAIT} per room transition), written by tools/celestetas.py chain",
+        f"# loads {a.load}, waits {a.wait} frames"
+        + (", skips the cutscene (pause, Skip Cutscene)" if a.skip_cutscene else "")
+        + ", then plays every room while recording each frame",
+        f"# to {a.dump} in the Celeste folder; check it with python3 tests/recordings.py <that folder>",
+        f"console load {a.load}",
+        f"{a.wait:4d}",
+        *(["   1,S", "   1,D,O", f"{a.skip_wait:4d}"] if a.skip_cutscene else []),
+        f"ExportGameInfo, {a.dump}",
+    ]
+    for k, (room, frames) in enumerate(segs):
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".tas", delete=False).name
+        write_tas(tmp, frames, [])
+        body = [l for l in open(tmp).read().splitlines() if l and not l.startswith("#")]
+        os.remove(tmp)
+        lines += ["", f"#{room.split('_', 1)[1]} ({len(frames)} frames, leaves on the last)", *body,
+                  f"{TRANSITION_WAIT:4d}"]
+    if a.after:
+        lines.append(f"{a.after:4d}")
+    lines += ["EndExportGameInfo", ""]
+    open(a.out, "w").write("\n".join(lines))
+    print(f"wrote {a.out}: play it in Celeste Studio, then run\n"
+          f"  python3 tests/recordings.py <folder with {a.dump}>")
+
+
 COMMUNITY_URL = ("https://raw.githubusercontent.com/VampireFlower/CelesteTAS/"
                  "098927faa0da3101bf9c2371f1e45d719c830821/1A.tas")
 
@@ -295,6 +389,21 @@ def main():
                    help="replace the last input line OLD of ROOM, e.g. 'lvl_3:16,U,X=4,U,X/1,U/9/1,J'")
     m.add_argument("--dump", default="celeste-sat-community.txt")
     m.add_argument("-o", "--out", required=True)
+    ch = sub.add_parser("chain", help="a chained route (tools/chain_chapter2.py) as one recorded CelesteTAS file")
+    ch.add_argument("tas", help="e.g. build/chapter2_chase/2A_chase.tas")
+    ch.add_argument("--load", required=True, help='what follows "console load": chapter and room, e.g. "2 3"')
+    ch.add_argument("--wait", type=int, default=300, help="frames to wait after loading (default 300)")
+    ch.add_argument("--skip-cutscene", action="store_true",
+                    help="after the wait, pause and pick Skip Cutscene (as the community TASes do), e.g. for "
+                         "2A room 3, where `console load` starts CS02_BadelineIntro")
+    ch.add_argument("--skip-wait", type=int, default=60,
+                    help="frames to wait after skipping (default 60; the fade takes ~34)")
+    ch.add_argument("--last", help="the last room to play (default: all of them)")
+    ch.add_argument("--after", type=int, default=30,
+                    help="idle frames recorded in the room after the last (default 30)")
+    ch.add_argument("--rooms", default=os.path.join(ROOT, "rooms", "vanilla"))
+    ch.add_argument("--dump", default="celeste-sat-chain.txt")
+    ch.add_argument("-o", "--out", required=True)
     w = sub.add_parser("show", help="print a recording, marking room changes")
     w.add_argument("dump")
     w.add_argument("--frames", type=int, nargs=2, metavar=("FROM", "TO"))
@@ -305,7 +414,8 @@ def main():
     c.add_argument("--start", help="state header the room starts from (default: its spawn), e.g. the entry "
                    "state from the previous room written by tools/chapter.py or tests/community_tas.py")
     a = ap.parse_args()
-    {"export": export, "probe": probe, "community": community, "show": show, "compare": compare}[a.cmd](a)
+    {"export": export, "probe": probe, "community": community, "chain": chain, "show": show,
+     "compare": compare}[a.cmd](a)
 
 
 if __name__ == "__main__":
