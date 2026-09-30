@@ -1372,6 +1372,11 @@ static int normal_update(State *s, Input in, bool wasOnGround)
 
     /* Climbing */
     if (in.grab && !is_tired(s) && !s->ducking) {
+#if defined(CLIMB_TRIGGER_GRAB) && NMS > 0
+        /* the other reading of climbTriggerDir (see climb_jump): holding Grab
+         * facing a wall she cannot climb yet (moving up or away) */
+        if (climb_check(s, s->facing, 0)) s->climbTriggerDir = (signed char)s->facing;
+#endif
         if (s->spdY >= 0 && signf(s->spdX) != -s->facing) {
             if (climb_check(s, s->facing, 0)) {
                 s->ducking = false;
