@@ -124,9 +124,19 @@ static float approach(float val, float target, float maxMove)
     return down ? maxf(r, target) : minf(r, target);
 }
 
+/* Lift boost (Actor.LiftSpeed) exists in rooms with zip movers, and in a room
+ * she enters with a lift speed still in its grace time (CARRIED_LIFT, set in
+ * room.h by tools/solve.py: the transition does not run her updates, so the
+ * grace timer waits) */
+#if NZIPMOVERS > 0 || defined(CARRIED_LIFT)
+#define HAS_LIFT 1
+#else
+#define HAS_LIFT 0
+#endif
+
 /* the largest whole-pixel move in one frame: 8 (~390 px/s), or 16 in rooms
- * with moving solids (up to 250 px/s of lift boost on top) */
-#if NZIPMOVERS > 0
+ * with lift boosts (up to 250 px/s of lift boost on top) */
+#if HAS_LIFT
 #define ROUND_MAX 16
 #else
 #define ROUND_MAX 8
@@ -758,7 +768,7 @@ static bool move_v_exact_hit(State *s, int move)
  * MAX_PIXELS_*; they are done in pieces (the same pixel steps). */
 static bool move_h_exact(State *s, int move)
 {
-#if NZIPMOVERS > 0
+#if HAS_LIFT
     bool hit = false;
     for (int i = 0; i < (ROUND_MAX + MAX_PIXELS_H - 1) / MAX_PIXELS_H && move != 0 && !hit; i++) {
         int step = move < -MAX_PIXELS_H ? -MAX_PIXELS_H : (move > MAX_PIXELS_H ? MAX_PIXELS_H : move);
@@ -773,7 +783,7 @@ static bool move_h_exact(State *s, int move)
 
 static bool move_v_exact(State *s, int move)
 {
-#if NZIPMOVERS > 0
+#if HAS_LIFT
     bool hit = false;
     for (int i = 0; i < (ROUND_MAX + MAX_PIXELS_V - 1) / MAX_PIXELS_V && move != 0 && !hit; i++) {
         int step = move < -MAX_PIXELS_V ? -MAX_PIXELS_V : (move > MAX_PIXELS_V ? MAX_PIXELS_V : move);
@@ -920,7 +930,7 @@ static bool can_dash(const State *s)
 /* ------------------------------------------------------------------------ */
 /* Lift speed (moving solids)                                               */
 /* ------------------------------------------------------------------------ */
-#if NZIPMOVERS > 0
+#if HAS_LIFT
 /* Actor.LiftSpeed getter: currentLiftSpeed, or while it is zero the last
  * non-zero one (kept for LiftSpeedGraceTime) */
 static bool lift_current(const State *s) { return s->liftSpeedX != 0.0f || s->liftSpeedY != 0.0f; }
@@ -1007,7 +1017,7 @@ static void super_jump(State *s)
     TCLR(s->dashAttackTimer);
     WS_SET(s);
     TCLR(s->wallBoostTimer);
-#if NZIPMOVERS > 0
+#if HAS_LIFT
     s->spdX = s->facing > 0 ? SUPER_JUMP_H : -SUPER_JUMP_H;
     s->spdY = JUMP_SPEED;
     ADD_LIFT_BOOST(s);
@@ -1361,7 +1371,7 @@ static bool is_tired(const State *s)
 
 static int normal_update(State *s, Input in, bool wasOnGround)
 {
-#if NZIPMOVERS > 0
+#if HAS_LIFT
     /* Use Lift Boost if walked off platform */
     if (lift_boost_y(s) < 0 && wasOnGround && !s->onGround && s->spdY >= 0)
         s->spdY = lift_boost_y(s);
@@ -1372,6 +1382,11 @@ static int normal_update(State *s, Input in, bool wasOnGround)
 
     /* Climbing */
     if (in.grab && !is_tired(s) && !s->ducking) {
+#if defined(CLIMB_TRIGGER_GRAB) && NMS > 0
+        /* the other reading of climbTriggerDir (see climb_jump): holding Grab
+         * facing a wall she cannot climb yet (moving up or away) */
+        if (climb_check(s, s->facing, 0)) s->climbTriggerDir = (signed char)s->facing;
+#endif
         if (s->spdY >= 0 && signf(s->spdX) != -s->facing) {
             if (climb_check(s, s->facing, 0)) {
                 s->ducking = false;
@@ -2143,7 +2158,7 @@ static void ms_move_v(State *s, int i, int move, float lx, float ly)
         bool hit = move_v_exact(s, m);
         for (int k = 0; k < 4; k++) CUR_MS_BOX[i][k] = keep[k];
         if (pushed) { COV(C_ZIPPUSH); if (hit) SQUISH(s); } else COV(C_ZIPRIDE);
-#if NZIPMOVERS > 0
+#if HAS_LIFT
         set_lift(s, lx, ly);
 #else
         (void)lx; (void)ly;
