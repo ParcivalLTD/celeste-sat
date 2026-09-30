@@ -77,6 +77,10 @@ if [ "$VANILLA" = 1 ] && [ -f rooms/vanilla/1a_lvl_1.txt ]; then
     python3 tests/real_game.py rooms/vanilla/1a_lvl_1.txt | sed "s/^/  /" || echo "  (needs internet access to github.com)"
     step "real game: the community TAS of Chapter 1 (downloaded), rooms 1-3 in sequence"
     python3 tests/community_tas.py rooms/vanilla | sed "s/^/  /" || echo "  (needs internet access to github.com, and rooms 1-3 exported)"
+    if [ -f 1-ForsakenCity.bin ] && [ -f recordings/1A.tas ]; then
+        step "real game: the community TAS through Chapter 1, room after room, as far as the model goes"
+        python3 tests/chain_tas.py | sed "s/^/  /"
+    fi
 fi
 if [ -n "$RECORDINGS" ] && [ -f rooms/vanilla/1a_lvl_1.txt ]; then
     step "real game: recordings made with CelesteTAS ($RECORDINGS), every frame against the model"
