@@ -50,9 +50,10 @@ def ignored(mask):
 
 def query(bdir, k, w, timeout, mask=0):
     """(True, frames) / (False, None) / (None, None) on timeout, and seconds"""
-    cmd = ["cbmc", f"{ROOT}/harness/window.c", "-I", bdir, "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness",
-           f"-DW={w}", f'-DSTART_STATE_FILE="win_{k}_start.h"', f'-DTARGET_STATE_FILE="win_{k}_target.h"',
-           f"-DSF_IGNORE={mask}u", "--trace", "--json-ui"]
+    cmd = ["cbmc"] + (["--gcc"] if sys.platform == "win32" else []) + [
+        f"{ROOT}/harness/window.c", "-I", bdir, "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness",
+        f"-DW={w}", f'-DSTART_STATE_FILE="win_{k}_start.h"', f'-DTARGET_STATE_FILE="win_{k}_target.h"',
+        f"-DSF_IGNORE={mask}u", "--trace", "--json-ui"]
     t0 = time.time()
     try:
         r = subprocess.run(cmd, cwd=bdir, capture_output=True, text=True, timeout=timeout)
