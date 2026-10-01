@@ -1,16 +1,14 @@
-# Chapter 2 Badeline chase: 12 rooms, 2531 frames (42.18s) of control, room transitions not counted; each room entered from the previous one
-#   2a_lvl_3: 102 frames
-#   2a_lvl_4: 117 frames
-#   2a_lvl_5: 146 frames
-#   2a_lvl_6: 222 frames
-#   2a_lvl_7: 252 frames
-#   2a_lvl_8: 213 frames
-#   2a_lvl_9: 267 frames
-#   2a_lvl_10: 628 frames
-#   2a_lvl_2: 158 frames
-#   2a_lvl_11: 130 frames
-#   2a_lvl_12b: 169 frames
-#   2a_lvl_12: 127 frames
+# celeste-sat: 2A_chase.tas, 12 rooms, 2531 frames of control (+ 40 per room transition), written by tools/celestetas.py chain
+# loads 2 3, waits 300 frames, skips the cutscene (pause, Skip Cutscene), then plays every room while recording each frame
+# to celeste-sat-2a-chase.txt in the Celeste folder; check it with python3 tests/recordings.py <that folder>
+console load 2 3
+ 300
+   1,S
+   1,D,O
+  60
+ExportGameInfo, celeste-sat-2a-chase.txt
+
+#lvl_3 (102 frames, leaves on the last)
    4,X
    6,R
    1,J
@@ -27,6 +25,9 @@
    4,L,X
   11,U
    4,J
+  40
+
+#lvl_4 (117 frames, leaves on the last)
    1
   10,L
    4,L,X
@@ -48,6 +49,9 @@
    1,J
    4,X
    8,U
+  40
+
+#lvl_5 (146 frames, leaves on the last)
    1,R,J,G
    4,K
    6
@@ -76,6 +80,9 @@
    9,J
    1
    6,J
+  40
+
+#lvl_6 (222 frames, leaves on the last)
    8,L
    1
    2,L
@@ -129,6 +136,9 @@
    5,J
    4,X
    8,U
+  40
+
+#lvl_7 (252 frames, leaves on the last)
    1,J
    5
    1,L,J
@@ -207,6 +217,9 @@
   10,K
    2
   11,J
+  40
+
+#lvl_8 (213 frames, leaves on the last)
    4,L,J,G
    3
    4,L
@@ -267,6 +280,9 @@
    2,R
    1,R,J,G
   13,R,K,G
+  40
+
+#lvl_9 (267 frames, leaves on the last)
    4,R
    1
    4,R
@@ -330,6 +346,9 @@
    2
    1,L
   19,D
+  40
+
+#lvl_10 (628 frames, leaves on the last)
    3
    2,L
   53,X
@@ -486,6 +505,9 @@
    3,J
    4,X
   17,L,D
+  40
+
+#lvl_2 (158 frames, leaves on the last)
   30,D
    1,R
    1,R,D
@@ -512,6 +534,9 @@
    3,R,D
    7,R
    9,R,J
+  40
+
+#lvl_11 (130 frames, leaves on the last)
    1
    1,R
    4,X
@@ -544,6 +569,9 @@
    1
    5,R
    2
+  40
+
+#lvl_12b (169 frames, leaves on the last)
   12,R
    2,R,D
   15,X
@@ -578,6 +606,9 @@
    1
    3,R
    1
+  40
+
+#lvl_12 (127 frames, leaves on the last)
    2,R
    4,X
   11,R,D
@@ -604,3 +635,6 @@
    1,R,J
    4,X
   31,R,D
+  40
+  30
+EndExportGameInfo
