@@ -11,6 +11,10 @@ what to do next.
 > the differential fuzzer, which immediately found two real model bugs (§10).
 > Both are fixed; 40/40 rooms are bit-identical again. Next up is a Chapter 2
 > recording from the real game, and invisible barriers.
+>
+> `ROADMAP.md` has the long view — what "calculating Celeste" can and cannot
+> mean, and the phases to get there. §8 of this file is the next few weeks;
+> the roadmap is the next few years.
 
 ---
 
