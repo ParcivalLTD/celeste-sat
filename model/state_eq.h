@@ -86,8 +86,13 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
         if (a->histX[i] != t->histX[i] || a->histY[i] != t->histY[i]) return false;
     }
 #endif
+/* the climb-hop solid: set whenever the room has any moving solid at all
+ * (celeste.c guards that code with NMS > 0), so this must list every kind --
+ * dream blocks and barriers included, or a room with only those would leave
+ * hopZip out of the comparison */
 #if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0) \
-    || (defined(NDASHBLOCKS) && NDASHBLOCKS > 0)
+    || (defined(NDASHBLOCKS) && NDASHBLOCKS > 0) || (defined(NDREAMBLOCKS) && NDREAMBLOCKS > 0) \
+    || (defined(NBARRIERS) && NBARRIERS > 0)
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;
 #endif
 #if NREFILLS > 0
