@@ -76,6 +76,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tools/import_chapter2.py`, `tools/chain_chapter2.py` | Chapter 2: exports the rooms from `2-OldSite.bin`; solves the Badeline chase room after room (see "Chapter 2 in the game") |
 | `tests/test_chapter2.py` | dream blocks and the Badeline chaser on small test rooms |
 | `brain.md` | notes for working on the project: what is verified, what is inferred, and what to do next |
+| `ROADMAP.md` | the long view: what "proven" can and cannot mean here, and the order to build the rest in |
 | `tools/transition.py` | the entry state for the next room from a dumped exit state (what `tools/chapter.py` does between rooms) |
 | `rooms/*.txt` | demo rooms (`shaft_a`/`shaft_b` are stacked, for the cross-room check; `chase_a`/`chase_b` are the same pair with a Badeline chaser, to check that its history crosses the transition; `dream_test` and `chaser_test` for `tests/test_chapter2.py`) |
 
