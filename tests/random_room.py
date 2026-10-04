@@ -207,6 +207,31 @@ if seed % 7 == 2 and len(zips) < 3:
         gates = []
     g = [[ch if ch != 't' else '.' for ch in r] for r in g]
 
+# invisible barriers (seed % 3 == 0): static solids that are never drawn. They
+# have to go in open air to be worth anything: collide_box short-circuits on
+# the tiles, so a barrier behind a wall can never block her and the fuzzing
+# would never reach it. Half of them are put off the tile grid, since nothing
+# requires them to be aligned and the model must not assume they are.
+barriers = []
+if seed % 3 == 0:
+    for _ in range(random.randint(1, 3)):
+        for _try in range(40):
+            bwt, bht = random.randint(1, 3), random.randint(1, 2)     # tiles
+            # the lower part of the room, where random play actually goes
+            bx = random.randint(1, W - 1 - bwt)
+            by = random.randint(max(2, H // 2), H - 1 - bht)
+            cells = [(x, y) for x in range(bx, bx + bwt) for y in range(by, by + bht)]
+            if any(g[y][x] != '.' for x, y in cells) or any(abs(x - spawn_col) <= 1 for x, _ in cells):
+                continue
+            px, py = bx * 8, by * 8
+            if random.random() < 0.5:                                 # off the tile grid
+                px += 4
+            barriers.append(f"; barrier {px} {py} {bwt * 8} {bht * 8}")
+            for x, y in cells:
+                g[y][x] = 'b'
+            break
+    g = [[ch if ch != 'b' else '.' for ch in r] for r in g]
+
 # a Badeline chaser (seed % 5 == 1): one line per chaser, each 0.4 s = 24
 # frames further behind. The delays stay well inside CHASER_HIST_LEN.
 chasers = []
@@ -215,4 +240,4 @@ if seed % 5 == 1:
     chasers = [f"; chaser {delay}"] * random.randint(1, 2)
 
 print("\n".join(exits + extra + springs + zips + gates + refills + falls + crumbles + dashblocks
-                + dreamblocks + touches + chasers + ["".join(r) for r in g]))
+                + dreamblocks + barriers + touches + chasers + ["".join(r) for r in g]))

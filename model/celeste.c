@@ -48,7 +48,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
        C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND,
        C_DREAMENTER, C_DREAMEXIT, C_DREAMJUMP, C_DREAMCLIMB, C_DREAMWIGGLE, C_DREAMDEATH,
-       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_NCOV };
+       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_BARRIER, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -66,7 +66,8 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "dream block entered", "dream block left", "dream block left with a jump",
        "dream block left into a climb", "dream block left into a solid (wiggled out)",
        "dream block left into a solid (death)",
-       "touch switch hit", "switch gate opens", "caught by a chaser (death)" };
+       "touch switch hit", "switch gate opens", "caught by a chaser (death)",
+       "blocked by an invisible barrier" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -251,6 +252,9 @@ static room_col_t col_bits(int c)
 #ifndef NDREAMBLOCKS
 #define NDREAMBLOCKS 0
 #endif
+#ifndef NBARRIERS
+#define NBARRIERS 0
+#endif
 #ifndef HAS_CHASER
 #define HAS_CHASER 0
 #endif
@@ -278,10 +282,14 @@ static room_col_t col_bits(int c)
 #ifndef K_DREAM_DASH_MIN_TIME
 #define K_DREAM_DASH_MIN_TIME 6
 #endif
-#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES + NDASHBLOCKS + NDREAMBLOCKS)
+#define NMS (NZIPMOVERS + NFALLBLOCKS + NCRUMBLES + NDASHBLOCKS + NDREAMBLOCKS + NBARRIERS)
 #define MS_CR0 (NZIPMOVERS + NFALLBLOCKS)       /* index of the first crumble block */
 #define MS_DB0 (MS_CR0 + NCRUMBLES)             /* index of the first dash block */
 #define MS_DR0 (MS_DB0 + NDASHBLOCKS)           /* index of the first dream block */
+/* InvisibleBarrier: a Solid that never moves and has no state, so it needs
+ * nothing in State, in same_future or in the room transition -- only a box
+ * among the moving solids, after which every solid check picks it up. */
+#define MS_BA0 (MS_DR0 + NDREAMBLOCKS)          /* index of the first invisible barrier */
 #if NMS > 0
 static MODEL_TLS short CUR_MS_BOX[NMS][4];   /* x0, y0, x1, y1 (exclusive); -32000 when not Collidable */
 #if NFALLBLOCKS > 0
@@ -378,6 +386,15 @@ static void load_ms_boxes(const State *s)
         CUR_MS_BOX[i][3] = DREAMBLOCKS[j][1] + DREAMBLOCKS[j][3];
     }
 #endif
+#if NBARRIERS > 0
+    for (int j = 0; j < NBARRIERS; j++) {
+        int i = MS_BA0 + j;
+        CUR_MS_BOX[i][0] = BARRIERS[j][0];
+        CUR_MS_BOX[i][1] = BARRIERS[j][1];
+        CUR_MS_BOX[i][2] = BARRIERS[j][0] + BARRIERS[j][2];
+        CUR_MS_BOX[i][3] = BARRIERS[j][1] + BARRIERS[j][3];
+    }
+#endif
 }
 /* an 8 x h hitbox at (x, y) overlaps moving solid i */
 static bool ms_overlap(int i, int x, int y, int h)
@@ -388,7 +405,14 @@ static bool ms_overlap(int i, int x, int y, int h)
 static bool any_ms_overlap(int x, int y, int h)
 {
     for (int i = 0; i < NMS; i++)
-        if (ms_overlap(i, x, y, h)) return true;
+        if (ms_overlap(i, x, y, h)) {
+#if NBARRIERS > 0
+            /* the first solid overlapping here is a barrier, so it is the one
+               doing the blocking (coverage only; COV is a no-op otherwise) */
+            if (i >= MS_BA0) COV(C_BARRIER);
+#endif
+            return true;
+        }
     return false;
 }
 /* where moving solid i is after `t` updates of its coroutine (zipTimer / fbT) */
@@ -407,7 +431,10 @@ static int ms_pos_x(int i, int t)
     if (i < MS_DR0) return DASHBLOCKS[i - MS_DB0][0];
 #endif
 #if NDREAMBLOCKS > 0
-    if (i >= MS_DR0) return DREAMBLOCKS[i - MS_DR0][0];
+    if (i < MS_BA0) return DREAMBLOCKS[i - MS_DR0][0];
+#endif
+#if NBARRIERS > 0
+    if (i >= MS_BA0) return BARRIERS[i - MS_BA0][0];
 #endif
     (void)i; (void)t; return 0;
 }
@@ -426,7 +453,10 @@ static int ms_pos_y(int i, int t)
     if (i < MS_DR0) return DASHBLOCKS[i - MS_DB0][1];
 #endif
 #if NDREAMBLOCKS > 0
-    if (i >= MS_DR0) return DREAMBLOCKS[i - MS_DR0][1];
+    if (i < MS_BA0) return DREAMBLOCKS[i - MS_DR0][1];
+#endif
+#if NBARRIERS > 0
+    if (i >= MS_BA0) return BARRIERS[i - MS_BA0][1];
 #endif
     (void)i; (void)t; return 0;
 }
