@@ -1,0 +1,6 @@
+# rooms/dream_test.txt: dash right into the dream block, through it, and on to
+# the exit (frame 52). Replayed by tools/run_tests.sh in both builds -- the
+# solver build with integer timers and the literal float reference build --
+# which must agree frame for frame.
+   1,R,X
+  55,R
