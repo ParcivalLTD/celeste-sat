@@ -46,7 +46,9 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_CLIMB, C_CLIMBUP, C_CLIMBDOWN, C_SLIP, C_CLIMBJUMP, C_WALLBOOST, C_CLIMBHOP, C_HOPWAIT,
        C_TIRED, C_NOSPIKEREFILL, C_HOPBLOCKED,
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
-       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND, C_NCOV };
+       C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND,
+       C_DREAMENTER, C_DREAMEXIT, C_DREAMJUMP, C_DREAMCLIMB, C_DREAMWIGGLE, C_DREAMDEATH,
+       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -60,7 +62,11 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "zip mover starts", "carried by a zip mover or falling block", "pushed by a zip mover or falling block", "zip mover edge nudge (1 px down)",
        "squished (death)", "moved with a moving solid after a climb hop", "refill", "falling block starts shaking", "falling block waits for her", "falling block moves",
        "crumble block starts shaking", "crumble block crumbles", "crumble block comes back",
-       "dash block broken (rebound)" };
+       "dash block broken (rebound)",
+       "dream block entered", "dream block left", "dream block left with a jump",
+       "dream block left into a climb", "dream block left into a solid (wiggled out)",
+       "dream block left into a solid (death)",
+       "touch switch hit", "switch gate opens", "caught by a chaser (death)" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -250,6 +256,24 @@ static room_col_t col_bits(int c)
 #endif
 #ifndef CHASER_DELAY
 #define CHASER_DELAY 90
+#endif
+#ifndef NCHASERS
+#define NCHASERS 1
+#endif
+#define CHASER_WAKE 6     /* frames from her first move until a chaser can touch her (at least 8 in the game) */
+/* the oldest recorded position any chaser can still read: CHASER_DELAY for the
+ * first, 0.4 s = 24 frames more for each one behind it. The history ring must
+ * be longer, or a chaser would read a position she has not reached yet.
+ * model/state_eq.h compares exactly this many entries. */
+#define CHASER_MAX_DELAY (CHASER_DELAY + 24 * (NCHASERS - 1))
+#if HAS_CHASER && CHASER_MAX_DELAY >= CHASER_HIST_LEN
+#error "CHASER_HIST_LEN is too small for this room's CHASER_DELAY and NCHASERS"
+#endif
+#ifndef NTOUCH
+#define NTOUCH 0
+#endif
+#ifndef TS_ALL
+#define TS_ALL 0                                      /* no touch switches: a switch gate opens at once */
 #endif
 #ifndef K_DREAM_DASH_MIN_TIME
 #define K_DREAM_DASH_MIN_TIME 6
@@ -1202,6 +1226,7 @@ static void set_state(State *s, int next, int moveY);
 static bool dream_block_collide(State *s, int dashDir)
 {
     if (!dash_attacking(s) || MS_HIT < MS_DR0 || MS_HIT >= MS_DR0 + NDREAMBLOCKS || MS_HIT_DIR != dashDir) return false;
+    COV(C_DREAMENTER);
     set_state(s, ST_DREAM_DASH, 0);
     return true;
 }
@@ -1645,27 +1670,21 @@ static int dash_update(State *s, Input in)
     return ST_DASH;
 }
 
-static bool solid_check_non_dream(const State *s, int x, int y)
-{
-    int h = collider_h(s);
-    if (tiles_collide(x, y, h)) return true;
-#if NMS > 0
-    for (int i = 0; i < MS_DR0; i++)
-        if (ms_collidable(s, i) && ms_overlap(i, x, y, h)) return true;
-#endif
-    return false;
-}
-
+/* Player.DreamDashedIntoSolid: CollideCheck<Solid>, which counts dream blocks
+ * too -- so the wiggle below never leaves her inside one. It only runs when she
+ * is outside every dream block (see dream_dash_update), so including them makes
+ * no difference to the first check, only to where the wiggle may put her. */
 static bool dream_dashed_into_solid(State *s)
 {
-    if (solid_check_non_dream(s, s->x, s->y)) {
+    if (collide_at(s, s->x, s->y)) {
         for (int x = 1; x <= DREAM_DASH_END_WIGGLE; x++) {
             for (int xm = -1; xm <= 1; xm += 2) {
                 for (int y = 1; y <= DREAM_DASH_END_WIGGLE; y++) {
                     for (int ym = -1; ym <= 1; ym += 2) {
                         int addX = x * xm;
                         int addY = y * ym;
-                        if (!solid_check_non_dream(s, s->x + addX, s->y + addY)) {
+                        if (!collide_at(s, s->x + addX, s->y + addY)) {
+                            COV(C_DREAMWIGGLE);
                             s->x += addX;
                             s->y += addY;
                             return false;
@@ -1698,12 +1717,15 @@ static int dream_dash_update(State *s, Input in)
     bool inside = dream_blocks_overlap(s->x, s->y, collider_h(s));
     if (!inside) {
         if (dream_dashed_into_solid(s)) {
+            COV(C_DREAMDEATH);
             s->dead = true;
             return ST_NORMAL;
         } else if (!TPOS(s->dreamDashCanEndTimer)) {
+            COV(C_DREAMEXIT);
             TSET(s->freezeTimer, DASH_FREEZE_TIME);
 
             if (jump_pressed(s) && s->dashDirX != 0) {
+                COV(C_DREAMJUMP);
                 s->dreamJump = true;
                 jump(s);
                 return ST_NORMAL;
@@ -1712,6 +1734,7 @@ static int dream_dash_update(State *s, Input in)
                 bool right = climb_check(s, 1, 0);
                 if (in.grab && (s->dashDirY >= 0 || s->dashDirX != 0)
                     && ((s->moveX == 1 && right) || (s->moveX == -1 && left))) {
+                    COV(C_DREAMCLIMB);
                     s->facing = s->moveX;
                     return ST_CLIMB;
                 }
@@ -2095,21 +2118,56 @@ static void enforce_bounds(State *s)
 /* Badeline Chaser (Chapter 2)                                              */
 /* ------------------------------------------------------------------------ */
 #if HAS_CHASER
+/* BadelineOldsite (from the game's code): chaser i follows the positions the
+ * player recorded (Player.ChaserStates, one per Player.Update) from
+ * 1.55 s + 0.4 s * i ago (Player.GetChasePosition), approaching that point at
+ * 500 px/s, and kills her when its 6 x 6 hitbox at (-3, -7) touches her
+ * hurtbox (a PlayerCollider, checked in Player.Update after she moves).
+ * Which recorded frame "1.55 s ago" is depends on the float rounding of
+ * Scene.TimeActive, so the frames CHASER_DELAY - 2 .. CHASER_DELAY back are
+ * all checked (a conservative model). The history runs on across rooms:
+ * tools/chapter.py carries it into the next room, with the transition's
+ * frames (no player updates) as her entry position. */
 static void chaser_update(State *s)
 {
+    /* after a respawn (the spawn of the first room) BadelineOldsite waits until
+     * she moves (Player.JustRespawned is cleared once her Speed is not zero),
+     * then pops out and needs a 0.1 s tween before it is Collidable; the
+     * positions before that are all the spawn */
+    if (s->chaserTimer == 0 && s->spdX == 0 && s->spdY == 0) return;
     s->histX[s->chaserTimer & CHASER_HIST_MASK] = (short)s->x;
     s->histY[s->chaserTimer & CHASER_HIST_MASK] = (short)s->y;
     s->chaserTimer++;
-    if (s->chaserTimer > CHASER_DELAY) {
-        int idx = (s->chaserTimer - 1 - CHASER_DELAY) & CHASER_HIST_MASK;
-        short bx = s->histX[idx];
-        short by = s->histY[idx];
-        int h = collider_h(s);
-        /* Badeline has an 8 x 11 hitbox at (bx, by) */
-        if (abs(s->x - bx) < 8 && (s->y > by - 11) && (s->y - h < by)) {
-            s->dead = true;
+    if (s->chaserTimer <= CHASER_WAKE) return;                   /* (rooms entered from another start at 256) */
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;   /* hurtbox 8 x 9 (ducking 8 x 4) */
+    for (int c = 0; c < NCHASERS; c++) {
+        int D = CHASER_DELAY + 24 * c;                          /* followBehindIndexDelay = 0.4 s * index */
+        for (int d = D - 2; d <= D; d++) {
+            int idx = (s->chaserTimer - 1 - d) & CHASER_HIST_MASK;
+            int bx = s->histX[idx], by = s->histY[idx];
+            if (s->x - 4 < bx + 3 && s->x + 4 > bx - 3 && top < by - 1 && bot > by - 7) {
+                COV(C_CHASERKILL);
+                s->dead = true;
+                return;
+            }
         }
     }
+}
+#endif
+
+#if NTOUCH > 0
+/* TouchSwitch: a PlayerCollider (30 x 30 around it) against her hurtbox;
+ * Switch.Activate -> when every switch in the room is on, all finish at once
+ * and the switch gates' Sequence() sees it in their update this frame */
+static void touch_update(State *s)
+{
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;
+    for (int j = 0; j < NTOUCH; j++)
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + 15 && s->x + 4 > TOUCHSWITCHES[j][0] - 15
+            && top < TOUCHSWITCHES[j][1] + 15 && bot > TOUCHSWITCHES[j][1] - 15) {
+            if (!(s->tsOn & (1u << j))) COV(C_TOUCHSWITCH);
+            s->tsOn |= (unsigned char)(1u << j);
+        }
 }
 #endif
 
@@ -2237,6 +2295,13 @@ static void player_update(State *s, Input in)
     if (s->coActive) coroutine_update(s);
     actor_update_lift(s);                         /* rest of Actor.Update */
 
+    /* A dream dash that ends inside a solid calls Player.Die (see
+     * dream_dash_update), and a dead player does not move again. Without this
+     * the movement below would run from inside a solid, which the solver
+     * build's boundary-jump movement does not model (it assumes she starts
+     * outside solids), so the two builds moved her differently. */
+    if (s->dead) return;
+
     if (s->state != ST_DREAM_DASH) {
         /* Jump-through assist: rising inside a jump-through nudges her up
          * (unless spikes would block the hop) */
@@ -2274,6 +2339,9 @@ static void player_update(State *s, Input in)
     /* Player colliders (spikes, springs), then the room bounds */
     player_colliders(s);
     if (s->dead) return;
+#if NTOUCH > 0
+    touch_update(s);
+#endif
 
 #if HAS_CHASER
     chaser_update(s);
@@ -2378,7 +2446,20 @@ static void zip_update(State *s, Input in)
 {
     for (int i = 0; i < NZIPMOVERS && !s->dead; i++) {
         int t = s->zipTimer[i];
-        if (t != 0) t = t < ZIP_T_END ? t + 1 : 0;
+        if (ZIP_KIND[i]) {                             /* a switch gate: SwitchGate.Sequence() */
+            if (t == 0) {                              /* while (!Switch.Check(Scene)) yield return null */
+                if (s->tsOn != TS_ALL) continue;
+                COV(C_GATEOPEN);
+                t = 1;
+            } else if (t < ZIP_END[i]) t++;
+            else continue;                             /* open: it stays at its node */
+            s->zipTimer[i] = (short)t;
+            if (ZIP_MOVE[i][t][0] != 0) ms_move_h(s, in, i, ZIP_MOVE[i][t][0], ZIP_LIFT[i][t][0]);
+            if (ZIP_MOVE[i][t][1] != 0) ms_move_v(s, i, ZIP_MOVE[i][t][1], ZIP_LIFT[i][t][0], ZIP_LIFT[i][t][1]);
+            MODEL_ASSUME(CUR_MS_BOX[i][0] == ZIP_POS[i][t][0] && CUR_MS_BOX[i][1] == ZIP_POS[i][t][1]);
+            continue;
+        }
+        if (t != 0) t = t < ZIP_END[i] ? t + 1 : 0;
         if (t == 0) {                                  /* while (!HasPlayerRider()) yield return null */
             if (riding_ms(s, i)) { COV(C_ZIPSTART); t = 1; }
             s->zipTimer[i] = (short)t;
@@ -2505,6 +2586,15 @@ MODEL_API void celeste_init(State *s, int spawnX, int spawnY)
     s->stamina = CLIMB_MAX_STAMINA;
     WS_SET(s);
     s->aimX = 1;
+#ifdef SPAWN_FACING                    /* e.g. 2A lvl_3: CS02_BadelineIntro.OnEnd sets Facing = Left */
+    s->facing = SPAWN_FACING;
+    s->aimX = SPAWN_FACING;
+#endif
+#if HAS_CHASER
+    /* she stood at the spawn before the route starts: that is where the
+     * chasers' delayed path begins */
+    for (int k = 0; k < CHASER_HIST_LEN; k++) { s->histX[k] = (short)spawnX; s->histY[k] = (short)spawnY; }
+#endif
 }
 
 /* VirtualButton.Update for Jump, Dash and Crouch Dash (runs every frame,

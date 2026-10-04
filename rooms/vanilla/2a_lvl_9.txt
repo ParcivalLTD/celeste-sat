@@ -1,6 +1,6 @@
 ; room lvl_9 of 2-OldSite (92x40 tiles), imported by tools/import_map.py
 ; origin 640 -1576   (world position of the room's top-left corner)
-; NOT MODELLED (ignored): invisibleBarrier, switchGate, touchSwitch
+; NOT MODELLED (ignored): invisibleBarrier
 ; no effect on movement: fakeWall, lightbeam, strawberry
 ; exit down 488 528   (-> lvl_10)
 ; leave down -320 16   (-> lvl_7)
@@ -17,6 +17,8 @@
 ; spikes up 352 304 40
 ; spikes up 392 256 24
 ; spikes up 416 296 40
+; switchgate 480 264 40 24 592 264
+; touchswitch 624 272
 ; spikes up 336 240 16
 ; crumble 16 40 8
 ; spikes right 176 96 112

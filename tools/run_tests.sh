@@ -91,6 +91,14 @@ fi
 step "Chapter 2 mechanics: dream blocks and the Badeline chaser on the demo rooms"
 python3 tests/test_chapter2.py 2>&1 | sed "s/^/  /"
 
+step "room transition: the C port (model/transition.h) against the Python rules (tools/chapter.py)"
+# the second pair carries a Badeline chaser's history across the transition,
+# which is the only check of that branch (see rooms/chase_a.txt)
+python3 tools/cross.py rooms/shaft_a.txt tests/shaft_a.tas rooms/shaft_b.txt tests/shaft_b.tas \
+    --check-transition --out build/cross_check 2>&1 | sed "s/^/  /"
+python3 tools/cross.py rooms/chase_a.txt tests/shaft_a.tas rooms/chase_b.txt tests/shaft_b.tas \
+    --check-transition --out build/cross_check_chaser 2>&1 | sed "s/^/  /"
+
 step "beam search on the demo rooms (all cores)"
 for r in ledge hop gap flat; do
     python3 tools/solve.py rooms/$r.txt --no-sat --out build/beam_$r | grep -E "^beam" | sed -E "s/ -> .*\(/ (/; s/^/  $r: /"

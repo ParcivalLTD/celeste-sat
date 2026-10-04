@@ -16,6 +16,10 @@
 #define TR_LEFT  2
 #define TR_RIGHT 3
 
+/* game frames between the exit frame's update and her first update in the new
+ * room; TRANSITION_GAP in tools/chapter.py (recordings/celeste-sat-probe-1to2.txt) */
+#define TR_TRANSITION_GAP 40
+
 /* Math.Round: to nearest, ties to even (speeds are well inside +-2^22) */
 static float tr_round_even(float v)
 {
@@ -81,8 +85,37 @@ static State enter_room(State st)
     for (int i = 0; i < MAX_FALL_BLOCKS; i++) e.fbT[i] = 0;
     for (int i = 0; i < MAX_CRUMBLES; i++) e.crT[i] = 0;
     e.dbBroken = 0;
+    e.tsOn = 0;
     e.hopZip = 0; e.hopZipT = 0;
     for (int i = 0; i < MAX_REFILLS; i++) e.refillTimer[i] = 0;
+    /* a dream dash cannot survive the transition (she comes out in ST_NORMAL) */
+    e.dreamDashCanEndTimer = 0;
+    e.dreamJump = false;
+    /* The Badeline chasers follow the positions she recorded (Player.ChaserStates)
+     * with a delay in game time, and that history runs on across rooms: it is
+     * carried over in the new room's coordinates, then TRANSITION_GAP frames of
+     * standing at the entry position (the transition itself runs no player
+     * updates). Mirrors carry_chaser_history in tools/chapter.py, which
+     * documents it; tools/cross.py checks that the two agree. */
+    {
+        const int n = CHASER_HIST_LEN, t = st.chaserTimer;
+        /* The new history is oldest-first with chaserTimer = n, so entry j
+         * stands for n - 1 - j frames ago. The newest TR_TRANSITION_GAP of
+         * them are the entry position; before that comes the old room's
+         * history, which ends at index n - 1 - TR_TRANSITION_GAP. */
+        for (int j = 0; j < n; j++) {
+            int src = j + TR_TRANSITION_GAP;
+            if (src < n && t > 0) {
+                int i = (t - n + src) & CHASER_HIST_MASK;
+                e.histX[j] = (short)(st.histX[i] + TR_DX);
+                e.histY[j] = (short)(st.histY[i] + TR_DY);
+            } else {                             /* the transition, or no chaser in the old room */
+                e.histX[j] = (short)x;
+                e.histY[j] = (short)y;
+            }
+        }
+        e.chaserTimer = (short)n;
+    }
     return e;
 }
 

@@ -5,6 +5,7 @@ __pycache__/
 # rooms extracted from your own copy of the game stay local
 rooms/vanilla/
 results/vanilla/
-# ...except Chapter 2's, committed because 2-OldSite.bin is not in the repo
-# (tools/import_chapter2.py re-exports them from your own copy)
+2-OldSite.bin
+# ...except Chapter 2's rooms, which are committed: 2-OldSite.bin is not in the
+# repo, so tools/import_chapter2.py cannot re-export them from a fresh clone
 !rooms/vanilla/2a_*.txt

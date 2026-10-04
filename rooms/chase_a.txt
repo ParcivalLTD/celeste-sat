@@ -1,0 +1,13 @@
+; demo room "chase_a": shaft_a with a Badeline chaser, the lower of two rooms
+; stacked in a shaft (with chase_b above it). Exit up into chase_b.
+; Used by tools/run_tests.sh to check that the chasers' history of her
+; positions is carried into the next room the same way in C
+; (model/transition.h) and in Python (tools/chapter.py: carry_chaser_history),
+; which is the only thing that exercises that branch of the transition.
+; origin 0 32
+; exit up 16 48
+; chaser 60
+##....##
+#......#
+#.S....#
+########

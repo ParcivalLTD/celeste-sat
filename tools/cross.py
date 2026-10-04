@@ -61,6 +61,22 @@ def model_unit(path, prefix, room_header):
 """)
 
 
+# harness/cross.c includes celeste.h, not celeste.c, so room B's entity counts
+# do not reach it on their own -- and without them every `#if N... > 0` block of
+# same_future (model/state_eq.h) and of the transition compiles out silently,
+# which would make a "no" a claim about a weaker equivalence than it reports.
+# They are copied out of the generated room_b.h instead of counted again here.
+ENTITY_DEFINES = re.compile(
+    r"^#define\s+(NZIPMOVERS|NFALLBLOCKS|NCRUMBLES|NDASHBLOCKS|NREFILLS|NDREAMBLOCKS"
+    r"|NTOUCH|TS_ALL|HAS_CHASER|CHASER_DELAY|NCHASERS)\s+(\S+)", re.M)
+
+
+def entity_defines(room_h):
+    """room B's entity counts, for the harness that only sees celeste.h"""
+    return "".join(f"#define {name} {value}\n"
+                   for name, value in ENTITY_DEFINES.findall(open(room_h).read()))
+
+
 def setup(where, start_block, target_block, tr):
     """cross_setup.h: where A starts, the state to reach in B, the transition (A_STEPS/B_STEPS come with -D).
     The queries read OUT/cross_setup.h, the replay program (sim/chain.c) OUT/replay/cross_setup.h."""
@@ -70,6 +86,7 @@ def setup(where, start_block, target_block, tr):
         f"#define TR_SIDE {tr['side']}\n#define TR_DX {tr['dx']}\n#define TR_DY {tr['dy']}\n"
         f"#define TR_NEW_W {tr['w']}\n#define TR_NEW_H {tr['h']}\n"
         + ("#define ANY_ZIPMOVERS 1\n" if tr.get("zips") else "")
+        + tr.get("entities", "")
         + start_block.replace("START_STATE", "START") + target_block.replace("START_STATE", "TARGET"))
 
 
@@ -175,13 +192,17 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("room_a"); ap.add_argument("route_a"); ap.add_argument("room_b"); ap.add_argument("route_b")
     ap.add_argument("--start", help="state header room A starts from (default: its spawn)")
-    ap.add_argument("--keep", type=int, required=True, help="frames of room A kept fixed")
-    ap.add_argument("--target", type=int, required=True, help="the known route's state after this many frames in B")
+    ap.add_argument("--keep", type=int, help="frames of room A kept fixed")
+    ap.add_argument("--target", type=int, help="the known route's state after this many frames in B")
     ap.add_argument("--save", type=int, default=1, help="frames to save (default 1)")
     ap.add_argument("--timeout", type=float, default=1800, help="seconds per CBMC query")
     ap.add_argument("--exit-from", type=int, help="skip the splits that leave A before this frame (already "
                     "proven impossible from the same first K frames, e.g. by tools/solve.py --from-frame K)")
     ap.add_argument("--jobs", type=int, help="CBMC queries at a time (default: one per core, as many as fit in free memory)")
+    ap.add_argument("--check-transition", action="store_true",
+                    help="only replay the known route through both rooms and check that the transition in C "
+                         "(model/transition.h) gives the same entry state as the Python one in tools/chapter.py, "
+                         "then stop (no CBMC)")
     ap.add_argument("--out")
     a = ap.parse_args()
 
@@ -222,6 +243,7 @@ def main():
             with open(f"{out}/room_{tag}.h", "a") as f:
                 f.write("#define CARRIED_LIFT 1\n")
         model_unit(f"{out}/model_{tag}.c", tag, f"room_{tag}.h")
+    tr["entities"] = entity_defines(f"{out}/room_b.h")      # same_future compares states in room B
     shutil.copy(f"{out}/a/tables.h", f"{out}/tables.h")
     start0 = state_block(f"{out}/a_start.h", "START_STATE")
     setup(f"{out}/replay", start0, start0, tr)
@@ -241,8 +263,12 @@ def main():
         sys.exit(f"transition: C and Python disagree on {diff}")
     print(f"known route: leaves {na_name} on frame {na}, {nb_name} on frame {total} "
           f"({total - na} frames there); transition {side}, entry checked (C = Python)")
+    if a.check_transition:
+        return
 
     K, M, save = a.keep, a.target, a.save
+    if K is None or M is None:
+        sys.exit("--keep and --target are required (or use --check-transition)")
     if not 0 <= K < na or not 1 <= M < total - na:
         sys.exit(f"--keep must be below {na} and --target between 1 and {total - na - 1}")
     sh([f"{out}/chain", f"{out}/known.tas", "-s", str(K), f"{out}/start.h"])

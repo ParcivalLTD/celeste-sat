@@ -11,12 +11,22 @@
  * coroutine's stage and wait, and the speed before a dash until the dash
  * has read it). Some values are set on entering a state before any read:
  * lastClimbMove (every climbing frame), dashStartedOnGround (DashBegin) and
- * climbNoMoveTimer (ClimbBegin) only count in their own state. tests/fuzz.c
- * checks all this: two states that differ only in those fields stay equal
- * under random inputs.
+ * climbNoMoveTimer (ClimbBegin) only count in their own state, as do the dream
+ * dash's two (dreamDashCanEndTimer and dreamJump, both set by
+ * dream_dash_begin). Of the chaser history only the entries still inside the
+ * longest chase delay (CHASER_MAX_DELAY in model/celeste.c) can be read again.
+ * tests/fuzz.c checks all this: two states that differ only in those fields
+ * stay equal under random inputs.
  */
 #ifndef STATE_EQ_H
 #define STATE_EQ_H
+
+/* model/celeste.c defines this (and checks it against CHASER_HIST_LEN), but
+ * harness/cross.c includes celeste.h rather than celeste.c and gets the room's
+ * chaser counts from cross_setup.h instead, so define it here if it is missing. */
+#if defined(HAS_CHASER) && HAS_CHASER && !defined(CHASER_MAX_DELAY)
+#define CHASER_MAX_DELAY (CHASER_DELAY + 24 * (NCHASERS - 1))
+#endif
 
 /* Fields a caller may leave out of the comparison (tools/windows.py leaves
  * out those that a concrete replay of the rest of a route shows cannot
@@ -63,6 +73,19 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
 #if defined(NDASHBLOCKS) && NDASHBLOCKS > 0
     if (a->dbBroken != t->dbBroken) return false;
 #endif
+#if defined(NTOUCH) && NTOUCH > 0
+    if (a->tsOn != t->tsOn) return false;
+#endif
+#if defined(HAS_CHASER) && HAS_CHASER
+    /* The chasers read the positions she recorded CHASER_DELAY + 0.4 s * index
+     * frames ago, so entries older than the longest delay can never be read
+     * again; the rest, and the count that indexes them, are live. */
+    if (a->chaserTimer != t->chaserTimer) return false;
+    for (int d = 0; d <= CHASER_MAX_DELAY; d++) {
+        int i = (t->chaserTimer - 1 - d) & CHASER_HIST_MASK;
+        if (a->histX[i] != t->histX[i] || a->histY[i] != t->histY[i]) return false;
+    }
+#endif
 #if NZIPMOVERS > 0 || (defined(NFALLBLOCKS) && NFALLBLOCKS > 0) || (defined(NCRUMBLES) && NCRUMBLES > 0) \
     || (defined(NDASHBLOCKS) && NDASHBLOCKS > 0)
     if (a->hopZip != t->hopZip || (t->hopZip && a->hopZipT != t->hopZipT)) return false;
@@ -79,6 +102,8 @@ static bool same_future_mask(const State *a, const State *t, unsigned ign)
     if (t->coActive && t->coStage <= 1 && !(EQ(beforeDashSpdX) && EQ(beforeDashSpdY))) return false;
     if (t->state == ST_DASH && !EQ(dashStartedOnGround)) return false;   /* set by DashBegin */
     if (t->state == ST_CLIMB && !EQ(climbNoMoveTimer)) return false;     /* set by ClimbBegin */
+    /* both set by dream_dash_begin, and only read in ST_DREAM_DASH */
+    if (t->state == ST_DREAM_DASH && !(EQ(dreamDashCanEndTimer) && EQ(dreamJump))) return false;
     return true;
 #undef EQI
 #undef EQ

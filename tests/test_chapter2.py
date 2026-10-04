@@ -3,13 +3,16 @@
 test_chapter2.py -- the Chapter 2 mechanics on two demo rooms:
 
   rooms/dream_test.txt    a dream block in an open room
-  rooms/chaser_test.txt   a Badeline chaser 30 frames behind
+  rooms/chaser_test.txt   a Badeline chaser, "; chaser 30" (half the game's delay)
 
   1. a dash into a dream block enters ST_DREAM_DASH, crosses it, comes out in
      ST_NORMAL and the dash is refilled
   2. without a dash the same block is an ordinary solid: walking stops at it
-  3. standing still, the chaser reaches her after about its delay (death)
-  4. running away, it does not
+  3. standing at the spawn, the chaser never comes: BadelineOldsite waits for
+     Player.JustRespawned to clear, which happens once her speed is nonzero
+  4. walking and then stopping, it replays her path and reaches her about its
+     delay after she stopped
+  5. running away from it, it does not reach her
 
 These are behaviour checks on the simulator, not a comparison with the real
 game: nothing in Chapter 2 has been recorded with CelesteTAS yet (see the
@@ -19,6 +22,7 @@ import json, os, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXE = ".exe" if sys.platform == "win32" else ""
+ST_NORMAL, ST_DREAM_DASH = 0, 3      # model/celeste.h
 
 
 def build(room):
@@ -40,7 +44,9 @@ def build(room):
 
 def run(bdir, sim, name, tas):
     """replay `tas` (CelesteTAS lines) -> the simulator's json trace
-    ({"frames": [...], "exit_frame": f, "death_frame": f}; -1 = did not happen)"""
+    ({"frames": [...], "exit_frame": f, "death_frame": f}; -1 = did not happen).
+    death_frame is the reliable death signal: the trace simply stops at a death,
+    so counting frames cannot tell one from a route that ran out of inputs."""
     tas_path = os.path.join(bdir, name + ".tas")
     json_path = os.path.join(bdir, name + ".json")
     open(tas_path, "w").write(tas)
@@ -70,13 +76,22 @@ def test_dream_block_is_solid(bdir, sim):
     print("  dream block without a dash: solid, walking stops at x = 44")
 
 
+def test_chaser_sleeps_at_spawn(bdir, sim):
+    """standing at the spawn never wakes it (Player.JustRespawned)"""
+    t = run(bdir, sim, "chaser_idle", "  60\n")
+    assert t["death_frame"] < 0, \
+        f"standing still at the spawn must not wake the chaser, died on frame {t['death_frame']}"
+    print("  chaser: never comes while she stands at the spawn")
+
+
 def test_chaser_catches_her(bdir, sim):
-    """standing still in chaser_test (; chaser 30): caught after about 30 frames"""
-    t = run(bdir, sim, "chaser_idle", "  50\n")
-    assert t["death_frame"] > 0, "standing still in front of the chaser should be fatal"
-    assert 28 <= t["death_frame"] <= 36, \
-        f"expected the chaser to catch her near frame 31, got {t['death_frame']}"
-    print(f"  chaser: caught her on frame {t['death_frame']} standing still")
+    """walk 20 frames, then stand still: it follows her path and reaches her
+    about its 30-frame delay later"""
+    t = run(bdir, sim, "chaser_stop", "  20,R\n  60\n")
+    assert t["death_frame"] > 0, "stopping in front of the chaser should be fatal"
+    assert 35 <= t["death_frame"] <= 55, \
+        f"expected death 15-35 frames after she stopped, got frame {t['death_frame']}"
+    print(f"  chaser: caught her on frame {t['death_frame']}, having stopped on frame 20")
 
 
 def test_chaser_outrun(bdir, sim):
@@ -87,13 +102,12 @@ def test_chaser_outrun(bdir, sim):
     print(f"  chaser: outrun for {len(t['frames'])} frames")
 
 
-ST_NORMAL, ST_DREAM_DASH = 0, 3      # model/celeste.h
-
 if __name__ == "__main__":
     dream = build("dream_test")
     test_dream_dash(*dream)
     test_dream_block_is_solid(*dream)
     chaser = build("chaser_test")
+    test_chaser_sleeps_at_spawn(*chaser)
     test_chaser_catches_her(*chaser)
     test_chaser_outrun(*chaser)
     print("Chapter 2 mechanics: all checks passed")

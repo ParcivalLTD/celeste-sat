@@ -118,6 +118,19 @@ static void scramble(State *s)
     }
     if (s->state != ST_DASH) s->dashStartedOnGround = rnd2() & 1;
     if (s->state != ST_CLIMB) s->climbNoMoveTimer = (int)(rnd2() % 7);
+    if (s->state != ST_DREAM_DASH) {
+        s->dreamDashCanEndTimer = (int)(rnd2() % 8);
+        s->dreamJump = rnd2() & 1;
+    }
+#if HAS_CHASER
+    /* the recorded positions older than the longest chase delay: a chaser can
+     * never read them again (CHASER_MAX_DELAY in model/celeste.c) */
+    for (int d = CHASER_MAX_DELAY + 1; d < CHASER_HIST_LEN; d++) {
+        int i = (s->chaserTimer - 1 - d) & CHASER_HIST_MASK;
+        s->histX[i] = (short)(rnd2() % 2048);
+        s->histY[i] = (short)(rnd2() % 2048);
+    }
+#endif
 }
 static void check_same_future(const State *s)
 {
