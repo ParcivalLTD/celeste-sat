@@ -43,7 +43,7 @@ static void dump(const State *s, const char *path, int k)
     fprintf(f, "    .crT = {");
     for (int z = 0; z < MAX_CRUMBLES; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->crT[z]);
     fprintf(f, "},\n");
-    I(dbBroken);
+    I(dbBroken); I(tsOn);
     I(hopZip); I(hopZipT);
     fprintf(f, "    .refillTimer = {");
     for (int z = 0; z < MAX_REFILLS; z++) fprintf(f, "%s%d", z ? ", " : "", (int)s->refillTimer[z]);
