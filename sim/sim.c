@@ -164,6 +164,7 @@ int main(int argc, char **argv)
     if (jf) { fprintf(jf, "\n],\"exit_frame\":%d,\"death_frame\":%d}\n", exitFrame, deathFrame); fclose(jf); }
 
     if (exitFrame > 0) printf("EXIT at frame %d\n", exitFrame);
+    else if (deathFrame > 0) printf("no exit: died at frame %d (x=%d y=%d)\n", deathFrame, s.x, s.y);
     else printf("no exit within %d frames (x=%d y=%d)\n", n, s.x, s.y);
     return exitFrame > 0 ? 0 : 1;
 }
