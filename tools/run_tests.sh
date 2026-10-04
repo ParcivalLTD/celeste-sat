@@ -66,6 +66,7 @@ replay() {  # room tas expected
 }
 replay rooms/ledge.txt results/ledge.tas
 replay rooms/hop.txt results/hop.tas
+replay rooms/dream_test.txt tests/dream_test.tas
 if [ "$VANILLA" = 1 ]; then
     for r in 1 2 3; do
         [ -f rooms/vanilla/1a_lvl_$r.txt ] && [ -f results/1a_lvl_$r.tas ] && replay rooms/vanilla/1a_lvl_$r.txt results/1a_lvl_$r.tas
@@ -86,6 +87,9 @@ if [ -n "$RECORDINGS" ] && [ -f rooms/vanilla/1a_lvl_1.txt ]; then
     step "real game: recordings made with CelesteTAS ($RECORDINGS), every frame against the model"
     python3 tests/recordings.py "$RECORDINGS" rooms/vanilla | sed "s/^/  /"
 fi
+
+step "Chapter 2 mechanics: dream blocks and the Badeline chaser on the demo rooms"
+python3 tests/test_chapter2.py 2>&1 | sed "s/^/  /"
 
 step "beam search on the demo rooms (all cores)"
 for r in ledge hop gap flat; do
