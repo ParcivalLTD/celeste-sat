@@ -36,6 +36,8 @@ Lines starting with ';' are comments, except these directives:
                             dash into it breaks it (and she rebounds)
     ; switchgate X Y W H NX NY  a switch gate (W x H at (X, Y)); when every
                             touch switch in the room is on it moves to (NX, NY)
+    ; barrier X Y W H       an invisible barrier (W x H at (X, Y)): a Solid that
+                            never moves and is never drawn
     ; touchswitch X Y       a touch switch centred at (X, Y)
     ; chaser DELAY          a Badeline chaser (one line each; DELAY in frames)
 Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
@@ -74,7 +76,7 @@ def parse(path):
     colliders: [("spikes", dir, x, y, len) | ("spring", x, y) | ("refill", x, y)] in game order."""
     rows, exact, exits, ordered, jumpthrus, zipmovers, fallblocks, crumbles, dashblocks, dreamblocks = \
         [], None, [], [], [], [], [], [], [], []
-    chaser, nchasers, facing, zipkinds, touches = None, 0, None, [], []
+    chaser, nchasers, facing, zipkinds, touches, barriers = None, 0, None, [], [], []
     for line in open(path):
         line = line.rstrip("\n")
         words = line.split()
@@ -115,6 +117,8 @@ def parse(path):
             dashblocks.append(tuple(int(v) for v in words[2:7]))
         elif line.startswith("; dreamblock "):
             dreamblocks.append(tuple(int(v) for v in words[2:6]))
+        elif line.startswith("; barrier "):
+            barriers.append(tuple(int(v) for v in words[2:6]))
         elif line.startswith("; chaser"):
             chaser = int(words[2]) if len(words) > 2 else 90
             nchasers += 1
@@ -188,6 +192,7 @@ def parse(path):
     parse.crumbles = crumbles
     parse.dashblocks = dashblocks
     parse.dreamblocks = dreamblocks
+    parse.barriers = barriers
     parse.chaser = chaser
     parse.nchasers = nchasers
     parse.facing = facing
@@ -593,6 +598,14 @@ def main():
     if dreamblocks:
         out.append("static const short DREAMBLOCKS[NDREAMBLOCKS][4] = {")
         out += [f"    {{ {x}, {y}, {w_}, {h_} }}," for x, y, w_, h_ in dreamblocks]
+        out.append("};")
+    barriers = parse.barriers
+    out += ["", "/* invisible barriers: { x, y, w, h }; static, so they need no state */",
+            f"#define NBARRIERS {len(barriers)}"]
+    assert len(barriers) <= 8, "at most 8 invisible barriers"
+    if barriers:
+        out.append("static const short BARRIERS[NBARRIERS][4] = {")
+        out += [f"    {{ {x}, {y}, {w_}, {h_} }}," for x, y, w_, h_ in barriers]
         out.append("};")
     if parse.chaser is not None:
         out += ["", "/* Badeline chaser */",

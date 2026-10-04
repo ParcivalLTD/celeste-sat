@@ -73,6 +73,7 @@ bash tools/run_tests.sh --vanilla --sat    # also Chapter 1 rooms 1-3 and short 
 | `tools/run_tests.sh` | builds and checks everything on your machine |
 | `tools/celestetas.py` | writes CelesteTAS files for routes and compares the game's recording with the model |
 | `tools/chapter.py` | solves rooms in sequence, each starting in the state the previous one left her in |
+| `tools/entity_census.py` | which entities are still unmodelled, and in which rooms; `--tas` marks the rooms a community TAS visits |
 | `tools/import_chapter2.py`, `tools/chain_chapter2.py` | Chapter 2: exports the rooms from `2-OldSite.bin`; solves the Badeline chase room after room (see "Chapter 2 in the game") |
 | `tests/test_chapter2.py` | dream blocks and the Badeline chaser on small test rooms |
 | `brain.md` | notes for working on the project: what is verified, what is inferred, and what to do next |
@@ -99,6 +100,7 @@ top of the tile. Directives:
 ; fallingblock 152 160 32 24 1   a falling block: top-left (152, 160), 32 x 24; 1 = climbing it sets it off too
 ; crumble 232 152 24    a crumble block: top-left (232, 152), 24 x 8
 ; dashblock 304 240 24 32 1   a dash block, 24 x 32; 1 = a dash breaks it
+; barrier 320 128 16 24  an invisible barrier, 16 x 24 (a solid that is never drawn)
 ```
 
 Without an `exit` line the whole right edge is the exit. Spikes and springs
@@ -170,6 +172,11 @@ From `Player.cs` and the Monocle engine:
   after 1 s whatever she does; it is back after 2 s, once she is out of its
   way (same code as the moving solids, so from memory of the decompiled
   source too)
+- invisible barriers (`InvisibleBarrier`): a solid that never moves and is
+  never drawn, used in the game to close an opening off. Static, so it needs
+  nothing in the state, in `same_future` or in the room transition -- only a
+  box among the moving solids, after which every solid check sees it. They are
+  not assumed to be tile-aligned.
 - dash blocks: a solid that a dash breaks (still dash-attacking, moving the
   way she dashed: `DashBlock.OnDashed`), bouncing her back
   (`Player.Rebound`: 120 px/s away from it, 120 px/s up, 0.15 s of
@@ -230,14 +237,15 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   `tests/diff.sh` runs both builds on 40 random rooms (with spikes, jump-throughs,
   springs, exits on all sides, zip movers in every other room and falling
   blocks, some with spikes on them, in the others, crumble blocks in every
-  third, dash blocks in every fifth, dream blocks in every fourth, a Badeline
-  chaser or two in every fifth, and a switch gate with its touch switches where
-  a zip mover slot is free) × 300 random input runs: **2.88 million frames,
-  bit-identical**, with every mechanic above exercised (riding, pushing and
-  squishing included; falling and crumble blocks set off hundreds of times,
-  dash blocks broken, dream blocks entered 437 times and ending in a solid 273
-  of those — 102 wiggling out of it, 171 fatally —, touch switches hit 991 times,
-  switch gates opening 421 times, chasers catching her 1,307 times).
+  third, dash blocks in every fifth, dream blocks in every fourth, invisible
+  barriers in every third, a Badeline chaser or two in every fifth, and a
+  switch gate with its touch switches where a zip mover slot is free) × 300
+  random input runs: **2.95 million frames, bit-identical**, with every
+  mechanic above exercised (riding, pushing and squishing included; falling and
+  crumble blocks set off hundreds of times, dash blocks broken, dream blocks
+  entered 431 times and ending in a solid 271 of those — 103 wiggling out of
+  it, 168 fatally —, barriers blocking her 51,456 times, touch switches hit 981
+  times, switch gates opening 395 times, chasers catching her 1,484 times).
 
   The Chapter 2 mechanics were added to this fuzzing after the fact, and it
   immediately found two bugs in them, both on the frame a dream dash ends: a
@@ -257,13 +265,13 @@ water, holdables, climb blockers, assist modes. `MAX_DASHES` is 1.
   and Jump is pressed again while held only where that jumps. The fuzzing
   checks every such rule on every random frame: the barred input must give the
   identical state (or, for the buffer rules, differ only in the buffer).
-  1.9 million checks, none broken.
+  2.0 million checks, none broken.
 - The cross-room queries compare states with `same_future`
   (`model/state_eq.h`), which ignores fields that can no longer matter (the
   value behind an expired timer, the previous frame's aim, …). The fuzzing
   checks that too: on every random frame it scrambles those fields in a copy,
   runs both on with the same random inputs for up to 40 frames, and they must
-  keep agreeing on everything `same_future` compares. 6.6 million checks, none
+  keep agreeing on everything `same_future` compares. 6.8 million checks, none
   broken. The Chapter 2 fields are in it: the dream dash's two are compared
   only in `ST_DREAM_DASH` (both are set on entering it), and of the chaser's
   256 recorded positions only those inside the longest chase delay, since no

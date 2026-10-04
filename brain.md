@@ -12,6 +12,11 @@ what to do next.
 > Both are fixed; 40/40 rooms are bit-identical again. Next up is a Chapter 2
 > recording from the real game, and invisible barriers.
 >
+> **Later the same day.** `tools/entity_census.py` exists (ROADMAP M1): Chapter 1
+> is 34/38 rooms fully modelled and **20/20 of the rooms on the TAS route**, so
+> nothing blocks it. Invisible barriers are modelled, fuzzed and green --
+> but the three Chapter 2 rooms that need them must be **re-exported**, see §11.
+>
 > `ROADMAP.md` has the long view — what "calculating Celeste" can and cannot
 > mean, and the phases to get there. §8 of this file is the next few weeks;
 > the roadmap is the next few years.
@@ -123,13 +128,22 @@ block's `DREAM_DASH_MIN_TIME`, the chaser's 1.55 s delay and its 6x6 hitbox are
 all inferred. One recording would settle them the way the `lvl_4` recording
 settled falling-unduck.
 
-**(b) Unmodelled solids in the chase rooms.**
-`invisibleBarrier` is listed as NOT MODELLED in `2a_lvl_2`, `2a_lvl_9` and
-`2a_lvl_10` — those are *solid* in the game, so a route through those rooms can
-walk through a wall that really exists. `2a_lvl_10` taking 482 frames and
-`2a_lvl_13` taking 5 are both worth a sanity look for exactly this reason.
-Switch gates and touch switches came with the merge; invisible barriers are
-static solids and should just be done.
+**(b) Unmodelled solids in the chase rooms — modelled, not yet re-exported.**
+`invisibleBarrier` is now in the model (§11) and in the fuzzer. But
+`rooms/vanilla/2a_lvl_2.txt`, `2a_lvl_9.txt` and `2a_lvl_10.txt` were exported
+*before* that, so they still carry `; NOT MODELLED (ignored): invisibleBarrier`
+and no `; barrier` lines. **Until they are re-exported those three rooms still
+let a route walk through walls that exist**, which needs `2-OldSite.bin` (not in
+the repo):
+
+```bash
+python3 tools/import_chapter2.py          # re-exports every 2a_*.txt
+python3 tools/entity_census.py 2-OldSite.bin    # invisibleBarrier should be gone
+```
+
+`2a_lvl_10` taking 482 frames and `2a_lvl_13` taking 5 are both worth a sanity
+look once that is done — they are the rooms most likely to have been exploiting
+a missing wall.
 
 **(c) The chase route is provisional.** `results/2a_chase.tas` (13 rooms, 2,116
 frames) was found before the merge and before the two model fixes in §10. It
@@ -427,3 +441,58 @@ The moral is the one §6 already states: **a mechanic outside the differential
 fuzzer is not known to work.** Both bugs had been sitting in `main` since the
 Chapter 2 commits, through a 2,116-frame "completed" speedrun, and the fuzzer
 found them in one run.
+
+---
+
+## 11. ROADMAP M1 and invisible barriers — 2026-10-04 (later)
+
+**`tools/entity_census.py`.** ROADMAP §4.1 said to write this before guessing
+at the backlog. It exports every room with `tools/import_map.py` and reads the
+`; NOT MODELLED (ignored)` line out of the result, so it cannot drift from what
+the exporter actually supports. `--tas` marks the rooms a community TAS visits,
+which is the distinction that decides whether an entity blocks a chapter or
+just sits in a side room.
+
+Chapter 1: **34/38 rooms fully modelled, 20/20 on the TAS route, nothing
+blocking.** The four gaps are all off-route: `cassetteBlock` + `cassette` in
+`lvl_11z`, `birdForsakenCityGem` in `lvl_s1`, `npc` in `lvl_6zb`,
+`coverupWall` in `lvl_7a`. Only `cassetteBlock` is a real mechanic; the rest
+are collectables and scenery that probably belong in `import_map.py`'s
+`COSMETIC` set, but each is a fidelity claim, so they are left alone.
+
+Run it over the whole game before starting any Chapter 3+ work:
+
+```bash
+python3 tools/entity_census.py "<Celeste>/Content/Maps" --json census.json
+```
+
+**Invisible barriers.** `InvisibleBarrier` is a `Solid` that never moves and is
+never drawn. Because it is static it needs **nothing** in `State`, in
+`same_future` or in the transition — only a box among the moving solids
+(`MS_BA0`, after the dream blocks), after which every existing solid check sees
+it, including `first_solid_at`'s tiles-then-entities ordering and the climb-hop
+solid tracking. That is why it was an hour's work and not a day's.
+
+Two things worth remembering from doing it:
+
+- **A barrier over solid tiles is invisible to the fuzzer.** `collide_box` is
+  `tiles_collide || any_ms_overlap`, which short-circuits, so a barrier behind
+  a wall can never block anything. The generator has to place them in open air
+  or the coverage counter stays at 0 — which is exactly what happened on the
+  first two attempts. Half of them are placed off the tile grid, since nothing
+  requires alignment and the model must not assume it.
+- **One room's counter being 0 proves nothing.** Seed 3 reads as a total
+  failure (0 barrier hits) because that particular random room walls her into
+  the spawn column — `x 12..12` for all 120,000 frames. Across 40 rooms the
+  same code blocks her 51,456 times. Check the aggregate, never a single room.
+
+Also fixed while in there: `same_future` guarded the climb-hop solid
+(`hopZip`) on only the first four moving-solid kinds, while the code that sets
+it is guarded on `NMS > 0`. A room with *only* dream blocks, or only barriers,
+would therefore have left `hopZip` out of the comparison. Pre-existing, latent
+since dream blocks landed.
+
+**Still to do for this item:** the three Chapter 2 rooms that contain barriers
+were exported before the model supported them, so they must be re-exported
+from `2-OldSite.bin` (§4b). The model side is fuzz-verified; the room files are
+not yet updated, and that is the part a fresh clone cannot do for itself.

@@ -252,6 +252,8 @@ def export(package, level, lv, path=None, goals=None):
             lines.append(f"; touchswitch {a['x']} {a['y']}")
         elif e.name == "dreamBlock":
             lines.append(f"; dreamblock {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)}")
+        elif e.name == "invisibleBarrier":
+            lines.append(f"; barrier {a['x']} {a['y']} {a.get('width', 8)} {a.get('height', 8)}")
         elif e.name in ("badelineChaser", "badelineOldsite", "badelineBoss", "darkChaser"):
             delay = int(round(float(a.get("chaseWait", 1.55)) * 60))
             lines.append(f"; chaser {delay}")

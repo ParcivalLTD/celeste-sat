@@ -93,8 +93,11 @@ Already listed in `brain.md` §8; repeated here for completeness.
    ready; `tests/recordings.py <Celeste folder>` checks it room by room. This
    is the Tier A leg for Chapter 2 and settles the dream block's timing, the
    chaser's 1.55 s delay and its 6x6 hitbox, all currently inferred.
-3. **Invisible barriers** (static solids, ~an hour) — `2a_lvl_2`, `2a_lvl_9`,
-   `2a_lvl_10` currently let a route walk through walls that exist.
+3. ~~**Invisible barriers**~~ — the model side is **done** and fuzzed, but
+   `2a_lvl_2`, `2a_lvl_9` and `2a_lvl_10` were exported before it and must be
+   re-exported (`python3 tools/import_chapter2.py`, needs `2-OldSite.bin`).
+   Until then those three rooms still let a route walk through walls that
+   exist.
 4. Re-run `tools/chain_chapter2.py` and replace `results/2a_chase.tas`, which
    predates the merged chaser and the two model fixes.
 5. Fix the `--beam-rollout` default mismatch (8 vs 10) and sweep it.
@@ -108,11 +111,19 @@ Already listed in `brain.md` §8; repeated here for completeness.
 This is the long pole for "all of Celeste", and it must be **measured, not
 guessed**.
 
-### 4.1 The census (first task, one afternoon)
+### 4.1 The census — **done**, `tools/entity_census.py`
 
-`tools/import_map.py` already prints every entity per room and flags the
-unmodelled ones. Run it over all ten map files and aggregate. For Chapter 1,
-done today:
+It exports every room with `tools/import_map.py` and reads the
+`; NOT MODELLED (ignored)` line out of the result, so it cannot drift from what
+the exporter supports. `--tas` marks the rooms a community TAS visits.
+
+```bash
+python3 tools/entity_census.py "<Celeste>/Content/Maps" --json census.json
+python3 tools/entity_census.py 1-ForsakenCity.bin --tas recordings/1A.tas
+```
+
+Run it over the whole game before starting any Chapter 3+ work; until then §4.2
+below is still a hypothesis. For Chapter 1:
 
 ```
 38 rooms. Gameplay entities: jumpThru, spikes{Up,Down,Left,Right}, zipMover,
@@ -121,14 +132,11 @@ Decoration: wire, strawberry, lightbeam, bonfire, npc, memorial, flutterbird,
 birdForsakenCityGem, checkpoint, coverupWall, player (spawn markers).
 ```
 
-**Chapter 1 A-side is fully modelled** — the only unmodelled gameplay entity
-in the whole chapter is `cassetteBlock`, in `lvl_11z`, a cassette side-room off
-the main route. That is a genuinely strong position to build from.
-
-Write `tools/entity_census.py`: for each map, for each room, list unmodelled
-entities, and weight them by whether the room is on the TAS's route (parse the
-community TAS's room order). Output a ranked worklist. Everything below is a
-guess until that script exists — write it first.
+34/38 rooms are fully modelled and **20/20 of the rooms on the TAS route**, so
+nothing blocks the chapter. The four gaps are all off-route: `cassetteBlock` and
+`cassette` in `lvl_11z`, `birdForsakenCityGem` in `lvl_s1`, `npc` in `lvl_6zb`,
+`coverupWall` in `lvl_7a`. Only `cassetteBlock` is a real mechanic; the rest are
+collectables and scenery. That is a genuinely strong position to build from.
 
 ### 4.2 Expected shape of the backlog
 
@@ -139,6 +147,8 @@ confirm or refute.**
 **Easy — static or table-driven, like the solids already done:**
 - `cassetteBlock` (Ch1 side rooms, Ch2+): solid, toggles on a global beat.
 - wall springs, two-dash refills, `MAX_DASHES` > 1.
+- ~~invisible barriers~~ — **done**: static, so no state, no `same_future`
+  entry and no transition entry; just a box among the moving solids.
 - bumpers, `moveBlock` / `swapBlock` / `bounceBlock` (Kevin) — all moving
   solids with a coroutine, the same shape as `ZipMover`, which is already
   factored (`CUR_MS_BOX`, `ZIP_KIND`). The switch-gate work on the merged
@@ -375,7 +385,7 @@ Effort is wall-clock for one person working steadily; compute is separate.
 | # | milestone | effort | gate |
 |---|---|---|---|
 | M0 | Phase 0 done: Chapter 2 recorded in-game, barriers modelled, chase re-run | days | cbmc installed |
-| M1 | `tools/entity_census.py`; ranked backlog for all 10 maps | 1 day | you have the map files |
+| M1 | ~~`tools/entity_census.py`~~ **done**; run it on all 10 maps for the backlog | — | you have the map files |
 | M2 | Macro-action search beats the human TAS on Chapter 1 room 1 (≤ 92 frames) | 2–6 weeks | — |
 | M3 | Pareto DP chains a whole chapter and beats the human TAS end-to-end on Chapter 1 | 2–4 weeks | M2 |
 | M4 | Tier B certificate, W=8, for all of Chapter 1 | days | ~120 core-hours |

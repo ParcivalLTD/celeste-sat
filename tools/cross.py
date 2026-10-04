@@ -67,7 +67,7 @@ def model_unit(path, prefix, room_header):
 # which would make a "no" a claim about a weaker equivalence than it reports.
 # They are copied out of the generated room_b.h instead of counted again here.
 ENTITY_DEFINES = re.compile(
-    r"^#define\s+(NZIPMOVERS|NFALLBLOCKS|NCRUMBLES|NDASHBLOCKS|NREFILLS|NDREAMBLOCKS"
+    r"^#define\s+(NZIPMOVERS|NFALLBLOCKS|NCRUMBLES|NDASHBLOCKS|NREFILLS|NDREAMBLOCKS|NBARRIERS"
     r"|NTOUCH|TS_ALL|HAS_CHASER|CHASER_DELAY|NCHASERS)\s+(\S+)", re.M)
 
 
