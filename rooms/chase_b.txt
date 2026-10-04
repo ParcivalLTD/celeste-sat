@@ -1,0 +1,10 @@
+; demo room "chase_b": chase_a's neighbour above, with the same chaser. Exit
+; up; falling back into chase_a counts as failing. See chase_a.txt.
+; origin 0 0
+; exit up 16 48
+; leave down 16 48
+; chaser 60
+##....##
+#.S....#
+#......#
+##....##

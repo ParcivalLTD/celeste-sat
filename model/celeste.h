@@ -124,8 +124,9 @@
 #define DREAM_DASH_MIN_TIME 0.1f
 #define DREAM_DASH_END_WIGGLE 5
 #define MAX_DREAM_BLOCKS 8
-#define CHASER_HIST_LEN 128
-#define CHASER_HIST_MASK 127
+#define CHASER_HIST_LEN 256      /* > the longest chaser delay (93 + 24 * 4 frames) */
+#define CHASER_HIST_MASK 255
+#define MAX_TOUCH_SWITCHES 8
 
 /* hitboxes: width 8, x offset -4; height 11 (normal) or 6 (ducking) */
 #define HB_NORMAL_H 11
@@ -180,6 +181,9 @@ typedef struct {
     short crT[MAX_CRUMBLES];
     /* dash blocks broken by dashing into them (bit j: DASHBLOCKS[j]) */
     unsigned char dbBroken;
+    /* touch switches she has touched (bit j: TOUCHSWITCHES[j]); when all are
+     * on, the room's switch gates start (they are zip movers of kind 1) */
+    unsigned char tsOn;
     /* climbHopSolid when it is a moving solid: its index + 1 (zip movers
      * first, then falling blocks, then crumble blocks; 0: none or the
      * tiles), and its zipTimer / fbT when she last moved with it */
