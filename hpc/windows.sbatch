@@ -6,11 +6,11 @@
 # the log as it finishes (hpc/summary.py reads both).
 #SBATCH --job-name=ch1_win
 #SBATCH --account=EUHPC_D30_031
-#SBATCH --partition=dcgp_usr_prod
+#SBATCH --partition=boost_usr_prod
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=28
-#SBATCH --mem=130G
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=150G
 #SBATCH --output=build/logs/win_%A_%a.out
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
