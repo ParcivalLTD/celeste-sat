@@ -1,6 +1,6 @@
 ; room lvl_10 of 2-OldSite (40x120 tiles), imported by tools/import_map.py
 ; origin 896 -1256   (world position of the room's top-left corner)
-; NOT MODELLED (ignored): hanginglamp, invisibleBarrier
+; NOT MODELLED (ignored): hanginglamp
 ; no effect on movement: fakeWall, lightbeam, strawberry
 ; exit down 64 448   (-> lvl_2)
 ; leave up -256 480   (-> lvl_9)
@@ -56,6 +56,7 @@
 ; chaser 93
 ; chaser 93
 ; chaser 93
+; barrier 224 -8 40 8
 ; spikes up 64 472 8
 ; spikes up 272 56 32
 ; crumble 104 160 8
