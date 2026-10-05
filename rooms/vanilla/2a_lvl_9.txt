@@ -1,8 +1,7 @@
 ; room lvl_9 of 2-OldSite (92x40 tiles), imported by tools/import_map.py
 ; origin 640 -1576   (world position of the room's top-left corner)
-; NOT MODELLED (ignored): invisibleBarrier
 ; no effect on movement: fakeWall, lightbeam, strawberry
-; exit down 488 528   (-> lvl_10)
+; exit down 256 576   (-> lvl_10)
 ; leave down -320 16   (-> lvl_7)
 ; leave left 0 320   (-> lvl_8)
 ; leave up -216 336   (-> lvl_9b)
@@ -26,6 +25,8 @@
 ; chaser 93
 ; chaser 93
 ; chaser 93
+; barrier -8 56 8 48
+; barrier 8 -8 24 8
 ; spikes up 272 296 8
 ; spawn 8 96
 ##.#####################...#######..........................................................
