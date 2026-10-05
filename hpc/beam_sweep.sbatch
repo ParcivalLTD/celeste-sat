@@ -13,10 +13,10 @@
 # Result line per task in the log: "RESULT room rollout width tas_frames polished_frames".
 #SBATCH --job-name=beam_sweep
 #SBATCH --account=EUHPC_D30_031
-#SBATCH --partition=dcgp_usr_prod
+#SBATCH --partition=boost_usr_prod
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=28
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=100G
 #SBATCH --time=01:00:00
 #SBATCH --array=0-170

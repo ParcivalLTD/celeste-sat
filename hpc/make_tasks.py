@@ -8,8 +8,8 @@ make_tasks.py -- split the Chapter 1 window proofs into array tasks.
 Reads the routes tests/chain_tas.py wrote (build/chain_tas/<room>/route.tas)
 and writes build/hpc/tasks_w<W>[_<rooms>].txt, one line per array task:
 "room width k0 k1", at most --cores windows each. Every task runs all its
-windows at once, so its wall time is its slowest query; small tasks (28 cores,
-4 to a node) keep the cores a slow query leaves idle few. Memory is requested
+windows at once, so its wall time is its slowest query; small tasks (one
+32-core Booster node each) keep the cores a slow query leaves idle few. Memory is requested
 at about 0.3 GB per free frame + 0.5 GB per query (tools/cross.py's estimate)
 plus 15 %. Prints the sbatch command.
 """
@@ -23,7 +23,7 @@ from tas_endings import ORDER  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 ap.add_argument("--width", type=int, required=True)
-ap.add_argument("--cores", type=int, default=28, help="CBMC queries (and cores) per task (default 28)")
+ap.add_argument("--cores", type=int, default=32, help="CBMC queries (and cores) per task (default 32: one Booster node)")
 ap.add_argument("--timeout", type=int, default=3600, help="seconds per CBMC query (default 3600)")
 ap.add_argument("--rooms", help="comma-separated rooms (default: all 19)")
 a = ap.parse_args()

@@ -11,13 +11,12 @@
 # nothing unless that cache is cleared (FRESH=1 below does it).
 #SBATCH --job-name=ch2_chase
 #SBATCH --account=EUHPC_D30_031
-#SBATCH --partition=dcgp_usr_prod
+#SBATCH --partition=boost_usr_prod
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=112
-#SBATCH --exclusive
-#SBATCH --mem=0
-#SBATCH --time=08:00:00
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=480G
+#SBATCH --time=12:00:00
 #SBATCH --output=build/logs/ch2_chase_%j.out
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
