@@ -1,11 +1,20 @@
 # Leonardo runbook (2 days, account EUHPC_D30_031)
 
-Budget: `saldo -b` on 2026-10-05 showed 95,054 core-h left on the account
-until 2026-11-30, and 11,835 for this month with none used yet. Plan for
-about 5–8k (expected) and stay under the monthly figure. The account
-may be shared, so check with whoever else uses it before going beyond that.
-Use the DCGP partition only: nothing here uses a GPU, and a Booster node has
-only 32 CPU cores.
+The account's hours are on the **Booster** partition (`boost_usr_prod`) only;
+`saldo -b --dcgp` shows no DCGP budget for it. A Booster node is 32 Ice Lake
+cores, 512 GB and 4 A100s. Nothing here uses the GPUs, so every job asks for
+CPU cores only. Booster is busy (27 of 3176 nodes were free on 2026-10-05), so
+submit early: short single-node jobs get through the queue fastest.
+
+Budget: `saldo -b` on 2026-10-05 showed 95,054 local h left until 2026-11-30,
+and 11,835 for this month with none used yet. Plan for about 5–8k (expected)
+and stay under the monthly figure. The account may be shared, so check with
+whoever else uses it before going beyond that.
+
+How a CPU-only job on a GPU node is billed is not in CINECA's docs. Read it off
+the first job that runs: `sacct -X -j <jobid> --format=JobID,AllocTRES%80`
+shows `billing=N`, the local hours charged per hour of that job. If N is far
+above the cores you asked for, rethink the big runs before submitting them.
 
 Every command runs from the repo root on a login node.
 
@@ -20,7 +29,7 @@ python3 tests/chain_tas.py               # writes rooms/vanilla/1a_*.txt and bui
                                          # must end "2275 frames of the community TAS played exactly"
 
 # 1. smoke test on a compute node: same builds as on your laptop (fuzzer: 0 broken)?
-srun -A EUHPC_D30_031 -p dcgp_usr_prod -c 28 --mem=60G -t 00:30:00 tools/run_tests.sh
+srun -A EUHPC_D30_031 -p boost_usr_prod -c 32 --mem=60G -t 00:30:00 tools/run_tests.sh
 
 # 2. W=12 over all of Chapter 1, plus every room change at the default window
 python3 hpc/make_tasks.py --width 12     # prints the sbatch line: run it
@@ -32,7 +41,7 @@ sbatch --array=0-8 hpc/beam_sweep.sbatch
 
 Watch the per-query seconds in `build/logs/win_*.out` (`python3 hpc/summary.py`).
 They calibrate the rest. The ROADMAP's laptop figures are ~8 min per query at
-W=12 and ~65 min at W=16, and Sapphire Rapids at 2.0 GHz may be slower per core.
+W=12 and ~65 min at W=16.
 
 ```bash
 # 4. before bed: W=16 over Chapter 1 (timeout 4 h per query; raise it if W=12 was slow)
@@ -45,9 +54,9 @@ sbatch --array=9-170 hpc/beam_sweep.sbatch
 
 Chapter 2 chase: only after `2a_lvl_2`, `2a_lvl_9` and `2a_lvl_10` have been
 re-exported with invisible barriers (`python3 tools/import_chapter2.py` on the
-laptop, which has `2-OldSite.bin`; copy the three files over). Then
-`sbatch --export=ALL,BEAM=500000 hpc/ch2_chase.sbatch`. The script refuses to
-run before that.
+laptop, which has `2-OldSite.bin`; done on 2026-10-05, in git). Then
+`sbatch --export=ALL,BEAM=500000 hpc/ch2_chase.sbatch` (32 cores, up to 12 h).
+The script refuses to run while the rooms lack the barriers.
 
 ## Tomorrow
 

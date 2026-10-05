@@ -10,7 +10,7 @@
 # Results: build/cross_<a>_<b>_b<BEFORE>a<AFTER>/result.json, summary line in the log.
 #SBATCH --job-name=ch1_cross
 #SBATCH --account=EUHPC_D30_031
-#SBATCH --partition=dcgp_usr_prod
+#SBATCH --partition=boost_usr_prod
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
