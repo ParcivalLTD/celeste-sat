@@ -96,8 +96,8 @@ static int pos_dist(int x, int y, int *ax, int *ay);
 static bool at_switch(int j, int x, int y)
 {
 #if NTOUCH > 0
-    return x - 4 < TOUCHSWITCHES[j][0] + 15 && x + 4 > TOUCHSWITCHES[j][0] - 15
-        && y - 11 < TOUCHSWITCHES[j][1] + 15 && y - 2 > TOUCHSWITCHES[j][1] - 15;
+    return x - 4 < TOUCHSWITCHES[j][0] + 8 && x + 4 > TOUCHSWITCHES[j][0] - 8
+        && y - 11 < TOUCHSWITCHES[j][1] + 8 && y > TOUCHSWITCHES[j][1] - 8;
 #else
     (void)j; (void)x; (void)y; return false;
 #endif

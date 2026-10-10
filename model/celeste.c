@@ -2186,15 +2186,15 @@ static void chaser_update(State *s)
 #endif
 
 #if NTOUCH > 0
-/* TouchSwitch: a PlayerCollider (30 x 30 around it) against her hurtbox;
+/* TouchSwitch: a PlayerCollider against her collider (Entity.Collider is Hitbox(16, 16, -8, -8));
  * Switch.Activate -> when every switch in the room is on, all finish at once
  * and the switch gates' Sequence() sees it in their update this frame */
 static void touch_update(State *s)
 {
-    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y;
     for (int j = 0; j < NTOUCH; j++)
-        if (s->x - 4 < TOUCHSWITCHES[j][0] + 15 && s->x + 4 > TOUCHSWITCHES[j][0] - 15
-            && top < TOUCHSWITCHES[j][1] + 15 && bot > TOUCHSWITCHES[j][1] - 15) {
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + 8 && s->x + 4 > TOUCHSWITCHES[j][0] - 8
+            && top < TOUCHSWITCHES[j][1] + 8 && bot > TOUCHSWITCHES[j][1] - 8) {
             if (!(s->tsOn & (1u << j))) COV(C_TOUCHSWITCH);
             s->tsOn |= (unsigned char)(1u << j);
         }
