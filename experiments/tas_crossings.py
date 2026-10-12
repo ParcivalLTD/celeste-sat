@@ -10,18 +10,20 @@ state after B frames in the next room one frame sooner. A "no" for every
 frame she could leave on proves the TAS cannot gain a frame there without
 changing what came before or what comes after.
 
-    python3 tests/tas_crossings.py [--before 6] [--after 3] [--timeout 1800] [--from lvl_4]
+    python3 experiments/tas_crossings.py [--before 6] [--after 3] [--timeout 1800] [--from lvl_4]
 
 Run tests/chain_tas.py first. Each boundary's result is in
 build/cross_<a>_<b>/result.json; a summary is printed.
 """
-import argparse, json, os, subprocess, sys
+import argparse
+import os
+import subprocess
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-sys.path.insert(0, os.path.join(ROOT, "tests"))
-from solve import read_tas  # noqa: E402
-from tas_endings import ORDER  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat.community import CH1_ORDER as ORDER  # noqa: E402
+from celeste_sat.paths import BUILD, ROOT, VANILLA  # noqa: E402
+from celeste_sat.tas import read_tas  # noqa: E402
 
 
 def main():
@@ -33,15 +35,15 @@ def main():
     ap.add_argument("--from", dest="start", default=ORDER[0])
     a = ap.parse_args()
     for ra, rb in zip(ORDER[ORDER.index(a.start):], ORDER[ORDER.index(a.start) + 1:]):
-        route_a = os.path.join(ROOT, "build", "chain_tas", ra, "route.tas")
-        route_b = os.path.join(ROOT, "build", "chain_tas", rb, "route.tas")
+        route_a = os.path.join(BUILD, "chain_tas", ra, "route.tas")
+        route_b = os.path.join(BUILD, "chain_tas", rb, "route.tas")
         if not (os.path.exists(route_a) and os.path.exists(route_b)):
             print(f"{ra} -> {rb}: not played by tests/chain_tas.py, skipped")
             continue
-        entry = os.path.join(ROOT, "build", "chain_tas", f"entry_{ra}.h")
-        out = os.path.join(ROOT, "build", f"cross_{ra}_{rb}")
-        cmd = [sys.executable, f"{ROOT}/tools/cross.py", f"{ROOT}/rooms/vanilla/1a_{ra}.txt", route_a,
-               f"{ROOT}/rooms/vanilla/1a_{rb}.txt", route_b, "--keep", str(len(read_tas(route_a)) - a.before),
+        entry = os.path.join(BUILD, "chain_tas", f"entry_{ra}.h")
+        out = os.path.join(BUILD, f"cross_{ra}_{rb}")
+        cmd = [sys.executable, f"{ROOT}/tools/cross.py", f"{VANILLA}/1a_{ra}.txt", route_a,
+               f"{VANILLA}/1a_{rb}.txt", route_b, "--keep", str(len(read_tas(route_a)) - a.before),
                "--target", str(a.after), "--timeout", str(a.timeout), "--jobs", str(a.jobs), "--out", out]
         if os.path.exists(entry):
             cmd += ["--start", entry]

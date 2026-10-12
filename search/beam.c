@@ -51,7 +51,7 @@
 #define LOOK 16
 
 /* field 0: distance to an exit; field 1 + j: distance to touch switch j
- * (positions where her hurtbox touches its 30 x 30 collider) */
+ * (positions where she touches it, as touch_update in model/celeste.c decides) */
 #define NFIELDS (1 + NTOUCH)
 static int distF[NFIELDS][GH][GW];
 static short aheadXF[NFIELDS][GH][GW], aheadYF[NFIELDS][GH][GW];   /* point LOOK px further along the path */
@@ -288,7 +288,7 @@ static Input policy(const State *s)
 
 static int EXIT_X = -1;          /* -x: only count exits at this x (to line up with the next room's route) */
 static float DASH_BONUS = 0.0f;
-static int ROLLOUT = 10;
+static int ROLLOUT = 8;         /* -r; tools/solve.py's default (--beam-rollout) too */
 static float TIE = 0.0f;         /* -t: prefer states that reach their best distance sooner */
 static float score(const State *s0)
 {

@@ -1,5 +1,5 @@
 /*
- * scan_entry.c -- for tests/chain_3b_5.py: play a route from a family of
+ * scan_entry.c -- for experiments/chain_3b_5.py: play a route from a family of
  * entry states (an up-transition entry with x and the pending wall speed
  * retention varied) and dump the exit state of every one that leaves the
  * room on the route's last frame.

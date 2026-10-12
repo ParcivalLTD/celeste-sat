@@ -1,6 +1,6 @@
 /*
  * transition.h -- the state Madeline enters the next room with (solver
- * build). The same rules as enter_room in tools/chapter.py, which documents
+ * build). The same rules as enter_room in celeste_sat/transition.py, which documents
  * them; tools/cross.py checks that the two agree.
  *
  * The including file defines, for one room pair:
@@ -17,7 +17,7 @@
 #define TR_RIGHT 3
 
 /* game frames between the exit frame's update and her first update in the new
- * room; TRANSITION_GAP in tools/chapter.py (recordings/celeste-sat-probe-1to2.txt) */
+ * room; TRANSITION_GAP in celeste_sat/transition.py (data/recordings/celeste-sat-probe-1to2.txt) */
 #define TR_TRANSITION_GAP 40
 
 /* Math.Round: to nearest, ties to even (speeds are well inside +-2^22) */
@@ -57,7 +57,7 @@ static State enter_room(State st)
         }
     }
     /* Level.TransitionRoutine: where she stops in the new room */
-    if (TR_SIDE == TR_UP)    { int stop = TR_NEW_H <= 184 ? TR_NEW_H - 9 : TR_NEW_H - 5; if (y > stop) y = stop; }  /* measured, see tools/chapter.py */
+    if (TR_SIDE == TR_UP)    { int stop = TR_NEW_H <= 184 ? TR_NEW_H - 9 : TR_NEW_H - 5; if (y > stop) y = stop; }  /* measured, see celeste_sat/transition.py */
     if (TR_SIDE == TR_DOWN)  { if (y < 12) y = 12; }
     if (TR_SIDE == TR_RIGHT) { if (x < 4) x = 4; }
     if (TR_SIDE == TR_LEFT)  { if (x > TR_NEW_W - 5) x = TR_NEW_W - 5; }
@@ -95,7 +95,7 @@ static State enter_room(State st)
      * with a delay in game time, and that history runs on across rooms: it is
      * carried over in the new room's coordinates, then TRANSITION_GAP frames of
      * standing at the entry position (the transition itself runs no player
-     * updates). Mirrors carry_chaser_history in tools/chapter.py, which
+     * updates). Mirrors carry_chaser_history in celeste_sat/transition.py, which
      * documents it; tools/cross.py checks that the two agree. */
     {
         const int n = CHASER_HIST_LEN, t = st.chaserTimer;
