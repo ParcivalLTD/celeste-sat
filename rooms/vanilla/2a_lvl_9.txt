@@ -1,7 +1,7 @@
 ; room lvl_9 of 2-OldSite (92x40 tiles), imported by tools/import_map.py
 ; origin 640 -1576   (world position of the room's top-left corner)
 ; no effect on movement: fakeWall, lightbeam, strawberry
-; exit down 256 576   (-> lvl_10)
+; exit down 488 512   (-> lvl_10)
 ; leave down -320 16   (-> lvl_7)
 ; leave left 0 320   (-> lvl_8)
 ; leave up -216 336   (-> lvl_9b)

@@ -2,7 +2,7 @@
 ; origin 896 -1256   (world position of the room's top-left corner)
 ; NOT MODELLED (ignored): hanginglamp
 ; no effect on movement: fakeWall, lightbeam, strawberry
-; exit down 64 448   (-> lvl_2)
+; exit down 80 112   (-> lvl_2)
 ; leave up -256 480   (-> lvl_9)
 ; dreamblock 56 16 160 32
 ; spikes up 48 104 24
