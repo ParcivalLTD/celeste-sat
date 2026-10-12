@@ -14,7 +14,7 @@ a faster route or proves that none exists, within the model.
 $ python3 tools/solve.py rooms/ledge.txt --tas results/routes/ledge.tas --from-frame 8
 upper bound: 18 frames (results/routes/ledge.tas)
 keeping frames 1..8 fixed; the solver optimises frames 9..
-SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (204s)
+SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
 ```
 
 ## What it has shown
