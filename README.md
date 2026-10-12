@@ -44,8 +44,9 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (204s)
   being committed, and none of the savings has been played in the game yet
   ([ROADMAP.md](ROADMAP.md), steps 1-2).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
-  chasers, switch gates and invisible barriers, all in the fuzzer. It has not
-  been checked against the game yet.
+  chasers, switch gates and invisible barriers, all in the fuzzer. A 12-room
+  chase route (2,531 frames) plays in the model. None of it has been checked
+  against the game yet.
 
 "Proven" here always means *within the model*, and usually *given the frames
 before the window*. What can and can't be claimed is in

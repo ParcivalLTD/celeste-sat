@@ -124,9 +124,9 @@ python3 tools/celestetas.py chain build/chapter2_chase/2A_chase.tas --load "2 3"
     --dump celeste-sat-2a-chase.txt -o results/celestetas/2a_chase.tas
 ```
 
-No Chapter 2 route in the repository replays in the current model (see
-[results.md](results.md#chapter-2-the-badeline-chase)), so re-run the first
-command before recording anything.
+`results/celestetas/2a_chase.tas` is that file for the 12-room route in
+`results/routes/2a_chase.tas`, which replays in the current model
+(`tools/run_tests.sh` checks it). It is ready to record.
 
 `chain` replays every room in the model first (each must be left on its last
 frame), then writes: `console load 2 3` (the game's room names drop the map's
@@ -206,18 +206,19 @@ Everything Chapter 2 adds rests on the game's code as read, the differential
 fuzzer and the demo-room checks (`tests/test_chapter2.py`), and none of it on
 a recording. In order of how much a route depends on it:
 
-- **Touch switches.** Which box touches the switch is unsettled. Since commit
-  1d3e148 the model uses the switch's 16 × 16 `Entity.Collider` (±8 px)
-  against her collider, whose bottom is at her feet. Before, it used a
-  30 × 30 `PlayerCollider` (±15 px) against her hurtbox (bottom 2 px above
-  her feet), as the switch was first read from the game. The model's own
-  `player_colliders` checks every other `PlayerCollider` with the hurtbox,
-  as `Player.Update` does, so the two readings differ on the player's side
-  as well as the switch's. The change is what made `2a_lvl_7` solvable,
-  which is a reason to check it rather than a reason to believe it.
-  Settle it with ILSpy on the game's `Celeste.exe` (the `TouchSwitch`
-  constructor and `PlayerCollider.Check`) or one recording of a switch room
-  (`2a_lvl_6`).
+- **Touch switches.** The model checks the switch's 30 × 30
+  `PlayerCollider` (±15 px around it) against her hurtbox (bottom 2 px above
+  her feet). Two sources back that. The published `Player.cs` swaps in the
+  hurtbox for the whole `PlayerCollider` loop of `Update`. MaxHelpingHand's
+  `FlagTouchSwitch`, a mod that mirrors the vanilla switch, builds
+  `new PlayerCollider(onPlayer, null, new Hitbox(30f, 30f, -15f, -15f))` next
+  to a 16 × 16 entity `Collider`. Commit 1d3e148 had switched the model to the
+  16 × 16 box against her collider. That reads the entity's `Collider` where
+  the `PlayerCollider`'s own box applies, so it was reverted on 2026-10-12.
+  With the revert, the 12-room chase route of 2026-10-01 replays again
+  (under the 16 × 16 box it died in `2a_lvl_6`). Chapter 2 results computed
+  between the two (the Leonardo chase run) have to be redone. A recording of
+  a switch room (`2a_lvl_6`) would settle it for good.
 - **The chaser.** Its delay (1.55 s plus 0.4 s per chaser, read three frames
   wide because of `Scene.TimeActive` rounding), its 6 × 6 hitbox at (−3, −7),
   the wake-up delay after a respawn (`CHASER_WAKE`, 6 frames in the model,

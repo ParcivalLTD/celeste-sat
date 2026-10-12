@@ -21,8 +21,8 @@ is one sequence, and every step says which goal it serves.
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
 | Local optimality (Tier B) | W = 8 over Chapter 1 room 1 here; W = 12/16 over all of Chapter 1 on Leonardo | Leonardo output **not committed** |
 | Faster than the community TAS | **15 frames in the model** (`lvl_6a` −5, `lvl_12` −5, `lvl_9b` −3, `lvl_3b` −2, from Leonardo windows that end in the TAS's own state) | not committed, **not played in the game** |
-| Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; touch-switch hitbox unsettled | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
-| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 245 vs 221). The one room where it was ahead, `lvl_10`, was solved before that room's invisible barriers were modelled. The committed routes no longer replay | `results/archive/` |
+| Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; the touch-switch hitbox change of 1d3e148 reverted to the game's | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
+| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 245 vs 221). `results/routes/2a_chase.tas` replays in the current model; it beats the community only in `lvl_10` (628 vs 633) | `results/routes/2a_chase.tas` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
 
 The record to beat for Chapter 1 is the community TAS's **0:49.079** (2,887
@@ -96,10 +96,14 @@ game is the final check. Each frame the game accepts is a record frame. A
 Chapter 2 rests on code that has never met the game. Settle that before
 spending more compute on it.
 
-1. **The touch-switch hitbox** (commit 1d3e148). Read the `TouchSwitch`
-   constructor and `PlayerCollider.Check` in `Celeste.exe` with ILSpy, or
-   record one switch room. Until this is settled, every chase route through
-   `2a_lvl_6`, `2a_lvl_7`, `2a_lvl_9` or `2a_lvl_10` is suspect.
+1. **The touch-switch hitbox.** Commit 1d3e148's change was reverted on
+   2026-10-12 to the game's 30 × 30 `PlayerCollider` against the hurtbox. The
+   published `Player.cs` and a mod that mirrors the vanilla switch both
+   support it ([docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet)).
+   Confirm it with ILSpy (`TouchSwitch`'s constructor) or a recording of
+   `2a_lvl_6`. Then re-solve the chase rooms the Leonardo run solved with the
+   other hitbox. If `2a_lvl_7` is hard for the beam search again, that is a
+   search problem (step 6), not a model one.
 2. **The community 2A TAS through the model.** This is the cheapest strong
    check there is, the same one that made Chapter 1 believable. Generalise
    `tests/chain_tas.py` to a chapter argument: the rooms and goals come from

@@ -85,6 +85,10 @@ replay rooms/dream_test.txt tests/fixtures/dream_test.tas
 step "Chapter 2 mechanics: dream blocks and the Badeline chaser on the demo rooms"
 check "Chapter 2 mechanics" python3 tests/test_chapter2.py
 
+step "the Chapter 2 chase route (results/routes/2a_chase.tas): every room left on its last frame, in the model"
+check "Chapter 2 chase route" python3 tools/celestetas.py chain results/routes/2a_chase.tas --load "2 3" --skip-cutscene \
+    --dump celeste-sat-2a-chase.txt -o build/2a_chase_check.tas
+
 step "room transition: the C port (model/transition.h) against the Python rules (celeste_sat/transition.py)"
 # the second pair carries a Badeline chaser's history across the transition,
 # which is the only check of that branch (see rooms/chase_a.txt)
