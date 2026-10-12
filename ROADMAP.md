@@ -22,7 +22,7 @@ is one sequence, and every step says which goal it serves.
 | Local optimality (Tier B) | W = 8 over Chapter 1 room 1 here; W = 12/16 over all of Chapter 1 on Leonardo | Leonardo output **not committed** |
 | Faster than the community TAS | **15 frames in the model** (`lvl_6a` −5, `lvl_12` −5, `lvl_9b` −3, `lvl_3b` −2, from Leonardo windows that end in the TAS's own state) | not committed, **not played in the game** |
 | Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; the touch-switch hitbox change of 1d3e148 reverted to the game's | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
-| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 245 vs 221). `results/routes/2a_chase.tas` replays in the current model; it beats the community only in `lvl_10` (628 vs 633) | `results/routes/2a_chase.tas` |
+| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 252 vs 221). `results/routes/2a_chase.tas` replays in the current model; it beats the community only in `lvl_10` (628 vs 633) | `results/routes/2a_chase.tas` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
 
 The record to beat for Chapter 1 is the community TAS's **0:49.079** (2,887
@@ -43,9 +43,12 @@ is the evidence for everything that follows.
   crossing `result.json` files and `better.tas`, the beam-sweep `RESULT`
   lines, the Chapter 2 routes, and `hpc/summary.py`'s table. They are small
   text files.
-- Record next to them the commit they were computed at (`588c008`'s parent
-  for most of Chapter 1; check the job logs) and the CBMC version. A proof is
-  about one model; without the commit it cannot be cited.
+- Record next to them the commit they were computed at (check the job logs)
+  and the CBMC version. A proof is about one model; without the commit it
+  cannot be cited. The model's behaviour in Chapter 1 has not changed since
+  commit becbd34 (2026-10-04). Everything after it touched only Chapter 2
+  (touch switches, room files) or, in this cleanup, nothing the model
+  computes. So Chapter 1 results from the campaign still hold at HEAD.
 - Re-run `python3 hpc/summary.py` on the copied files and put its table in
   `docs/results.md`, replacing the "as reported" numbers there.
 
@@ -111,8 +114,10 @@ spending more compute on it.
    skip (the TAS's `1,S` lines), and the chaser history runs on across rooms.
    Every room's inputs must leave it on their last frame. Where they don't,
    the model is wrong.
-3. **One recording** of the chase (`tools/celestetas.py chain`) for the
-   chaser delay and hitbox, the dream-block timing and the switch gates.
+3. **One recording** of the chase for the chaser delay and hitbox, the
+   dream-block timing and the switch gates. `results/celestetas/2a_chase.tas`
+   (the 12-room route, which replays in the current model) is ready to play.
+   Then `python3 tests/recordings.py <Celeste folder>`.
 4. Only then: windows over the community 2A TAS (`hpc/make_tasks.py`
    generalised to a chapter), the same way as Chapter 1. Don't race the
    community TAS with the beam search. It is ~9 % behind over the chase,
@@ -171,8 +176,8 @@ game files can't be included. Say so and document `game/README.md`.
   `1-ForsakenCity.bin` (the game's map file) and the community TAS copies
   from the tree, but they are still in the history of a public repository.
   If that matters to you, rewrite the history (`git filter-repo --path
-  1-ForsakenCity.bin --invert-paths`, likewise `recordings/1A*.tas`) and
-  force-push. It is destructive and changes every commit hash, so decide
+  1-ForsakenCity.bin --invert-paths`, likewise `recordings/1A*.tas` and
+  `results/celestetas/celeste-sat-community-1a.tas`) and force-push. It is destructive and changes every commit hash, so decide
   deliberately and do it before anyone forks. The Chapter 2 room exports
   (`rooms/vanilla/2a_*.txt`) are game-derived too. Consider keeping only
   `tools/import_chapter2.py` and its `EXIT_FIXES`.
