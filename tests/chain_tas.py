@@ -1,101 +1,96 @@
 #!/usr/bin/env python3
 """
-chain_tas.py -- play the community TAS of Chapter 1 through the model room
+chain_tas.py -- play the community TAS of Chapter 1 through the model, room
 after room, from its first room, as far as it goes.
 
-    python3 tests/chain_tas.py [--from ROOM --entry ENTRY.h] [--map 1-ForsakenCity.bin] [--tas 1A.tas]
+    python3 tests/chain_tas.py [--last ROOM] [--from ROOM --entry ENTRY.h] [--map MAP] [--tas 1A.tas]
 
-Each room's inputs must leave the room on exactly their last frame; the next
-room then starts from the state the model gives her on entering it
-(tools/chapter.py). Rooms are exported from the map (tools/import_map.py)
-with the TAS's next room as the goal. The first room starts from its spawn,
-unless --from names a later room and --entry the state to enter it with.
+This is the strongest check of the model there is: the community TAS has
+been played in the real game, and a room's inputs only leave the room on
+exactly their last frame if every frame before agreed with the game -- one
+frame early or late, or a different spot, and the next room's inputs no
+longer work. Each room starts from the state the model gives her on entering
+it (celeste_sat/transition.py); the first from its spawn, unless --from names
+a later room and --entry the state to enter it with.
+
+Rooms are exported from the map (game/1-ForsakenCity.bin by default, see
+celeste_sat/paths.py) into rooms/vanilla/1a_<room>.txt, with the TAS's next
+room as the goal. The TAS is downloaded at a pinned commit
+(celeste_sat/community.py) unless --tas gives a copy.
+
+Leaves in build/chain_tas/: <room>/route.tas (the TAS's inputs for the room),
+<room>/ (its build) and entry_<room>.h (the state she enters it with) --
+the starting point of everything in experiments/ and hpc/.
 """
-import argparse, os, re, subprocess, sys
+import argparse
+import os
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from chapter import enter_room, exit_side, origin_of, read_state, tables, up_stop, write_state  # noqa: E402
-from make_room import parse  # noqa: E402
-from solve import build, read_tas, sh  # noqa: E402
-
-
-def sections(text, rooms):
-    """room -> input lines (labels that are not rooms of the map, like #1SH0G, stay in their room)"""
-    out, order, cur = {}, [], None
-    for line in text.splitlines():
-        s = line.strip()
-        m = re.match(r"#(\S+)", s)
-        if m and m.group(1) in rooms:
-            cur = m.group(1)
-            out[cur] = []
-            order.append(cur)
-        elif cur and re.match(r"\d+", s):
-            out[cur].append(s)
-    for lines in out.values():
-        while lines and re.fullmatch(r"\d+", lines[-1]):
-            lines.pop()
-    return out, order
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import community  # noqa: E402
+from celeste_sat.build import build, exit_frame_of, run_sim  # noqa: E402
+from celeste_sat.celeste_map import export_room, room_names  # noqa: E402
+from celeste_sat.paths import BUILD, VANILLA, find_map  # noqa: E402
+from celeste_sat.tas import read_tas, sections  # noqa: E402
+from celeste_sat.transition import next_entry  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--from", dest="start", default=None)
-    ap.add_argument("--entry", help="entry state for the first room (default: see above)")
-    ap.add_argument("--map", default=os.path.join(ROOT, "1-ForsakenCity.bin"))
-    ap.add_argument("--tas", default=os.path.join(ROOT, "recordings", "1A.tas"))
-    ap.add_argument("--rooms", default=os.path.join(ROOT, "rooms", "vanilla"))
+    ap.add_argument("--from", dest="start", default=None, help="first room to play (needs --entry)")
+    ap.add_argument("--entry", help="entry state for the first room (default: its spawn)")
+    ap.add_argument("--last", help="last room to play (default: as far as the TAS goes)")
+    ap.add_argument("--map", help="1-ForsakenCity.bin (default: see celeste_sat/paths.py)")
+    ap.add_argument("--tas", help="a copy of the community 1A.tas (default: download it at the pinned commit)")
+    ap.add_argument("--rooms", default=VANILLA, help="where the exported rooms go (default rooms/vanilla)")
     a = ap.parse_args()
 
-    listing = sh([sys.executable, f"{ROOT}/tools/import_map.py", a.map]).stdout
-    map_rooms = set(re.findall(r"^\s+(\S+)\s+\d+x\d+\s+tiles", listing, re.M))
-    secs, order = sections(open(a.tas).read(), map_rooms)
-    work = os.path.join(ROOT, "build", "chain_tas")
+    map_path = a.map or find_map("1-ForsakenCity.bin")
+    secs, order = sections(community.fetch("1A.tas", a.tas), room_names(map_path))
+    work = os.path.join(BUILD, "chain_tas")
     os.makedirs(work, exist_ok=True)
+    os.makedirs(a.rooms, exist_ok=True)
+
+    def room_file(i):
+        """rooms/vanilla/1a_<order[i]>.txt, exported with the next room as the goal if missing"""
+        path = os.path.join(a.rooms, f"1a_{order[i]}.txt")
+        if not os.path.exists(path) and i + 1 < len(order):
+            export_room(map_path, order[i], path, [order[i + 1]])
+        return path
+
     k = order.index(a.start) if a.start else 0
     entry = a.entry
     if k > 0 and not entry:
         sys.exit("--from a later room needs --entry")
+    last = order.index(a.last) if a.last else len(order) - 2
     total = 0
-    for i in range(k, len(order) - 1):
+    for i in range(k, min(last, len(order) - 2) + 1):
         name, nxt = order[i], order[i + 1]
-        room = os.path.join(a.rooms, f"1a_{name}.txt")
-        if not os.path.exists(room):
-            r = sh([sys.executable, f"{ROOT}/tools/import_map.py", a.map, name, "--to", nxt, "-o", room])
-            if r.returncode:
-                sys.exit(r.stderr)
+        room = room_file(i)
         notes = [l.strip("; \n") for l in open(room) if "NOT MODELLED" in l]
         bdir = os.path.join(work, name)
         build(room, bdir, entry)
         route = os.path.join(bdir, "route.tas")
         open(route, "w").write("\n".join(secs[name]) + "\n")
         n = len(read_tas(route))
-        out = sh([f"{bdir}/sim", route]).stdout
-        m = re.search(r"EXIT at frame (\d+)", out)
-        got = int(m.group(1)) if m else None
+        out = run_sim(bdir, route).stdout
+        got = exit_frame_of(out)
         ok = got == n
         print(f"{name:8s} {n:4d} frames of inputs: leaves on frame {got if got else '-- never'}  "
               f"{'ok' if ok else 'DIFFERENT'}{'   (' + notes[0] + ')' if notes else ''}", flush=True)
         if not ok:
-            last = (out.strip().splitlines() or [r.stderr.strip() if (r := sh([f"{bdir}/sim", route])) else ""])[-1]
-            print(f"         stops there: {last}")
-            break
+            print(f"         stops there: {(out.strip().splitlines() or [''])[-1]}")
+            print(f"MISMATCH after {total} frames of the community TAS played exactly from {order[k]}")
+            return 1
         total += n
-        exit_h = os.path.join(bdir, "exit.h")
-        sh([f"{bdir}/sim", "-s", str(n), exit_h, route])
-        st = read_state(exit_h)
-        nroom = os.path.join(a.rooms, f"1a_{nxt}.txt")
-        if not os.path.exists(nroom) and i + 2 < len(order):
-            sh([sys.executable, f"{ROOT}/tools/import_map.py", a.map, nxt, "--to", order[i + 2], "-o", nroom])
+        nroom = room_file(i + 1)
         if not os.path.exists(nroom):
             break
-        rows, nrows = parse(room)[0], parse(nroom)[0]
-        e = enter_room(st, exit_side(st, len(rows[0]) * 8, len(rows) * 8), origin_of(room), origin_of(nroom),
-                       len(nrows[0]) * 8, len(nrows) * 8, tables(bdir))
         entry = os.path.join(work, f"entry_{nxt}.h")
-        write_state(e, entry, f"entering {nxt} from {name}")
+        next_entry(bdir, route, n, room, nroom, entry, f"entering {nxt} from {name}")
     print(f"{total} frames of the community TAS played exactly from {order[k]}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
