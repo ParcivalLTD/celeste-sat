@@ -19,16 +19,26 @@ A is not necessarily the fastest way through A and B together (the entry
 into B carries A's speed, facing and pending wall-speed retention).
 
 Rooms need an "; origin X Y" line (tools/import_map.py writes one). The
-known route's entry into B is computed as in tools/chapter.py; this tool
+known route's entry into B is computed as in celeste_sat/transition.py; this tool
 checks that its C port (model/transition.h) agrees.
 """
-import argparse, json, os, re, shutil, subprocess, sys, time
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from chapter import enter_room, exit_side, origin_of, read_state, tables  # noqa: E402
-from make_room import parse  # noqa: E402
-from solve import build, carries_lift, read_tas, write_tas  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import cbmc, room_header  # noqa: E402
+from celeste_sat.build import build, carries_lift  # noqa: E402
+from celeste_sat.paths import BUILD, ROOT, exe  # noqa: E402
+from celeste_sat.room import parse  # noqa: E402
+from celeste_sat.state import read_state, tables  # noqa: E402
+from celeste_sat.tas import read_tas, write_tas  # noqa: E402
+from celeste_sat.transition import enter_room, exit_side  # noqa: E402
 
 SIDES = {"up": "TR_UP", "down": "TR_DOWN", "left": "TR_LEFT", "right": "TR_RIGHT"}
 
@@ -44,8 +54,9 @@ def state_block(header_path, name):
     return f"static const State {name} = {body};\n"
 
 
-def model_unit(path, prefix, room_header):
-    open(path, "w").write(f"""/* {os.path.basename(path)}: the model built for one room ({room_header}), written by tools/cross.py */
+def model_unit(path, prefix, header):
+    """a C file that builds the model for one room (`header`, its room.h) under prefixed names"""
+    open(path, "w").write(f"""/* {os.path.basename(path)}: the model built for one room ({header}), written by tools/cross.py */
 #ifdef CROSS_CBMC
 #define MODEL_ASSUME(c) __CPROVER_assume(c)
 #ifndef NO_SYMMETRY
@@ -55,7 +66,7 @@ def model_unit(path, prefix, room_header):
 #include <assert.h>
 #define MODEL_ASSUME(c) assert(c)
 #endif
-#define ROOM_HEADER "{room_header}"
+#define ROOM_HEADER "{header}"
 #define MODEL_PREFIX {prefix}
 #include "celeste.c"
 """)
@@ -91,14 +102,14 @@ def setup(where, start_block, target_block, tr):
 
 
 def compile_chain(out):
-    r = sh(["gcc", "-O2", "-I", f"{out}/replay", "-I", out, "-I", f"{ROOT}/model", "-I", f"{ROOT}/sim", "-o", f"{out}/chain",
+    r = sh(["gcc", "-O2", "-I", f"{out}/replay", "-I", out, "-I", f"{ROOT}/model", "-I", f"{ROOT}/sim", "-o", exe(out, "chain"),
             f"{ROOT}/sim/chain.c", f"{out}/model_a.c", f"{out}/model_b.c"])
     if r.returncode:
         sys.exit(r.stderr)
 
 
 def chain(out, route, *extra):
-    r = sh([f"{out}/chain", route, *extra])
+    r = sh([exe(out, "chain"), route, *extra])
     info = {}
     for key, pat in (("exitA", r"left room A on frame (-?\d+)"), ("hit", r"state reached on frame (-?\d+)"),
                      ("exitB", r"EXIT at frame (\d+)")):
@@ -108,38 +119,14 @@ def chain(out, route, *extra):
 
 
 def cbmc_cmd(out, a_steps, b_steps):
-    return ["cbmc"] + (["--gcc"] if sys.platform == "win32" else []) + [
-        f"{ROOT}/harness/cross.c", f"{out}/model_a.c", f"{out}/model_b.c", "-I", out,
-        "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness", "-DCROSS_CBMC",
-        f"-DA_STEPS={a_steps}", f"-DB_STEPS={b_steps}", "--trace", "--json-ui"]
+    return cbmc.command(f"{ROOT}/harness/cross.c", f"{out}/model_a.c", f"{out}/model_b.c", "-I", out,
+                        "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness", "-DCROSS_CBMC",
+                        f"-DA_STEPS={a_steps}", f"-DB_STEPS={b_steps}")
 
 
 def cbmc_result(path):
     """(True, frames) when CBMC found a route, (False, None) when it proved there is none"""
-    text = open(path).read()
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        sys.exit(f"could not parse CBMC output ({path}):\n" + text[-2000:])
-    for msg in data:
-        for res in msg.get("result", []):
-            if res["status"] == "SUCCESS":
-                return False, None
-            if res["status"] == "FAILURE":
-                vals = {}
-                for st in res.get("trace", []):
-                    if st.get("stepType") != "assignment":
-                        continue
-                    m = re.fullmatch(r"inputs\[(\d+)l?\]\.(mx|my|jump|dash|grab|cdash)", st.get("lhs", ""))
-                    if m:
-                        d = st["value"]["data"]
-                        vals[(int(m.group(1)), m.group(2))] = (d == "TRUE") if d in ("TRUE", "FALSE") else int(d)
-                n = 1 + max((i for i, _ in vals), default=-1)
-                frames = [(vals.get((i, "mx"), 0), vals.get((i, "my"), 0), vals.get((i, "jump"), 0),
-                           vals.get((i, "dash"), 0), vals.get((i, "grab"), False), vals.get((i, "cdash"), 0))
-                          for i in range(n)]
-                return True, frames
-    sys.exit(f"unexpected CBMC output ({path}):\n" + text[-2000:])
+    return cbmc.read_answer(open(path).read(), where=f"CBMC output ({path})")
 
 
 def run_queries(out, steps, splits, jobs, timeout, done):
@@ -201,42 +188,40 @@ def main():
     ap.add_argument("--jobs", type=int, help="CBMC queries at a time (default: one per core, as many as fit in free memory)")
     ap.add_argument("--check-transition", action="store_true",
                     help="only replay the known route through both rooms and check that the transition in C "
-                         "(model/transition.h) gives the same entry state as the Python one in tools/chapter.py, "
+                         "(model/transition.h) gives the same entry state as the Python one in celeste_sat/transition.py, "
                          "then stop (no CBMC)")
     ap.add_argument("--out")
     a = ap.parse_args()
 
     na_name = os.path.splitext(os.path.basename(a.room_a))[0]
     nb_name = os.path.splitext(os.path.basename(a.room_b))[0]
-    out = os.path.abspath(a.out or f"{ROOT}/build/cross_{na_name}_{nb_name}")
+    out = os.path.abspath(a.out or f"{BUILD}/cross_{na_name}_{nb_name}")
     os.makedirs(out, exist_ok=True)
 
     # single-room builds: the known route in A, its exit state and B's entry (Python rules)
     build(a.room_a, f"{out}/a", a.start)
     route_a, route_b = read_tas(a.route_a), read_tas(a.route_b)
     write_tas(f"{out}/route_a.tas", route_a, ["room A"])
-    r = sh([f"{out}/a/sim", f"{out}/route_a.tas"])
+    r = sh([exe(f"{out}/a", "sim"), f"{out}/route_a.tas"])
     m = re.search(r"EXIT at frame (\d+)", r.stdout)
     if not m:
         sys.exit(f"{a.route_a} does not leave {a.room_a}")
     na = int(m.group(1))
-    sh([f"{out}/a/sim", "-s", "0", f"{out}/a_start.h", f"{out}/route_a.tas"])
-    sh([f"{out}/a/sim", "-s", str(na), f"{out}/a_exit.h", f"{out}/route_a.tas"])
+    sh([exe(f"{out}/a", "sim"), "-s", "0", f"{out}/a_start.h", f"{out}/route_a.tas"])
+    sh([exe(f"{out}/a", "sim"), "-s", str(na), f"{out}/a_exit.h", f"{out}/route_a.tas"])
     st = read_state(f"{out}/a_exit.h")
-    rows_a, rows_b = parse(a.room_a)[0], parse(a.room_b)[0]
-    any_zips_a = bool(parse(a.room_a)[5])
-    any_zips = bool(any_zips_a or parse(a.room_b)[5])            # speed bounds in the harness
-    side = exit_side(st, len(rows_a[0]) * 8, len(rows_a) * 8)
-    oa, ob = origin_of(a.room_a), origin_of(a.room_b)
-    wb, hb = len(rows_b[0]) * 8, len(rows_b) * 8
+    room_a, room_b = parse(a.room_a), parse(a.room_b)
+    any_zips_a = bool(room_a.zipmovers)
+    any_zips = bool(any_zips_a or room_b.zipmovers)               # speed bounds in the harness
+    side = exit_side(st, room_a.width_px, room_a.height_px)
+    oa, ob = room_a.require_origin(), room_b.require_origin()
+    wb, hb = room_b.width_px, room_b.height_px
     entry_py = enter_room(st, side, oa, ob, wb, hb, tables(f"{out}/a"))
     tr = dict(side=SIDES[side], dx=oa[0] - ob[0], dy=oa[1] - ob[1], w=wb, h=hb, zips=any_zips)
 
     # the two-room program: A and B side by side, the transition in C
     for tag, room in (("a", a.room_a), ("b", a.room_b)):
-        r = sh([sys.executable, f"{ROOT}/tools/make_room.py", room, f"{out}/room_{tag}.h"])
-        if r.returncode:
-            sys.exit(r.stderr)
+        room_header.write(room, f"{out}/room_{tag}.h")
         # lift boost in B when A can give her a lift speed (zip movers), or in A when she starts with one
         lift_a = bool(a.start and carries_lift(a.start))
         if (tag == "b" and (any_zips_a or lift_a)) or (tag == "a" and lift_a):
@@ -255,7 +240,7 @@ def main():
     if info["exitA"] != na or info["exitB"] is None:
         sys.exit(f"the two-room program disagrees with the single-room one: {info}, room A exit {na}")
     total = info["exitB"]
-    sh([f"{out}/chain", f"{out}/known.tas", "-s", str(na), f"{out}/b_entry.h"])
+    sh([exe(out, "chain"), f"{out}/known.tas", "-s", str(na), f"{out}/b_entry.h"])
     entry_c = read_state(f"{out}/b_entry.h")
     num = lambda v: [float(x) for x in v] if isinstance(v, list) else float(v)
     diff = sorted(k for k in entry_py if k in entry_c and num(entry_py[k]) != num(entry_c[k]))
@@ -271,8 +256,8 @@ def main():
         sys.exit("--keep and --target are required (or use --check-transition)")
     if not 0 <= K < na or not 1 <= M < total - na:
         sys.exit(f"--keep must be below {na} and --target between 1 and {total - na - 1}")
-    sh([f"{out}/chain", f"{out}/known.tas", "-s", str(K), f"{out}/start.h"])
-    sh([f"{out}/chain", f"{out}/known.tas", "-s", str(na + M), f"{out}/target.h"])
+    sh([exe(out, "chain"), f"{out}/known.tas", "-s", str(K), f"{out}/start.h"])
+    sh([exe(out, "chain"), f"{out}/known.tas", "-s", str(na + M), f"{out}/target.h"])
     start, target = state_block(f"{out}/start.h", "START_STATE"), state_block(f"{out}/target.h", "START_STATE")
     steps = (na - K) + M - save          # free frames in the query
     print(f"free: frames {K + 1}..{na} of {na_name} and the first frames of {nb_name}; target: the known "

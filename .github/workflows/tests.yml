@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    # everything that runs without the game's files: the Python unit tests, the
+    # differential fuzzer, the saved routes in both builds, the Chapter 2 mechanics,
+    # the room transition (C against Python), beam searches and two short SAT checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gcc and CBMC
+        run: sudo apt-get update && sudo apt-get install -y gcc cbmc
+      - name: Lint (pyflakes rules)
+        run: pipx run ruff check --select F,E9 celeste_sat tools tests experiments hpc
+      - name: Run the test suite
+        run: bash tools/run_tests.sh --quick --sat
+      - name: Keep the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run_tests.log
+          path: build/run_tests.log
