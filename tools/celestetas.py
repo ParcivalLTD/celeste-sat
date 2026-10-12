@@ -125,6 +125,8 @@ def chain(a):
     """a chained route (tools/chain_chapter2.py) as one CelesteTAS file: load the first room,
     play every room's inputs with the transition's idle frames between them, record all of it"""
     segs = chain_segments(a.tas)
+    if not a.dump:
+        a.dump = f"celeste-sat-{segs[0][0].split('_', 1)[0]}-chain.txt"
     if a.last:
         names = [r for r, _ in segs]
         if a.last not in names:
@@ -320,7 +322,8 @@ def main():
     ch.add_argument("--after", type=int, default=30,
                     help="idle frames recorded in the room after the last (default 30)")
     ch.add_argument("--rooms", default=VANILLA)
-    ch.add_argument("--dump", default="celeste-sat-chain.txt")
+    ch.add_argument("--dump", help="the recording's file name (default celeste-sat-<chapter>-chain.txt, e.g. "
+                                   "celeste-sat-2a-chain.txt, which tests/recordings.py checks against that chapter)")
     ch.add_argument("-o", "--out", required=True)
     w = sub.add_parser("show", help="print a recording, marking room changes")
     w.add_argument("dump")

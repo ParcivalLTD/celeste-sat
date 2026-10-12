@@ -55,7 +55,7 @@ game/           your own copies of the game's map files (not in git)
 ## Commands
 
 ```bash
-bash tools/run_tests.sh                     # ~5 min on 2 cores, no game files or cbmc needed (CI runs this)
+bash tools/run_tests.sh                     # a few minutes, no game files or cbmc needed (CI: --quick --sat)
 bash tools/run_tests.sh --vanilla --sat     # + Chapter 1 against the game, recordings, CBMC checks
 python3 -m unittest discover -s tests -p "test_*.py"   # the Python unit tests alone
 sh tests/diff.sh 40 300 400                 # the differential fuzzer alone
@@ -96,8 +96,9 @@ MiniSat). On Windows use WSL. The scripts in `tools/`, `tests/` and
 - Keep float operations in C# order ([model.md](model.md#fidelity-details)
   explains why; it is not stylistic).
 - **Model changes invalidate saved proofs and routes.** Record the commit
-  every result was computed at, and re-run the replays after a model change
-  (the Chapter 2 routes in `results/archive/` are what happens otherwise).
+  every result was computed at, and re-run the replays after a model change.
+  For eleven days the committed Chapter 2 routes did not replay, and nothing
+  noticed (see history.md).
 - **A route is not a result until it is played in the game.** A SAT "yes"
   or a faster beam route is a statement about the model.
 

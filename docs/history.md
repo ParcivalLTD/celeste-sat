@@ -31,14 +31,22 @@ What the audit found, beyond the code:
   still to be assembled into one and recorded.
 - **2,275 frames is not a chapter time.** It is the community TAS's frames of
   control inside the rooms; the chapter time is 0:49.079.
-- **The committed Chapter 2 routes no longer replay** in the current model
-  (both die or stall in `2a_lvl_6`); moved to `results/archive/`.
+- **The committed Chapter 2 routes did not replay** in the model of commit
+  588c008 (both died or stalled in `2a_lvl_6`). The cause was the
+  touch-switch change below; with it reverted, both replay exactly again.
 - **`ledge` has a 17-frame route** in the full model (brain.md had found it;
   now `results/routes/ledge_17.tas`), so the README's "18 is optimal" holds
   only for the first model.
-- **The touch-switch hitbox change (1d3e148) is unverified** and disagrees
-  with how the model reads every other `PlayerCollider`; see
-  [verification.md](verification.md#chapter-2-nothing-recorded-yet).
+- **The touch-switch hitbox change of 1d3e148 was reverted.** It replaced the
+  switch's 30 × 30 `PlayerCollider` against her hurtbox with the 16 × 16
+  entity `Collider` against her collider. The published `Player.cs` (the
+  hurtbox swap around the `PlayerCollider` loop) and a mod that mirrors the
+  vanilla switch (MaxHelpingHand's `FlagTouchSwitch`) both support the
+  original. The change was made because the beam search could not get
+  through `2a_lvl_7`, but a 252-frame route through that room under the
+  original hitbox was already committed (`results/routes/2a_chase.tas`). A
+  room the search can't solve is a search problem, not a reason to change
+  the model. See [verification.md](verification.md#chapter-2-nothing-recorded-yet).
 - `tools/import_chapter2.py` would have silently undone the exit fixes of
   588c008 on the next re-export; they are now part of it (`EXIT_FIXES`).
 - The beam search's default rollout was 10 in `beam.c` and 8 in
