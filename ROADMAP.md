@@ -1,428 +1,272 @@
-# ROADMAP — from one chapter to "calculating Celeste"
+# Roadmap
 
-Written 2026-10-04. Goal as stated: model the whole game exactly and beat the
-community TAS. This document says what that can and cannot mean, then gives
-the order to build it in.
+Three goals, in the order the work can deliver them:
 
-Read `brain.md` first for the current state. This is the long view.
+1. **A new TAS record** for a Celeste chapter, played in the real game.
+2. **A paper**: a frame-exact model of a commercial platformer, SAT proofs
+   about speedrun routes, and improvements to a human world-record TAS.
+3. **A project that reads well on a CV**: public, reproducible, honest about
+   what it shows.
 
----
+They are the same work. Goal 1 gives the paper its headline result, and the
+paper and the record together are what a CV can point to. So the plan below
+is one sequence, and every step says which goal it serves.
 
-## 1. What "calculate all of Celeste" can actually mean
+## Where things stand (2026-10-12)
 
-The project has one hard physical limit, and the whole plan is shaped by it.
-
-**SAT proof cost grows ~1.5x per free frame.** Measured, from the README:
-
-| free frames | room | time |
+| | status | evidence |
 |---|---|---|
-| 5 | `ledge` | 33 s |
-| 9 | `ledge` | 204 s |
-| 11 | Chapter 1 room 1 | 129 s |
-| 12 | `hop` | 435 s |
+| Chapter 1 model | **verified**: the community TAS (19 rooms, 2,275 frames of control) plays exactly; 15 recordings from Celeste 1.4 match on every frame, subpixels included | `tests/chain_tas.py`, `tests/recordings.py data/recordings` |
+| Model self-consistency | **verified**: 2.95 M fuzzed frames bit-identical between the literal and the solver build; the SAT harnesses' input rules (2.0 M checks) and state comparison (6.8 M) fuzzed too | `tests/diff.sh` |
+| SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
+| Local optimality (Tier B) | W = 8 over Chapter 1 room 1 here; W = 12/16 over all of Chapter 1 on Leonardo | Leonardo output **not committed** |
+| Faster than the community TAS | **15 frames in the model** (`lvl_6a` −5, `lvl_12` −5, `lvl_9b` −3, `lvl_3b` −2, from Leonardo windows that end in the TAS's own state) | not committed, **not played in the game** |
+| Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; touch-switch hitbox unsettled | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
+| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 245 vs 221). The one room where it was ahead, `lvl_10`, was solved before that room's invisible barriers were modelled. The committed routes no longer replay | `results/archive/` |
+| Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
 
-Extrapolating the same 1.5x: ~17 frames is an hour, ~24 frames is a day,
-~35 frames is a decade. Proving a single 100-frame room optimal from nothing
-is about `1.5^89` times a two-minute query. That is not an engineering gap, it
-is a wall. No solver choice fixes it — the README already found Kissat,
-CaDiCaL, Bitwuzla and Z3 all matched or lost to MiniSat, which says the
-*encoding* is the cost, not the search.
-
-Exhaustive search is no better: distinct states grow ~4x per frame (1.8 M by
-frame 8), because input timing leaves different subpixels.
-
-So "calculate Celeste" has to be split into claims of different strength:
-
-| tier | claim | status |
-|---|---|---|
-| **A. Fidelity** | the model reproduces the game frame-for-frame, subpixels included, on every room of the run | done for Chapter 1; the method is proven (CelesteTAS recordings) |
-| **B. Local optimality** | no stretch of ≤ W frames of this route can be done in W−1 frames and reach the same state | done for one 92-frame room at W=8; **whole-game is a compute problem, not a research problem** |
-| **C. Room optimality** | no route through this room, from this entry, is faster | done only for tiny demo rooms; needs lower-bound research (§6) |
-| **D. Run optimality** | no route through the game is faster | **not reachable.** Say so plainly, forever. |
-
-**"Cracking the WR TAS" = Tier A + Tier B + a search strong enough to find
-improvements.** That is a real, defensible, publishable result: *a frame-exact
-model of the game, a route that beats the human TAS, and a machine-checked
-certificate that no small local change improves it further.* Tier D is not on
-the table and claiming it would be dishonest.
-
-Note also that the WR TAS is a **moving target** maintained by a community
-(`VampireFlower/CelesteTAS`). "Cracking it" in practice means contributing
-verified frame savings back, repeatedly — not a one-shot conquest.
+The record to beat for Chapter 1 is the community TAS's **0:49.079** (2,887
+frames on the in-game timer; `ChapterTime` in VampireFlower/CelesteTAS
+`1A.tas`; the file is the same at the repository's latest commit as of
+2026-10-12). Every frame of control saved without
+changing how any room is entered or left takes one frame (17 ms) off it.
 
 ---
 
-## 2. The one calculation that sets the budget
+## Step 1 -- secure the Leonardo results (days; all three goals)
 
-Tier B over the whole game is the headline deliverable, so price it now.
+The campaign's output exists only on your machine (`build/leonardo/`), and it
+is the evidence for everything that follows.
 
-A window proof needs one CBMC query per start frame. At W=8 that is ~1–3 min
-per query (measured). Frames of *control* (not wall-clock; transitions and
-cutscenes are free):
+- Copy into the repository, under `results/leonardo/`: every `windows.json`
+  (`cert/w12`, `w16`, `w18`), every `win_*_better*.tas` they point to, the
+  crossing `result.json` files and `better.tas`, the beam-sweep `RESULT`
+  lines, the Chapter 2 routes, and `hpc/summary.py`'s table. They are small
+  text files.
+- Record next to them the commit they were computed at (`588c008`'s parent
+  for most of Chapter 1; check the job logs) and the CBMC version. A proof is
+  about one model; without the commit it cannot be cited.
+- Re-run `python3 hpc/summary.py` on the copied files and put its table in
+  `docs/results.md`, replacing the "as reported" numbers there.
 
-- Chapter 1 A-side: **2,275 frames** (measured)
-- Chapter 2 chase: ~2,100–2,500 frames (measured)
-- so ~2,000–2,500 per chapter, and an any%-shaped run of 8 chapters is
-  **~16,000–20,000 frames of control**
-- a full clear (B/C sides, Core, Farewell) is perhaps 5x that
+## Step 2 -- the Chapter 1 record attempt (1-2 weeks; goal 1, the paper's headline)
 
-| certificate | per query | 20,000 frames | feasible? |
-|---|---|---|---|
-| W = 8 | ~2 min | **~670 core-hours** | yes — a weekend on 16 cores |
-| W = 12 | ~8 min | ~2,700 core-hours | yes — days on a cluster, ~$300 spot |
-| W = 16 | ~65 min | ~21,700 core-hours | borderline, ~$2–3k spot |
-| W = 20 | ~8 h | ~160,000 core-hours | no |
+1. For each room with faster windows, combine them and check the result in
+   the model -- it must leave the room on its new last frame in exactly the
+   state the TAS leaves it in:
 
-**The practical ceiling is W ≈ 12–16 for a whole run.** That is the honest
-scope of the end state: *"no local change of up to 12–16 frames improves this
-route, anywhere in the game."* Everything in §6 is about pushing that number,
-and every frame gained there is worth 1.5x the compute.
+   ```
+   python3 tools/splice_tas.py combine rooms/vanilla/1a_lvl_6a.txt build/chain_tas/lvl_6a/route.tas \
+       'results/leonardo/cert/w1*/lvl_6a_*/windows.json' --start build/chain_tas/entry_lvl_6a.h \
+       -o build/splice/lvl_6a.tas
+   ```
 
-This budget is also why §3–§5 come first: a window proof is only meaningful if
-the model is right (Tier A) and the route is good (search). Proving a bad route
-locally optimal is cheap and worthless.
+2. Put the rooms into the community TAS and check the whole chapter in the
+   model (every room must still leave on its last frame):
 
----
+   ```
+   python3 tools/splice_tas.py chapter --room lvl_6a=build/splice/lvl_6a.tas --room lvl_12=build/splice/lvl_12.tas \
+       --room lvl_9b=build/splice/lvl_9b.tas --room lvl_3b=build/splice/lvl_3b.tas -o build/splice/1A_candidate.tas
+   python3 tests/chain_tas.py --tas build/splice/1A_candidate.tas
+   ```
 
-## 3. Phase 0 — close out Chapter 2 (days)
+3. **Play it in the game** (Celeste 1.4, Everest, CelesteTAS, Celeste
+   Studio). CelesteTAS writes the new `ChapterTime` at the end. To see
+   where a room diverges, record it: `tools/celestetas.py community lvl_6a
+   lvl_6b --tas build/splice/1A_candidate.tas -o check.tas`, then
+   `tests/recordings.py`.
+4. If a room desyncs in the game, that is a model bug. Record it, find the
+   first frame that differs (`tests/recordings.py` prints it), fix the model,
+   and add the recording to `data/recordings/`. These bugs are results too:
+   the paper's fidelity section is built from them.
+5. If the time is lower: open a pull request against VampireFlower/CelesteTAS
+   with the new `1A.tas`, credit the method, and link the repository. In
+   Celeste the TAS record is the community file, and TASers verify it by
+   playing it. Ask in the Celeste TAS community before you call it a record
+   publicly. They will check it, and they may already know a faster route
+   than the pinned commit's.
 
-Already listed in `brain.md` §8; repeated here for completeness.
+What could go wrong: the windows were computed with fields left out of the
+comparison (`sim/live.c`); `combine` checks the full exit state, and the
+game is the final check. Each frame the game accepts is a record frame. A
+3-frame record is still a record.
 
-1. `sudo pacman -S cbmc`. Half the project is unreachable without it.
-2. **Record the chase in the real game.** `results/celestetas/2a_chase.tas` is
-   ready; `tests/recordings.py <Celeste folder>` checks it room by room. This
-   is the Tier A leg for Chapter 2 and settles the dream block's timing, the
-   chaser's 1.55 s delay and its 6x6 hitbox, all currently inferred.
-3. ~~**Invisible barriers**~~ — the model side is **done** and fuzzed, but
-   `2a_lvl_2`, `2a_lvl_9` and `2a_lvl_10` were exported before it and must be
-   re-exported (`python3 tools/import_chapter2.py`, needs `2-OldSite.bin`).
-   Until then those three rooms still let a route walk through walls that
-   exist.
-4. Re-run `tools/chain_chapter2.py` and replace `results/2a_chase.tas`, which
-   predates the merged chaser and the two model fixes.
-5. Fix the `--beam-rollout` default mismatch (8 vs 10) and sweep it.
-6. Re-run the SAT descent on `ledge`: there is a 17-frame route, the saved one
-   is 18, and the demo-room table is stale.
+## Step 3 -- make Chapter 2 trustworthy (2-4 weeks; the paper's second chapter)
 
----
+Chapter 2 rests on code that has never met the game. Settle that before
+spending more compute on it.
 
-## 4. Phase 1 — measure, then close, the entity backlog (months)
+1. **The touch-switch hitbox** (commit 1d3e148). Read the `TouchSwitch`
+   constructor and `PlayerCollider.Check` in `Celeste.exe` with ILSpy, or
+   record one switch room. Until this is settled, every chase route through
+   `2a_lvl_6`, `2a_lvl_7`, `2a_lvl_9` or `2a_lvl_10` is suspect.
+2. **The community 2A TAS through the model.** This is the cheapest strong
+   check there is, the same one that made Chapter 1 believable. Generalise
+   `tests/chain_tas.py` to a chapter argument: the rooms and goals come from
+   `tools/import_chapter2.py`, the chase starts in `lvl_3` after the cutscene
+   skip (the TAS's `1,S` lines), and the chaser history runs on across rooms.
+   Every room's inputs must leave it on their last frame. Where they don't,
+   the model is wrong.
+3. **One recording** of the chase (`tools/celestetas.py chain`) for the
+   chaser delay and hitbox, the dream-block timing and the switch gates.
+4. Only then: windows over the community 2A TAS (`hpc/make_tasks.py`
+   generalised to a chapter), the same way as Chapter 1. Don't race the
+   community TAS with the beam search. It is ~9 % behind over the chase,
+   and the dense chaser geometry makes the human routes harder to beat, not
+   easier.
 
-This is the long pole for "all of Celeste", and it must be **measured, not
-guessed**.
+## Step 4 -- the paper (start writing during step 2; ~2 months to a submission)
 
-### 4.1 The census — **done**, `tools/entity_census.py`
+**The contribution**, in one sentence: *a frame-exact executable model of
+Celeste's player physics, validated against the real game, used with a SAT
+solver to (a) certify that no local change of up to W frames improves a
+human world-record TAS and (b) find the places where one does, verified in
+the game.*
 
-It exports every room with `tools/import_map.py` and reads the
-`; NOT MODELLED (ignored)` line out of the result, so it cannot drift from what
-the exporter supports. `--tas` marks the rooms a community TAS visits.
+**What it may claim** (see [docs/methods.md](docs/methods.md#what-proven-means)):
+Tier A (fidelity) for Chapter 1, Tier B (local optimality, W = 12/16) for the
+whole chapter, and N frames saved in the game. **What it must not claim**:
+optimality of a room or a run (Tier C/D), or any number that has not been
+reproduced from committed data.
 
-```bash
-python3 tools/entity_census.py "<Celeste>/Content/Maps" --json census.json
-python3 tools/entity_census.py 1-ForsakenCity.bin --tas recordings/1A.tas
-```
+**Evaluation it needs:**
+- fidelity: the community TAS, the recordings, the fuzzer counts, and the
+  model bugs found by recordings (falling-unduck, the upward stop point, the
+  climb trigger) as evidence that the checks have teeth;
+- the certificate: windows per room and W, proven / timeout / faster, core-
+  hours;
+- scaling: proof time against free frames (the ~1.5x per frame), formula
+  size, the solver comparison (MiniSat vs Kissat/CaDiCaL/Bitwuzla/Z3, in
+  [docs/methods.md](docs/methods.md#scaling)), redone on the final model;
+- the frames saved, each with its in-game recording;
+- an honest comparison of the project's own search with the human TAS.
 
-Run it over the whole game before starting any Chapter 3+ work; until then §4.2
-below is still a hypothesis. For Chapter 1:
+**Related work to cover:** TAS tooling and the Celeste TAS community
+(CelesteTAS, libTAS, TASVideos), complexity results for platformers
+(Mario and friends are NP-hard or PSPACE-complete), game-playing agents on
+platformers (the Mario AI benchmark, RL on Celeste such as celeste-rl),
+bounded model checking of software (CBMC), and SAT/SMT applied to games and
+puzzles.
 
-```
-38 rooms. Gameplay entities: jumpThru, spikes{Up,Down,Left,Right}, zipMover,
-spring, crumbleBlock, refill, fallingBlock, fakeWall, dashBlock, cassetteBlock.
-Decoration: wire, strawberry, lightbeam, bonfire, npc, memorial, flutterbird,
-birdForsakenCityGem, checkpoint, coverupWall, player (spawn markers).
-```
+**Venues** (check the current calls for papers): the SAT conference
+(applications), TACAS or CAV (tool papers), IEEE Conference on Games, AIIDE,
+Foundations of Digital Games. Put a preprint on arXiv first, which also
+dates the result. A workshop paper on Chapter 1 alone is a reasonable first
+target.
 
-34/38 rooms are fully modelled and **20/20 of the rooms on the TAS route**, so
-nothing blocks the chapter. The four gaps are all off-route: `cassetteBlock` and
-`cassette` in `lvl_11z`, `birdForsakenCityGem` in `lvl_s1`, `npc` in `lvl_6zb`,
-`coverupWall` in `lvl_7a`. Only `cassetteBlock` is a real mechanic; the rest are
-collectables and scenery. That is a genuinely strong position to build from.
+**An artifact.** A Dockerfile (Ubuntu + gcc + cbmc), `tools/run_tests.sh`,
+and a script that rebuilds every number in the paper from `results/`. The
+game files can't be included. Say so and document `game/README.md`.
 
-### 4.2 Expected shape of the backlog
+## Step 5 -- before you point people at the repository (days; goal 3)
 
-From the README's own "not modelled yet" list plus what the chapters contain,
-in rough order of difficulty. **Treat this as a hypothesis for the census to
-confirm or refute.**
+- **Choose a licence** for your own code (MIT, matching the ported
+  `Player.cs`, is the natural one). The repository has none, which legally
+  means nobody may reuse it. `THIRD_PARTY_NOTICES.md` stays as it is.
+- **Game content in the git history.** This cleanup removed
+  `1-ForsakenCity.bin` (the game's map file) and the community TAS copies
+  from the tree, but they are still in the history of a public repository.
+  If that matters to you, rewrite the history (`git filter-repo --path
+  1-ForsakenCity.bin --invert-paths`, likewise `recordings/1A*.tas`) and
+  force-push. It is destructive and changes every commit hash, so decide
+  deliberately and do it before anyone forks. The Chapter 2 room exports
+  (`rooms/vanilla/2a_*.txt`) are game-derived too. Consider keeping only
+  `tools/import_chapter2.py` and its `EXIT_FIXES`.
+- **Show it.** A 30-second video of the record attempt playing in the game,
+  next to the model's trace (`tools/render.py` makes the replay page), at the
+  top of the README. A short write-up or blog post that tells the story, with
+  the honest numbers.
+- **On the CV**, the strongest true lines: *built a frame-exact model of
+  Celeste's physics in C, validated against the real game to the subpixel;
+  used CBMC/SAT to certify local optimality of the human world-record TAS
+  over ~4,300 windows on EuroHPC Leonardo (~2,300 core-hours); found N
+  frames the record missed, verified in the game*. N and "verified" only
+  once step 2 is done.
 
-**Easy — static or table-driven, like the solids already done:**
-- `cassetteBlock` (Ch1 side rooms, Ch2+): solid, toggles on a global beat.
-- wall springs, two-dash refills, `MAX_DASHES` > 1.
-- ~~invisible barriers~~ — **done**: static, so no state, no `same_future`
-  entry and no transition entry; just a box among the moving solids.
-- bumpers, `moveBlock` / `swapBlock` / `bounceBlock` (Kevin) — all moving
-  solids with a coroutine, the same shape as `ZipMover`, which is already
-  factored (`CUR_MS_BOX`, `ZIP_KIND`). The switch-gate work on the merged
-  branch is the template: a new kind, a new table from `make_room.py`.
-- `coreModeToggle` and the Ch8 hot/cold mode bit: one global flag plus
-  fire/ice block variants.
+## Step 6 -- a stronger search (months; more records)
 
-**Medium — new movement states, like the dream dash:**
-- **Feathers.** A whole alternate movement state (`StStarFly`) with its own
-  physics, timer and exit. Precedent: `ST_DREAM_DASH` cost one state, a timer
-  and two flags. Budget similar.
-- **Wind** (Ch4). A per-room, time-varying global force. Needs a table per
-  room like the zip mover paths; the hard part is that it is *scripted per
-  room* and the data lives in the map file.
-- **Water, climb blockers, no-grab regions.** Mostly collision-layer work.
+The beam search is the bottleneck for anything beyond the human route. In
+order of expected payoff:
 
-**Hard — these change the problem, not just the model:**
-- **Holdables** (Theo crystal Ch5, jellyfish Ch9). A second actor with its own
-  physics, carried, thrown, standing on. Roughly doubles the state and adds a
-  continuous throw parameter. Expect the SAT formula to grow a lot.
-- **Seekers** (Ch5). Adversarial, with their own pathfinding. The Badeline
-  chaser was tractable because it only replays *her* recorded positions; a
-  seeker runs a real chase AI. This is the single most expensive entity.
-- **Badeline boss** (Ch6). Scripted phases with their own timing; may not fit
-  the room-with-an-exit paradigm at all.
-- **Cutscenes and triggers.** Already hit once: `SPAWN_FACING` exists because
-  `CS02_BadelineIntro` leaves her facing left. Every chapter has more.
+- **Large-neighbourhood search seeded from the human TAS.** This is what
+  the window proofs already are, done as search instead of proof. Re-plan a
+  window of 20-60 frames with the beam search, require the end state to
+  match (`same_future`) or to be better, splice, repeat.
+- **Macro-action search.** Search over moves (dash in a direction on a frame,
+  super, hyper, wavedash, wallbounce, climb jump, neutral) instead of frames.
+  Branching drops from ~500 per frame to ~20 per move, and every node is a
+  state a human route could contain. Keep the per-frame beam for the polish.
+- **Pareto chaining across rooms.** The TAS gives up frames in one room to
+  set up the next (`lvl_2`, `lvl_8`, `lvl_12`). Keep a set of
+  non-dominated exit states per room instead of the single best one, and
+  run a DP over the chapter. `model/state_eq.h` and `tools/cross.py` are the
+  pieces. Start with dominance only between identical states.
+- **Wider seams.** `hpc/crossings.sbatch` with `BEFORE=10, AFTER=8` on the
+  six rooms whose endings can be faster (`lvl_2`, `lvl_3`, `lvl_4`, `lvl_3b`,
+  `lvl_8`, `lvl_12`). That is where a human TAS is weakest.
+- Search hygiene: hash the chaser history in chase rooms
+  ([docs/developing.md](docs/developing.md#known-warts)); sweep the rollout
+  length per room (`hpc/beam_sweep.sbatch`) instead of trusting 8.
 
-### 4.3 The discipline, non-negotiable
+## Step 7 -- a higher proof ceiling (research; the paper's future work)
 
-`brain.md` §6 states it; it is the reason the project is credible. For each new
-mechanic:
+Each frame added to W multiplies proof cost by ~1.5, so encoding work pays
+compound interest:
 
-1. a `; directive` in the room format and `make_room.py` export,
-2. a **`tests/random_room.py` generator**,
-3. a `tests/diff.sh` run, green, with a coverage counter proving it fired,
-4. `same_future` + `scramble()` entries for any new live state,
-5. `transition.h` + `chapter.py` entries for anything the transition clears,
-6. an in-game recording that matches frame-for-frame.
+- **Cheaper collisions.** About half of the ~250,000 variables per frame are
+  hitbox checks. Precompute each frame's collision features once from the
+  8x8 window. Halving the formula is worth ~1.7 free frames on every query.
+- **Cube and conquer.** Split on the discrete skeleton (the frame each dash
+  starts, which wall a jump uses) and solve the cubes in parallel. This
+  turns core-hours into W, which is what a cluster allocation buys.
+- **Lower bounds by abstraction** (the only road to Tier C). Prove "cannot
+  leave before frame L" on a coarser, sound model (interval speeds,
+  nondeterministic rounding), refine where it finds a spurious route.
+  Prototype on `ledge`, which now has an open question of exactly the right
+  size: the full model has a 17-frame route (`results/routes/ledge_17.tas`).
+  Is 16 possible?
+- **A proof ledger.** One row per result: room, entry-state hash, window, W,
+  model commit, solver version, verdict, seconds. Without it a model change
+  silently invalidates months of compute.
 
-Steps 2–4 are what Chapter 2 skipped, and the fuzzer found two real bugs the
-moment they were done. **Do not let a mechanic reach a route before step 3.**
+## Step 8 -- more chapters (months each)
 
-Most of these entities are decompiled-from-memory, not from published source —
-only `Player.cs` is public. Fidelity risk compounds with every chapter, and the
-recording in step 6 is the only control. Budget a recording session per
-chapter, not per project.
-
----
-
-## 5. Phase 2 — make the search strong enough to beat humans (the real bottleneck)
-
-Today the beam search finds 99 frames where the TAS takes 92 on Chapter 1 room
-1, and 133 vs 107 on room 3. The README is honest about why: *"it never dashes
-or wall-boosts on its own, and those are what the TAS routes are built from."*
-
-Until this is fixed, Tier B certificates are certificates about mediocre
-routes. Three ideas, in order of expected payoff.
-
-### 5.1 Macro-action search (highest leverage)
-
-Per-frame input space is ~3·3·3·3·2·3 ≈ 500 combinations per frame. Human
-TASers do not think that way — they think in **moves**: dash in a direction on
-a frame, super, hyper, wavedash, wallbounce, climb jump, demodash, neutral.
-Maybe 20 macros, each spanning 3–15 frames.
-
-Search over macro sequences, with the exact model as the executor. Branching
-collapses from ~500/frame to ~20/move, and every node is a state a human route
-could contain. This is the single change most likely to close the 99-vs-92 gap.
-
-Implementation: a macro is a function `State -> [Input]` plus a validity
-predicate. Reuse `search/beam.c`'s beam and ranking; replace the per-frame
-expansion with macro expansion. Keep the per-frame beam as a fallback and for
-the final polish, since the optimum is not always macro-aligned.
-
-### 5.2 Large-neighbourhood search seeded from the human TAS
-
-`--polish` already restarts the beam from frame K of the best route, on a fixed
-schedule (K = U−15, U−25, …). Generalise it:
-
-- pick a random window of 20–60 frames anywhere in the route,
-- re-plan it with the macro search, requiring the end state to `same_future`
-  the original (or to be Pareto-better),
-- splice and repeat; accept improvements, keep a tabu list.
-
-This is how good TAS tooling works in practice, and it uses the human TAS as
-the seed rather than competing with it from scratch.
-
-### 5.3 Pareto frontiers per room, and DP across rooms
-
-This is the open problem the README names: room 2 has three endings (114, 117,
-118 frames) that leave different states, and *"rooms have to be optimised
-together"*. `tools/chapter.py` currently carries **one** exit state forward.
-
-Fix: per room, keep the **Pareto-non-dominated set** of (exit frame, exit
-state) pairs rather than the best one. Then run a DP over the room graph: the
-cost to reach room *n* in state *s* is the min over predecessors. Width-bounded
-(keep the best K states per room, deduplicated by `same_future`) this is
-entirely implementable and directly targets the stated gap.
-
-Two pieces already exist: `model/state_eq.h` gives state equality, and
-`tools/cross.py` gives the transition. What is missing is a dominance relation
-— "state A is at least as good as B" — which is genuinely hard in a game with
-speed retention and buffered presses. Start with the safe version: dominance
-only on identical states at earlier frames, everything else kept as a distinct
-frontier point.
-
-### 5.4 Optional, higher cost
-
-- **Bidirectional search**, backward from the room exit. The backward model is
-  not trivial (movement is not invertible through collisions) but a relaxed
-  backward distance would sharpen the beam's ranking a lot.
-- **A learned value function** as the beam heuristic. Likely effective, a large
-  detour, and it makes nothing *provable* — it only improves upper bounds.
+Run the entity census over every map before choosing
+(`python3 tools/entity_census.py game/ --json census.json`). The expected
+backlog, easiest first: cassette blocks, wall springs, two-dash refills,
+moving blocks (the zip mover template); feathers and wind (new movement
+states and scripted forces); holdables, seekers and the Badeline boss (these
+change the problem, not only the model). The discipline that made Chapter 1
+believable applies to every entity ([docs/developing.md](docs/developing.md#adding-a-mechanic-an-entity-a-state)):
+a generator in the fuzzer, a green fuzz run, an in-game recording.
 
 ---
 
-## 6. Phase 3 — push the proof ceiling (research)
+## Claims to avoid
 
-Every frame added to W multiplies compute by 1.5, so encoding work pays
-compound interest. In order of expected payoff:
+Some descriptions of the project that have been in circulation are wrong.
+They would not survive a reviewer or a TASer:
 
-### 6.1 Cheaper collisions
+- *"An autonomous Chapter 1 speedrun in 0:49.079."* That was the community
+  TAS itself (see [docs/history.md](docs/history.md#2026-10-12-cleanup-and-an-audit-of-the-claims)).
+  The project's own search is several frames per room behind it.
+- *"The human WR is 0:37.9 (2,275 frames)."* 2,275 is the TAS's frames of
+  control; its chapter time is 0:49.079. The two numbers can't be compared.
+- *"4,338 windows mathematically proven optimal."* Each proves that one
+  stretch of the route can't be shortened to the same state, within the
+  model. That is local optimality (Tier B), not optimality.
+- *"Chapter 2 is the best candidate to beat the human WR."* The Chapter 2
+  model has not been checked against the game, and the project's chase
+  routes are ~9 % slower than the community's.
 
-The README estimates ~250,000 variables per frame, *"about half collision
-checks"*. A frame currently does ~50 separate hitbox queries. Precompute each
-frame's local collision features once — the solver build already loads an 8x8
-tile window (`WCOL`), so the structure is there. **Halving the formula is worth
-~1.7 free frames**, for free, on every query ever run after it.
+## Risks
 
-### 6.2 Cube and conquer
-
-Split on the discrete skeleton — which frame each dash starts on, whether it is
-cancelled, which wall a jump uses — and solve the cubes in parallel. This
-converts wall-clock into core-count, which §2 says we can buy. Expect this to
-be the cheapest way to move W from 12 to 16.
-
-### 6.3 Lower bounds by abstraction-refinement (the only route to Tier C)
-
-Prove *"cannot exit before frame L"* on a coarser, sound over-approximation —
-fixed-point or interval speeds, nondeterministic rounding — where SAT is cheap,
-and refine only where it reports a spurious route. If L meets the best known
-route, the room is proven outright, regardless of length.
-
-This is the single highest-value research item in the project. It is the
-difference between "no local improvement" (Tier B) and "this room is optimal"
-(Tier C). It is also the most likely to fail — the abstraction has to be loose
-enough to be fast and tight enough not to admit spurious routes through every
-wall, and Celeste's subpixel mechanics are exactly what abstraction destroys.
-Prototype it on `ledge` and `hop` before committing.
-
-### 6.4 Waypoints
-
-Split a long room at states every route must pass (a gap, the top of a block)
-and prove each part. Sound only if the waypoint is genuinely unavoidable, which
-itself needs proof — but for rooms with a single-tile chokepoint that is easy
-to establish from the tile grid.
-
----
-
-## 7. Phase 4 — infrastructure the scale demands
-
-None of this is interesting, and all of it is required before spending
-thousands of core-hours.
-
-- **A proof ledger.** `brain.md` §6 notes model changes invalidate saved
-  proofs, and nothing currently tracks that. Record every result as
-  `(room, entry-state hash, window start, W, model hash, solver+version,
-  verdict, seconds)`. Without the model hash, a stale proof is worse than no
-  proof.
-- **A cluster harness.** `tools/windows.py` and `tools/cross.py` already
-  parallelise locally with `--jobs`; generalise to a job queue with
-  checkpointing, since W=12 runs take days and will be interrupted.
-- **Regression on the model, not just the builds.** When a mechanic changes,
-  re-run every affected recording automatically and invalidate the ledger rows
-  whose model hash no longer matches.
-- **`tools/entity_census.py`** (§4.1) in CI, so a newly supported entity
-  immediately shows which rooms it unlocks.
-
----
-
-## 8. Phase 5 — the actual record attempt
-
-### 8.1 Pick the right target first
-
-Not any%. Start with **individual-level (IL) records for Chapter 1 A-side**:
-
-- the model is fully validated there (Tier A done, §4.1),
-- the room set is small and every entity is supported,
-- SAT has *already* found two frame savings on the human route (`lvl_3` 107→106
-  confirmed in-game, `lvl_2` 118→117 in the model),
-- an IL is a self-contained, submittable, verifiable claim.
-
-Then: Chapter 1 full-chapter, then Chapter 2, then any%.
-
-### 8.2 The loop, per chapter
-
-1. Model every entity on the route (§4), recordings green.
-2. Seed from the community TAS; run macro + LNS search (§5) for improvements.
-3. Chain rooms with the Pareto DP (§5.3) — this is where the frames actually
-   are, because the human TAS deliberately gives up frames in one room to set
-   up the next (`lvl_8`, `lvl_12`, `lvl_2` all do), and no human can search
-   that trade-off exhaustively.
-4. **Record every claimed improvement in-game before believing it.** The
-   106-frame `lvl_3` is the model for this: found by SAT, replayed in Celeste
-   1.4, every frame matching. The same section also shows why it matters — the
-   106-frame ending *breaks* the next room's inputs, so a frame saved locally
-   was not a frame saved overall.
-5. Run the Tier B certificate at the largest W the budget allows (§2).
-6. Publish the route, the recording, and the certificate together.
-
-### 8.3 Where the frames most likely are
-
-Based on what the project has already seen:
-
-- **Room boundaries**, by a wide margin. The human TAS optimises room-locally
-  and hand-tunes the seams; the Pareto DP is the first tool that can search
-  seams exhaustively. The README's own worked example (room 2's 114-frame
-  ending needing a ≤110-frame room 3) is exactly this, left unresolved for want
-  of search strength.
-- **Rules humans under-exploit** because they are invisible: the 5 px
-  wallbounce reach, the 5 px ceiling correction while dash-attacking, two keys
-  per button. The project's 99-frame room 1 already relies on a 5 px ceiling
-  correction that was *inferred and then confirmed*.
-- **Not** raw per-room optimisation. The beam is behind the humans there and
-  will be for a while.
-
----
-
-## 9. Milestones
-
-Effort is wall-clock for one person working steadily; compute is separate.
-
-| # | milestone | effort | gate |
-|---|---|---|---|
-| M0 | Phase 0 done: Chapter 2 recorded in-game, barriers modelled, chase re-run | days | cbmc installed |
-| M1 | ~~`tools/entity_census.py`~~ **done**; run it on all 10 maps for the backlog | — | you have the map files |
-| M2 | Macro-action search beats the human TAS on Chapter 1 room 1 (≤ 92 frames) | 2–6 weeks | — |
-| M3 | Pareto DP chains a whole chapter and beats the human TAS end-to-end on Chapter 1 | 2–4 weeks | M2 |
-| M4 | Tier B certificate, W=8, for all of Chapter 1 | days | ~120 core-hours |
-| M5 | Chapter 1 A-side IL submitted, in-game verified, with certificate | 1 week | M3, M4 |
-| M6 | Cheaper collisions (§6.1): formula halved, W+1.7 for free | 2–4 weeks | — |
-| M7 | Chapters 3–5 modelled, recordings green | 2–4 months | M1 |
-| M8 | Cube-and-conquer: W=16 practical | 1–2 months | M6 |
-| M9 | Chapters 6–9 modelled (seekers, holdables, boss) | 4–8 months | M7 |
-| M10 | Whole any% route, beaten end-to-end, W=12 certificate | — | M9, ~2,700 core-hours |
-| M11 | Abstraction-refinement lower bounds: Tier C on real rooms | open-ended | M6; may fail |
-
-M0–M5 is the credible first result and is maybe three months. M10 is the
-"cracked the TAS" headline and is realistically **a year or two**, dominated by
-M9 — modelling seekers, holdables and the Badeline boss faithfully enough to
-survive an in-game recording.
-
----
-
-## 10. Risks, stated plainly
-
-- **Fidelity risk compounds.** Only `Player.cs` is published. Every entity
-  after Chapter 1 is decompiled-from-memory, and the model has already needed
-  rules found only by recording (falling-unduck waiting for coyote time; the
-  climb jump that starts a zip mover). A wrong rule invalidates every route and
-  every proof downstream of it. Mitigation: §4.3 step 6, every chapter.
-- **Seekers and holdables may not be tractable at all** inside a SAT harness.
-  If a holdable doubles the state, W drops by several frames for those rooms.
-  Plan to fall back to Tier A + search (no certificate) in those rooms rather
-  than stalling.
-- **The proof ledger problem is real and unglamorous.** Without §7, a year of
-  compute silently rots the first time a mechanic changes.
-- **Determinism must be confirmed per entity.** The TAS community relies on
-  Celeste being deterministic, but confirm it for each new entity rather than
-  assuming — anything seeded from the save file or from `Scene.TimeActive`
-  rounding (the chaser already needed a 3-frame conservative window for exactly
-  this reason) is a trap.
-- **Tier D is impossible and will be asked for anyway.** Have §1's table ready.
-  The honest headline is *"frame-exact model, route beats the human TAS, no
-  local improvement up to W frames exists"* — which is a strong result, and
-  much stronger than most TAS work has ever had.
+- **Fidelity compounds.** Only `Player.cs` is published. Every other entity
+  is the game's code as read or remembered, and a wrong rule invalidates
+  every route and proof built on it. The in-game recording at each step is
+  the control. Plan for one recording session per chapter.
+- **The community moves.** The record is a living file. Check the latest
+  `1A.tas` before submitting.
+- **Compute without a ledger rots.** See step 7.
+- **Tier D will be asked for anyway.** Have the tier table ready
+  ([docs/methods.md](docs/methods.md#what-proven-means)).
