@@ -224,25 +224,44 @@ Status of those numbers, honestly:
 
 ## Chapter 2: the Badeline chase
 
-The chase (rooms 3 to 12 of 2A) is in the model -- dream blocks, Badeline
-chasers, switch gates, touch switches, invisible barriers -- and in the
-differential fuzzer, but **nothing of Chapter 2 has been recorded in the
-game**, so these routes are model-only:
+The chase (rooms 3 to 12 of 2A) is in the model: dream blocks, Badeline
+chasers, switch gates, touch switches and invisible barriers. It is in the
+differential fuzzer too, but **nothing of Chapter 2 has been recorded in the
+game**, so these routes are model-only. Each room starts from the state the
+previous one leaves her in (`tools/chain_chapter2.py`), the chasers' history
+included.
 
-- `results/archive/2a_chase_2531.tas` (and its CelesteTAS file): 12 rooms,
-  2,531 frames of control, found on 2026-10-01, before the two dream-block
-  fixes, the invisible barriers, the touch-switch change and the narrowed
-  exits of `2a_lvl_9`/`2a_lvl_10`. **It no longer replays**: in the current
-  model it dies in `2a_lvl_6` on frame 173.
-- `results/archive/2a_chase_rooms_3_to_7_celestetas.tas`: rooms 3-7, 833
-  frames, written around the touch-switch change. **It no longer replays
-  either**: `2a_lvl_6` does not leave on its last frame.
-- The Leonardo run (beam width 500,000) solved rooms 3-9 (105, 117, 141,
-  222, 245, 207, 102 frames) and died in `2a_lvl_10`, which led to the exit
-  fix of commit 588c008. Those routes are not in the repository.
+| room | `results/routes/2a_chase.tas` | community TAS |
+|---|---|---|
+| `2a_lvl_3` | 102 | (cutscene skip) |
+| `2a_lvl_4` | 117 | 110 |
+| `2a_lvl_5` | 146 | 116 |
+| `2a_lvl_6` | 222 | 198 |
+| `2a_lvl_7` | 252 | 221 |
+| `2a_lvl_8` | 213 | 188 |
+| `2a_lvl_9` | 267 | 234 |
+| `2a_lvl_10` | 628 | 633 |
+| `2a_lvl_2` | 158 | 152 |
+| `2a_lvl_11` | 130 | 110 |
+| `2a_lvl_12b` | 169 | 134 |
+| `2a_lvl_12` | 127 | 125 |
+| rooms 4-12 | 2,429 | 2,221 |
 
-The touch-switch hitbox that made `2a_lvl_7` solvable is itself unsettled
-(see [verification.md](verification.md#things-still-to-check)).
+- `results/routes/2a_chase.tas` (and `results/celestetas/2a_chase.tas` to
+  play it): 12 rooms, 2,531 frames of control, found on 2026-10-01. It still
+  replays exactly in the current model, invisible barriers and narrowed
+  exits included. The one room where it beats the community TAS,
+  `2a_lvl_10`, is the one to look at first when it is recorded.
+- `results/celestetas/2a_chase_rooms_3_to_7.tas`: rooms 3-7 in 833 frames
+  (`2a_lvl_5` 141, `2a_lvl_7` 251). It replays too, but its `2a_lvl_7` exit
+  doesn't lead into the 12-room route's `2a_lvl_8` (the chasers are
+  elsewhere).
+- Between commit 1d3e148 and 2026-10-12 the model had a different
+  touch-switch hitbox ([verification.md](verification.md#chapter-2-nothing-recorded-yet)),
+  under which neither route replayed. The Leonardo chase run (beam width
+  500,000; rooms 3-9 in 105, 117, 141, 222, 245, 207 and 102 frames, then a
+  failure in `2a_lvl_10` that led to the exit fix of 588c008) used that
+  hitbox, so its routes need re-solving. They are not in the repository.
 
 ## Chapter 1, room 1 (`lvl_1`) in the community TAS
 

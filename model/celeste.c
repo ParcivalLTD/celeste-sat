@@ -2209,23 +2209,23 @@ static void chaser_update(State *s)
 #endif
 
 #if NTOUCH > 0
-/* TouchSwitch: Switch.Activate -> when every switch in the room is on, all
- * finish at once and the switch gates' Sequence() sees it in their update
- * this frame.
- * UNSETTLED -- which box touches the switch. Here: the switch's 16 x 16
- * Entity.Collider (+-8 px) against her collider (bottom at her feet), since
- * commit 1d3e148. Before that: a 30 x 30 PlayerCollider (+-15 px) against her
- * hurtbox (bottom 2 px above her feet), as the switch was first read from the
- * game's code. player_colliders() above models Player.Update checking
- * PlayerColliders with her hurtbox, so the two readings disagree on the
- * player side too. The change made 2A lvl_7 solvable; one recording of a
- * switch room in the game settles it (docs/verification.md). */
+/* TouchSwitch: its PlayerCollider has a box of its own, 30 x 30 around the
+ * switch (Hitbox(30, 30, -15, -15); the entity's 16 x 16 Collider is not the
+ * one that touches her), and Player.Update checks every PlayerCollider against
+ * her hurtbox (8 x 9 at (-4, -11), ducking 8 x 4 at (-4, -6): its bottom is
+ * 2 px above her feet), as player_colliders() does. Switch.Activate -> when
+ * every switch in the room is on, all finish at once and the switch gates'
+ * Sequence() sees it in their update this frame.
+ * Commit 1d3e148 had changed this to the 16 x 16 box against her collider; the
+ * hurtbox swap is in the published Player.cs, and the 30 x 30 box is what
+ * mods that mirror the vanilla switch build (MaxHelpingHand's FlagTouchSwitch).
+ * Not yet checked against a recording (docs/verification.md). */
 static void touch_update(State *s)
 {
-    int top = s->y - (s->ducking ? 6 : 11), bot = s->y;
+    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;
     for (int j = 0; j < NTOUCH; j++)
-        if (s->x - 4 < TOUCHSWITCHES[j][0] + 8 && s->x + 4 > TOUCHSWITCHES[j][0] - 8
-            && top < TOUCHSWITCHES[j][1] + 8 && bot > TOUCHSWITCHES[j][1] - 8) {
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + 15 && s->x + 4 > TOUCHSWITCHES[j][0] - 15
+            && top < TOUCHSWITCHES[j][1] + 15 && bot > TOUCHSWITCHES[j][1] - 15) {
             if (!(s->tsOn & (1u << j))) COV(C_TOUCHSWITCH);
             s->tsOn |= (unsigned char)(1u << j);
         }
