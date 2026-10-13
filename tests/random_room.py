@@ -239,5 +239,31 @@ if seed % 5 == 1:
     delay = random.randint(60, 120)
     chasers = [f"; chaser {delay}"] * random.randint(1, 2)
 
+# the map's tiles outside the room (seed % 6 == 5; a separate RNG, so the
+# other seeds' rooms stay as they were). The top border gets an opening with
+# no exit, which she can climb out of up to the top clamp, 24 px above the
+# room, as in 1a_lvl_6a; around the room, the game's extension of the edge
+# tiles (celeste_map.solid_grid) plus random tiles, so that both builds read
+# every part of the margin.
+outside = []
+if seed % 6 == 5:
+    rng = random.Random(1000003 * seed)
+    ox = rng.randint(1, W - 4)
+    for x in range(ox, ox + rng.randint(2, 3)):
+        g[0][x] = '.'
+    cells = set()
+    for cx in range(-4, W + 4):
+        for cy in list(range(-8, 0)) + list(range(H, H + 8)):
+            edge = g[0][cx] if cy < 0 and 0 <= cx < W else g[H - 1][cx] if 0 <= cx < W else None
+            if (edge == '#' and abs(cy if cy < 0 else cy - H + 1) <= 3) or rng.random() < 0.08:
+                cells.add((cx, cy))
+    for cy in range(H):
+        for cx in list(range(-4, 0)) + list(range(W, W + 4)):
+            edge = g[cy][0] if cx < 0 else g[cy][W - 1]
+            if (edge == '#' and rng.random() < 0.9) or rng.random() < 0.08:
+                cells.add((cx, cy))
+    for cx, cy in sorted(cells, key=lambda c: (c[1], c[0])):
+        outside.append(f"; outside {cx} {cx} {cy}")
+
 print("\n".join(exits + extra + springs + zips + gates + refills + falls + crumbles + dashblocks
-                + dreamblocks + barriers + touches + chasers + ["".join(r) for r in g]))
+                + dreamblocks + barriers + touches + chasers + outside + ["".join(r) for r in g]))

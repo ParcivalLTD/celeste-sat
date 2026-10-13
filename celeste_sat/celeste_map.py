@@ -105,6 +105,119 @@ def tile_rows(level):
     return rows
 
 
+HALO_COLS, HALO_ROWS = 4, 8          # model/celeste.c: the tiles around a room the model knows
+
+
+def _level_tiles(level):
+    """(left, top, width, height) of a room in tiles"""
+    a = level.attrs
+    return a["x"] // 8, a["y"] // 8, a["width"] // 8, a["height"] // 8
+
+
+_GRIDS = {}
+
+
+def solid_grid(root):
+    """The map's whole solid tile grid, as Celeste builds it when a chapter
+    loads (LevelLoader, read with ILSpy on 2026-10-13): every room's tiles,
+    then the filler rectangles, then each room's edge tiles extended 3 tiles
+    outwards into cells no room or filler covers. -> the set of solid (x, y)
+    tiles in world tile coordinates.
+
+    In detail (the game's order matters, later rooms overwrite earlier ones):
+    1. rooms: their tiles; their cells are "taken"
+    2. fillers: solid (each cell copies a solid tile next to the filler,
+       else gets '1'); taken
+    3. rooms: a column whose top-row tile is air takes the 7 cells above it
+       (they stay as they are); the same below the bottom row
+    4. rooms, in order: each column's top-row tile is copied up into up to 3
+       cells, stopping at a taken one; the same downwards; then, for the rows
+       from 4 above to 4 below the room, the left column's tile is copied 3
+       cells left and the right column's 3 cells right, the same way
+    Cells outside the map's bounds (rooms and fillers) are air; writes there
+    are dropped."""
+    key = id(root)
+    if key in _GRIDS:
+        return _GRIDS[key][1]
+    levels = rooms(root)
+    fill = root.child("Filler")
+    fillers = [(c.attrs["x"], c.attrs["y"], c.attrs["w"], c.attrs["h"]) for c in (fill.children if fill else [])]
+    rects = [_level_tiles(lv) for lv in levels] + fillers
+    bx0, by0 = min(r[0] for r in rects), min(r[1] for r in rects)
+    bx1, by1 = max(r[0] + r[2] for r in rects), max(r[1] + r[3] for r in rects)
+
+    def inside(x, y):
+        return bx0 <= x < bx1 and by0 <= y < by1
+
+    solid, taken = {}, set()
+
+    def get(x, y):
+        return solid.get((x, y), False) if inside(x, y) else False
+
+    def put(x, y, v):
+        if inside(x, y):
+            solid[(x, y)] = v
+
+    for lv in levels:                                        # 1
+        x0, y0, w, h = _level_tiles(lv)
+        for cy, row in enumerate(tile_rows(lv)):
+            for cx, ch in enumerate(row):
+                put(x0 + cx, y0 + cy, ch == "#")
+        taken.update((x0 + cx, y0 + cy) for cx in range(w) for cy in range(h))
+    for fx, fy, fw, fh in fillers:                           # 2: always solid ('1' or a neighbour's tile)
+        for x in range(fx, fx + fw):
+            for y in range(fy, fy + fh):
+                put(x, y, True)
+                taken.add((x, y))
+    for lv in levels:                                        # 3
+        x0, y0, w, h = _level_tiles(lv)
+        for x in range(x0, x0 + w):
+            if not get(x, y0):
+                taken.update((x, y0 - k) for k in range(1, 8))
+            if not get(x, y0 + h - 1):
+                taken.update((x, y0 + h - 1 + k) for k in range(1, 8))
+    for lv in levels:                                        # 4
+        x0, y0, w, h = _level_tiles(lv)
+        for x in range(x0, x0 + w):
+            for edge, step in ((y0, -1), (y0 + h - 1, 1)):
+                v = get(x, edge)
+                for k in range(1, 4):
+                    if (x, edge + step * k) in taken:
+                        break
+                    put(x, edge + step * k, v)
+        for y in range(y0 - 4, y0 + h + 4):
+            for edge, step in ((x0, -1), (x0 + w - 1, 1)):
+                v = get(edge, y)
+                for k in range(1, 4):
+                    if (edge + step * k, y) in taken:
+                        break
+                    put(edge + step * k, y, v)
+    cells = {c for c, v in solid.items() if v}
+    _GRIDS[key] = (root, cells)                              # keep root alive so id() stays unique
+    return cells
+
+
+def outside_tiles(level, root):
+    """the solid tiles of the map around a room, within the margin the model
+    reads (HALO_COLS either side, HALO_ROWS above and below), in room tile
+    coordinates -> sorted [(x0, x1, y)] runs"""
+    x0, y0, w, h = _level_tiles(level)
+    grid = solid_grid(root)
+    runs = []
+    for cy in range(-HALO_ROWS, h + HALO_ROWS):
+        cx = -HALO_COLS
+        while cx < w + HALO_COLS:
+            inside_room = 0 <= cx < w and 0 <= cy < h
+            if not inside_room and (x0 + cx, y0 + cy) in grid:
+                a = cx
+                while cx + 1 < w + HALO_COLS and not (0 <= cx + 1 < w and 0 <= cy < h) \
+                        and (x0 + cx + 1, y0 + cy) in grid:
+                    cx += 1
+                runs.append((a, cx, cy))
+            cx += 1
+    return runs
+
+
 def entities(level):
     ents = level.child("entities")
     return ents.children if ents else []
@@ -152,7 +265,7 @@ def export_room(path, name, out=None, goals=None):
     level = next((l for l in lv if l.attrs["name"] == name), None)
     if level is None:
         sys.exit(f"no room named {name!r}")
-    text = export(package, level, lv, goals)
+    text = export(package, level, lv, goals, root)
     if out:
         write_text(out, text)
     return text
@@ -183,8 +296,9 @@ def neighbour_ranges(level, all_levels):
     return out
 
 
-def export(package, level, lv, goals=None):
-    """the text of one room in the ASCII room format"""
+def export(package, level, lv, goals=None, root=None):
+    """the text of one room in the ASCII room format; with the map's `root`,
+    also the map's tiles around it (outside_tiles)"""
     rows = [list(r) for r in tile_rows(level)]
     H, W = len(rows), len(rows[0])
     ents = entities(level)
@@ -272,6 +386,9 @@ def export(package, level, lv, goals=None):
     elif goals is not None and not any(name in goals for _, _, _, name in exits):
         head.append(f"; WARNING: none of {', '.join(goals)} is a neighbour of this room")
     head += lines
+    if root is not None:
+        for a, b, cy in outside_tiles(level, root):
+            head.append(f"; outside {a} {b} {cy}")
 
     if players:
         p = players[0]
