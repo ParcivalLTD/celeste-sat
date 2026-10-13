@@ -34,7 +34,7 @@ def build(room_path, bdir, start=None, defines=()):
     """room.h, timer tables, sim and beam for a room in bdir; `start` is an
     optional state header (START_STATE) to begin from instead of the spawn
     (copied to bdir/entry.h); `defines`: extra -D flags for the model (for
-    experiments, e.g. "TOUCH_ENTITY_COLLIDER")."""
+    experiments with another reading of the game, e.g. "ZIP_WALL_LIFT")."""
     os.makedirs(bdir, exist_ok=True)
     try:
         room_header.write(room_path, f"{bdir}/room.h")
