@@ -1,0 +1,28 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_12a W=16 K=64..79: 16 windows, 16 at a time, timeout 10800s, lrdn1377.leonardo.local ===
+route leaves 1a_lvl_12a on frame 141; 16 windows of 16 free frames (K = 64..79), 16 at a time
+  frames  76.. 92 in 16: no (4547s)
+  frames  75.. 91 in 16: no (5046s)
+  frames  65.. 81 in 16: no (6139s)
+  frames  78.. 94 in 16: no (6147s)
+  frames  79.. 95 in 16: no (6236s)
+  frames  68.. 84 in 16: no (6259s)
+  frames  77.. 93 in 16: no (6322s)
+  frames  80.. 96 in 16: no (6471s)
+  frames  66.. 82 in 16: no (6958s)
+  frames  74.. 90 in 16: no (7486s)
+  frames  67.. 83 in 16: no (7727s)
+  frames  73.. 89 in 16: no (7927s)
+  frames  70.. 86 in 16: no (8376s)
+  frames  72.. 88 in 16: no (8377s)
+  frames  71.. 87 in 16: no (8528s)
+  frames  69.. 85 in 16: no (8791s)
+16 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w16/lvl_12a_k64-79/windows.json)

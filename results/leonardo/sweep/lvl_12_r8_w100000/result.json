@@ -1,0 +1,12 @@
+{
+ "room": "1a_lvl_12",
+ "frames": 140,
+ "proven": false,
+ "from_frame": 0,
+ "history": [
+  {
+   "kind": "given",
+   "frames": 140
+  }
+ ]
+}

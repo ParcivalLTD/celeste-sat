@@ -1,0 +1,91 @@
+{
+ "total": 365,
+ "results": [
+  {
+   "exit_a": 211,
+   "answer": "no",
+   "secs": 26
+  },
+  {
+   "exit_a": 208,
+   "answer": "no",
+   "secs": 243
+  },
+  {
+   "exit_a": 202,
+   "answer": "no",
+   "secs": 281
+  },
+  {
+   "exit_a": 209,
+   "answer": "no",
+   "secs": 283
+  },
+  {
+   "exit_a": 196,
+   "answer": "no",
+   "secs": 297
+  },
+  {
+   "exit_a": 195,
+   "answer": "no",
+   "secs": 294
+  },
+  {
+   "exit_a": 197,
+   "answer": "no",
+   "secs": 321
+  },
+  {
+   "exit_a": 198,
+   "answer": "no",
+   "secs": 391
+  },
+  {
+   "exit_a": 199,
+   "answer": "no",
+   "secs": 481
+  },
+  {
+   "exit_a": 203,
+   "answer": "no",
+   "secs": 494
+  },
+  {
+   "exit_a": 200,
+   "answer": "no",
+   "secs": 679
+  },
+  {
+   "exit_a": 201,
+   "answer": "no",
+   "secs": 735
+  },
+  {
+   "exit_a": 205,
+   "answer": "no",
+   "secs": 793
+  },
+  {
+   "exit_a": 206,
+   "answer": "no",
+   "secs": 802
+  },
+  {
+   "exit_a": 204,
+   "answer": "no",
+   "secs": 973
+  },
+  {
+   "exit_a": 210,
+   "answer": "no",
+   "secs": 1100
+  },
+  {
+   "exit_a": 207,
+   "answer": "no",
+   "secs": 1421
+  }
+ ],
+ "proven": true
+}
