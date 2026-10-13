@@ -16,7 +16,7 @@ from .paths import BUILD, read_text
 from .room import parse
 from .tas import read_tas, write_tas
 
-STATE_NAMES = {0: "StNormal", 1: "StClimb", 2: "StDash"}
+STATE_NAMES = {0: "StNormal", 1: "StClimb", 2: "StDash", 3: "StDreamDash"}   # model/celeste.h ST_*
 TOLERANCE = 2e-3          # recordings print positions and speeds with a few decimals
 
 
