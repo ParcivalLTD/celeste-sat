@@ -17,6 +17,64 @@
 ; refill 216 112
 ; fallingblock 256 96 24 16 1
 ; spikes up 280 128 24
+; outside 34 43 -8
+; outside 12 14 -7
+; outside 34 43 -7
+; outside 12 16 -6
+; outside 32 43 -6
+; outside 12 16 -5
+; outside 32 43 -5
+; outside -4 -2 -4
+; outside 13 16 -4
+; outside 29 43 -4
+; outside -4 -2 -3
+; outside 13 43 -3
+; outside -4 5 -2
+; outside 13 43 -2
+; outside -4 43 -1
+; outside -4 -1 0
+; outside 40 43 0
+; outside -4 -1 1
+; outside 40 43 1
+; outside -4 -1 2
+; outside 40 43 2
+; outside -4 -1 3
+; outside -2 -1 4
+; outside -2 -1 5
+; outside -2 -1 6
+; outside 40 43 6
+; outside -2 -1 7
+; outside 40 43 7
+; outside -2 -1 8
+; outside 40 43 8
+; outside -2 -1 9
+; outside 40 43 9
+; outside -2 -1 10
+; outside 40 43 10
+; outside -1 -1 11
+; outside 40 43 11
+; outside -1 -1 12
+; outside 40 43 12
+; outside -1 -1 13
+; outside 40 43 13
+; outside -1 -1 14
+; outside 40 43 14
+; outside 40 43 15
+; outside 40 43 16
+; outside 40 43 17
+; outside -4 -1 20
+; outside -4 -1 21
+; outside 40 43 21
+; outside -4 -1 22
+; outside 40 43 22
+; outside -4 43 23
+; outside -4 43 24
+; outside -4 43 25
+; outside -4 43 26
+; outside -4 43 27
+; outside -4 43 28
+; outside -4 43 29
+; outside -4 43 30
 ; spawn 8 160
 ########################################
 #################.......################

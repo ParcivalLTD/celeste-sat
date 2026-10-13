@@ -3,6 +3,13 @@
 ; NOT MODELLED (ignored): payphone
 ; no effect on movement: wire
 ; exit left -8 184   (-> lvl_12)
+; outside -4 -1 19
+; outside -4 -1 20
+; outside -4 -1 21
+; outside -4 -1 22
+; outside -4 39 23
+; outside -4 39 24
+; outside -4 39 25
 ; spawn 8 152
 ........................................
 ........................................

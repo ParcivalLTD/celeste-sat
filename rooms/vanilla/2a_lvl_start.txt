@@ -3,6 +3,42 @@
 ; no effect on movement: bonfire, goldenBerry, memorial
 ; exit right -88 248   (-> lvl_0)
 ; leave up 0 320   (-> lvl_s0)
+; outside 38 43 -8
+; outside 38 43 -7
+; outside 38 43 -6
+; outside 38 43 -5
+; outside 38 43 -4
+; outside 38 43 -3
+; outside 38 43 -2
+; outside 38 43 -1
+; outside 40 43 0
+; outside 40 43 1
+; outside 40 43 2
+; outside 40 43 3
+; outside 40 43 4
+; outside 40 43 5
+; outside 40 43 6
+; outside 43 43 7
+; outside 43 43 8
+; outside -3 -1 27
+; outside 40 43 27
+; outside -3 -1 28
+; outside 40 43 28
+; outside -3 -1 29
+; outside 40 43 29
+; outside -3 -1 30
+; outside 40 43 30
+; outside -3 5 31
+; outside 9 43 31
+; outside -3 5 32
+; outside 9 43 32
+; outside -3 5 33
+; outside 9 43 33
+; outside 43 43 34
+; outside 42 43 35
+; outside 42 43 36
+; outside 42 43 37
+; outside 42 43 38
 ; spawn 240 216
 ......................................##
 ......................................##
