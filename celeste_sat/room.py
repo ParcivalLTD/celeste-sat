@@ -44,6 +44,14 @@ Lines starting with ';' are comments, except these directives:
     ; barrier X Y W H       an invisible barrier (W x H at (X, Y)): a Solid that
                             never moves and is never drawn
     ; chaser DELAY          a Badeline chaser (one line each; DELAY in frames)
+    ; outside X0 X1 Y       solid tiles outside the room's grid: tile columns
+                            X0..X1 of tile row Y, in the room's tile coordinates
+                            (negative above and left of it). The game's tile grid
+                            covers the whole map, and Celeste extends each room's
+                            edge tiles outwards (celeste_map.solid_grid), so
+                            outside is not simply air. The model reads OUTSIDE_COLS
+                            columns either side and OUTSIDE_ROWS rows above and
+                            below; without the directive everything outside is air.
 Spikes touching a zip mover or falling block from outside (Spikes.IsRiding)
 are attached to it and move with it.
 Spikes and springs act in the order they are listed (the game checks them in
@@ -60,6 +68,7 @@ SIDES = {"left": 0, "right": 1, "up": 2, "down": 3}
 DIRS = {"up": 0, "down": 1, "left": 2, "right": 3}
 TILE_SPIKES = {"^": "up", "v": "down", "<": "left", ">": "right"}
 MAX_TOUCH_SWITCHES = 8            # model/celeste.h; State.tsOn is 8 bits
+OUTSIDE_COLS, OUTSIDE_ROWS = 4, 8  # model/celeste.c (col_bits, above_bits, below_bits)
 MAX_DASH_BLOCKS = 8               # State.dbBroken is 8 bits
 MAX_DREAM_BLOCKS = 8
 MAX_BARRIERS = 8
@@ -88,6 +97,7 @@ class Room:
     nchasers: int = 0
     facing: int = None                            # spawn facing (-1: left), or None
     origin: tuple = None                          # world position of the top-left corner, or None
+    outside: set = field(default_factory=set)     # solid tiles (cx, cy) outside the grid
 
     @property
     def width(self):                              # tiles
@@ -177,6 +187,9 @@ def parse(path):
             r.dreamblocks.append(_ints(words[2:6]))
         elif line.startswith("; barrier "):
             r.barriers.append(_ints(words[2:6]))
+        elif line.startswith("; outside "):
+            a, b, cy = _ints(words[2:5])
+            r.outside.update((cx, cy) for cx in range(a, b + 1))
         elif line.startswith("; chaser"):
             r.chaser = int(words[2]) if len(words) > 2 else 90
             r.nchasers += 1
@@ -189,6 +202,10 @@ def parse(path):
     w = len(rows[0])
     assert all(len(row) == w for row in rows), "all rows must have the same width"
     assert len(rows) <= 128, "rooms taller than 128 tiles need a wider column type"
+    for cx, cy in r.outside:
+        assert not (0 <= cx < w and 0 <= cy < len(rows)), f"; outside tile ({cx}, {cy}) is inside the room"
+        assert -OUTSIDE_COLS <= cx < w + OUTSIDE_COLS and -OUTSIDE_ROWS <= cy < len(rows) + OUTSIDE_ROWS, \
+            f"; outside tile ({cx}, {cy}) is beyond the {OUTSIDE_COLS} x {OUTSIDE_ROWS} tiles the model reads"
     for cy, row in enumerate(rows):
         for cx, ch in enumerate(row):
             if ch == "S":
