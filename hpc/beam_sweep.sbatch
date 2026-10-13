@@ -1,7 +1,7 @@
 #!/bin/bash
 # Beam polish of the community TAS, room by room, over a sweep of rollouts
-# (ROADMAP Phase 0 item 5 / brain.md 5: rollout is not monotone and the
-# defaults disagree, 8 in solve.py vs 10 in beam.c). Each task: one room,
+# (rollout is not monotone, so the default of 8 in tools/solve.py is a guess;
+# see BEAM_ROLLOUT there). Each task: one room,
 # one rollout; tools/solve.py --tas <TAS route> --polish restarts the beam
 # from frames of the TAS's own route, each room entered as the TAS enters it.
 #
@@ -40,6 +40,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK OMP_PROC_BIND=close OMP_PLACES=cores
 echo "=== ${ROOM} rollout ${R} width ${WIDTH}, $(hostname) ==="
 python3 tools/solve.py "rooms/vanilla/1a_${ROOM}.txt" ${START[@]+"${START[@]}"} \
     --tas "$ROUTE" --polish --no-sat --beam-width "$WIDTH" --beam-rollout "$R" --out "$OUT"
-TAS=$(python3 -c "import sys; sys.path.insert(0, 'tools'); from solve import read_tas; print(len(read_tas('$ROUTE')))")
+TAS=$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.tas import read_tas; print(len(read_tas('$ROUTE')))")
 GOT=$("$OUT/sim" "$OUT/best.tas" | sed -n 's/.*EXIT at frame \([0-9]*\).*/\1/p' | head -1)
 echo "RESULT ${ROOM} ${R} ${WIDTH} ${TAS} ${GOT:-none}"

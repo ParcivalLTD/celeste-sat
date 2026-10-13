@@ -26,21 +26,23 @@ and record Madeline's exact position (pixel + subpixel), speed and state.
    frames around it. Any difference is a porting error to fix (or a mechanic
    the model does not cover).
 """
-import argparse, json, os, re, subprocess, sys, tempfile
+import argparse
+import os
+import re
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from solve import NOTHING, build, read_tas, write_tas  # noqa: E402
-
-STATE_NAMES = {0: "StNormal", 1: "StClimb", 2: "StDash"}
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import community as community_tas  # noqa: E402
+from celeste_sat.build import build, run_sim  # noqa: E402
+from celeste_sat.paths import BUILD, VANILLA  # noqa: E402
+from celeste_sat.recording import model_trace, parse_dump, room_origin, same, same_position  # noqa: E402
+from celeste_sat.tas import NOTHING, read_tas, tas_lines, write_tas  # noqa: E402
+from celeste_sat.transition import TRANSITION_GAP, next_entry  # noqa: E402
 
 
 def export(a):
     frames = read_tas(a.route)
-    tmp = tempfile.NamedTemporaryFile("w", suffix=".tas", delete=False).name
-    write_tas(tmp, frames, [])
-    body = [l for l in open(tmp).read().splitlines() if l and not l.startswith("#")]
-    os.remove(tmp)
+    body = tas_lines(frames)
     lines = [
         f"# celeste-sat route {os.path.basename(a.route)} ({len(frames)} frames), written by tools/celestetas.py",
         "# loads the room, waits until Madeline stands at the spawn in control,",
@@ -60,10 +62,7 @@ def export(a):
 def probe(a):
     """route + idle frames, recorded through the room transition"""
     frames = read_tas(a.route) + [NOTHING] * a.after
-    tmp = tempfile.NamedTemporaryFile("w", suffix=".tas", delete=False).name
-    write_tas(tmp, frames, [])
-    body = [l for l in open(tmp).read().splitlines() if l and not l.startswith("#")]
-    os.remove(tmp)
+    body = tas_lines(frames)
     lines = [
         f"# celeste-sat transition probe: {os.path.basename(a.route)} then {a.after} frames of no input",
         "# records the room transition frame by frame (position, speed, state, room)",
@@ -79,8 +78,8 @@ def probe(a):
           f"  python3 tools/celestetas.py show <path to {a.dump}>")
 
 
-TRANSITION_WAIT = 40   # idle frames after a room's exit frame: the game's transition (measured,
-                       # recordings/celeste-sat-probe-1to2.txt; the community TASes wait 40 too)
+TRANSITION_WAIT = TRANSITION_GAP   # idle frames after a room's exit frame: the game's transition
+                                   # (measured; the community TASes wait 40 too)
 
 
 def chain_segments(path):
@@ -101,16 +100,14 @@ def chain_segments(path):
 def chain_check(segs, rdir):
     """replay the rooms in the model, each from the state the previous one leaves her in;
     returns the frame each room is left on (None if it is not)"""
-    from chapter import enter_room, exit_side, origin_of, read_state, tables, write_state
-    from make_room import parse
     exits, start = [], None
     for k, (room, frames) in enumerate(segs):
         path = os.path.join(rdir, f"{room}.txt")
-        bdir = os.path.join(ROOT, "build", "ingame_check", room)
+        bdir = os.path.join(BUILD, "ingame_check", room)
         build(path, bdir, start)
         route = os.path.join(bdir, "route.tas")
         write_tas(route, frames, [room])
-        out = subprocess.run([os.path.join(bdir, "sim"), route], capture_output=True, text=True).stdout
+        out = run_sim(bdir, route).stdout
         m = re.search(r"EXIT at frame (\d+)", out)
         exits.append(int(m.group(1)) if m else None)
         dead = re.search(r"died at frame (\d+)", out)
@@ -118,15 +115,9 @@ def chain_check(segs, rdir):
               f"dies on frame {dead.group(1)}" if dead else "does not leave"))
         if not m or k + 1 == len(segs):
             break
-        exit_h = os.path.join(bdir, "exit.h")
-        subprocess.run([os.path.join(bdir, "sim"), "-s", m.group(1), exit_h, route], capture_output=True)
-        st = read_state(exit_h)
-        nxt = os.path.join(rdir, f"{segs[k + 1][0]}.txt")
-        r0, r1 = parse(path)[0], parse(nxt)[0]
-        e = enter_room(st, exit_side(st, len(r0[0]) * 8, len(r0) * 8), origin_of(path), origin_of(nxt),
-                       len(r1[0]) * 8, len(r1) * 8, tables(bdir))
         start = os.path.join(bdir, "next_entry.h")
-        write_state(e, start, f"entering {segs[k + 1][0]} from {room}")
+        next_entry(bdir, route, int(m.group(1)), path, os.path.join(rdir, f"{segs[k + 1][0]}.txt"), start,
+                   f"entering {segs[k + 1][0]} from {room}")
     return exits
 
 
@@ -134,6 +125,8 @@ def chain(a):
     """a chained route (tools/chain_chapter2.py) as one CelesteTAS file: load the first room,
     play every room's inputs with the transition's idle frames between them, record all of it"""
     segs = chain_segments(a.tas)
+    if not a.dump:
+        a.dump = f"celeste-sat-{segs[0][0].split('_', 1)[0]}-chain.txt"
     if a.last:
         names = [r for r, _ in segs]
         if a.last not in names:
@@ -159,10 +152,7 @@ def chain(a):
         f"ExportGameInfo, {a.dump}",
     ]
     for k, (room, frames) in enumerate(segs):
-        tmp = tempfile.NamedTemporaryFile("w", suffix=".tas", delete=False).name
-        write_tas(tmp, frames, [])
-        body = [l for l in open(tmp).read().splitlines() if l and not l.startswith("#")]
-        os.remove(tmp)
+        body = tas_lines(frames)
         lines += ["", f"#{room.split('_', 1)[1]} ({len(frames)} frames, leaves on the last)", *body,
                   f"{TRANSITION_WAIT:4d}"]
     if a.after:
@@ -173,14 +163,9 @@ def chain(a):
           f"  python3 tests/recordings.py <folder with {a.dump}>")
 
 
-COMMUNITY_URL = ("https://raw.githubusercontent.com/VampireFlower/CelesteTAS/"
-                 "098927faa0da3101bf9c2371f1e45d719c830821/1A.tas")
-
-
 def community(a):
     """the community 1A.tas, recording a stretch of rooms (and, with --entities, entities such as ZipMover)"""
-    import urllib.request
-    text = open(a.tas).read() if a.tas else urllib.request.urlopen(COMMUNITY_URL, timeout=30).read().decode("utf-8")
+    text = community_tas.fetch("1A.tas", a.tas)
     rooms = [r.lstrip("#") for r in a.rooms]
     first, last = rooms[0], rooms[-1]
     replace = {}
@@ -249,70 +234,6 @@ def show(a):
         print(f"{n:5d}  {cols[4]:>36}  {cols[5]:>28}  {cols[6]:10} {room}{mark}")
 
 
-def room_origin(room):
-    """the room's top-left corner in world coordinates (the recording's positions are world positions)"""
-    for line in open(room):
-        m = re.match(r";\s*origin\s+(-?\d+)\s+(-?\d+)", line)
-        if m:
-            return int(m.group(1)), int(m.group(2))
-    return 0, 0
-
-
-def parse_dump(path, origin=(0, 0)):
-    """rows of (inputs, x, y, vx, vy, state, statuses) from an ExportGameInfo file, positions in room coordinates"""
-    rows = []
-    num = r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?"
-    for line in open(path, encoding="utf-8", errors="replace"):
-        cols = line.rstrip("\n").split("\t")
-        if not cols or cols[0] == "Line" or len(cols) < 7:
-            continue
-        pos = re.findall(num, cols[4])
-        spd = re.findall(num, cols[5])
-        if len(pos) < 2 or len(spd) < 2:
-            continue
-        ents = cols[9] if len(cols) > 9 else ""
-        zm = re.search(r"ZipMover(?:\[[^\]]*\])?\s*:?\s*\(?\s*(" + num + r")\s*,\s*(" + num + ")", ents)
-        rows.append(dict(line=cols[0], inputs=cols[1], x=float(pos[0]) - origin[0], y=float(pos[1]) - origin[1],
-                         vx=float(spd[0]), vy=float(spd[1]), state=cols[6].strip(),
-                         statuses=cols[7] if len(cols) > 7 else "",
-                         room=cols[8].strip() if len(cols) > 8 else "", entities=ents,
-                         zip=(float(zm.group(1)), float(zm.group(2))) if zm else None))
-    return rows
-
-
-def row_keys(inputs):
-    """the keys held on a recorded frame: "3/  10,R,J" -> "R,J" (the Inputs column shows the TAS line)"""
-    line = inputs.split("/", 1)[-1].strip()
-    return ",".join(k.strip() for k in line.split(",")[1:] if k.strip())
-
-
-def model_trace(room, route, start=None):
-    """per-frame model states, and the frame the route leaves the room on (or None)"""
-    name = os.path.splitext(os.path.basename(room))[0]
-    bdir = os.path.join(ROOT, "build", f"check_{name}" + ("_entry" if start else ""))
-    build(room, bdir, start)
-    tmp = os.path.join(bdir, "route.tas")
-    write_tas(tmp, read_tas(route), ["route"])
-    subprocess.run([os.path.join(bdir, "sim"), tmp, "-j", os.path.join(bdir, "trace.json")],
-                   capture_output=True, text=True)
-    trace = json.load(open(os.path.join(bdir, "trace.json")))
-    frames = trace["frames"]
-    exit_frame = trace.get("exit_frame", -1)
-    death = trace.get("death_frame", -1)
-    return [dict(x=f["x"] + f.get("rx", 0.0), y=f["y"] + f.get("ry", 0.0),
-                 vx=f.get("vxe", f["vx"]), vy=f.get("vye", f["vy"]),
-                 state="Freeze" if f["frz"] else STATE_NAMES.get(f["st"], str(f["st"])),
-                 inp=f["in"], dead=(k + 1 == death),
-                 **({k2: f[k2] for k2 in ("zx", "zy", "zt", "lx", "ly") if k2 in f}))
-            for k, f in enumerate(frames[1:])], (exit_frame if exit_frame and exit_frame > 0 else None)
-
-
-def same(m, g, tol_pos=2e-3, tol_spd=2e-3):
-    ok_state = m["state"] == "Freeze" or g["state"] == m["state"]
-    return (abs(m["x"] - g["x"]) <= tol_pos and abs(m["y"] - g["y"]) <= tol_pos
-            and abs(m["vx"] - g["vx"]) <= tol_spd and abs(m["vy"] - g["vy"]) <= tol_spd and ok_state)
-
-
 def compare(a):
     origin = room_origin(a.room)
     game = parse_dump(a.dump, origin)
@@ -327,8 +248,7 @@ def compare(a):
         if exit_frame and i + 1 == exit_frame:
             # on the exit frame the game has already begun the room transition (speed and control
             # taken over); the position after the frame's movement must still agree
-            return (abs(m["x"] - g["x"]) <= 2e-3 and abs(m["y"] - g["y"]) <= 2e-3
-                    and "NoControl" in g["statuses"])
+            return same_position(m, g) and "NoControl" in g["statuses"]
         return same(m, g)
 
     # the recording may start a frame early or late; use the offset that matches longest
@@ -401,8 +321,9 @@ def main():
     ch.add_argument("--last", help="the last room to play (default: all of them)")
     ch.add_argument("--after", type=int, default=30,
                     help="idle frames recorded in the room after the last (default 30)")
-    ch.add_argument("--rooms", default=os.path.join(ROOT, "rooms", "vanilla"))
-    ch.add_argument("--dump", default="celeste-sat-chain.txt")
+    ch.add_argument("--rooms", default=VANILLA)
+    ch.add_argument("--dump", help="the recording's file name (default celeste-sat-<chapter>-chain.txt, e.g. "
+                                   "celeste-sat-2a-chain.txt, which tests/recordings.py checks against that chapter)")
     ch.add_argument("-o", "--out", required=True)
     w = sub.add_parser("show", help="print a recording, marking room changes")
     w.add_argument("dump")
@@ -412,7 +333,7 @@ def main():
     c.add_argument("route")
     c.add_argument("dump")
     c.add_argument("--start", help="state header the room starts from (default: its spawn), e.g. the entry "
-                   "state from the previous room written by tools/chapter.py or tests/community_tas.py")
+                   "state from the previous room written by tools/chapter.py or tests/chain_tas.py")
     a = ap.parse_args()
     {"export": export, "probe": probe, "community": community, "chain": chain, "show": show,
      "compare": compare}[a.cmd](a)

@@ -1,39 +1,32 @@
 #!/usr/bin/env python3
 """
-transition.py -- compute entry state for next room from previous room's exit state.
-Usage:
-    python tools/transition.py <exit.h> <prev_room.txt> <next_room.txt> <bdir_with_tables> <out_entry.h>
+transition.py -- the state she enters the next room with, from the state
+she left the previous one in (what tools/chapter.py does between rooms).
+
+    python3 tools/transition.py EXIT.h PREV_ROOM.txt NEXT_ROOM.txt BUILD_DIR OUT_ENTRY.h
+
+EXIT.h is the exit state (`sim -s N EXIT.h route.tas`, N = the exit frame);
+BUILD_DIR is any build of PREV_ROOM (for its timer tables). The rules are in
+celeste_sat/transition.py.
 """
-import sys, os
-from chapter import read_state, write_state, parse, exit_side, origin_of, enter_room, tables
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat.state import read_state, tables, write_state  # noqa: E402
+from celeste_sat.transition import entry_from_exit_state  # noqa: E402
+
 
 def main():
-    if len(sys.argv) < 6:
-        print("Usage: python transition.py <exit.h> <prev_room.txt> <next_room.txt> <bdir_with_tables> <out_entry.h>")
-        sys.exit(1)
-        
-    exit_h = sys.argv[1]
-    prev_room = sys.argv[2]
-    next_room = sys.argv[3]
-    bdir = sys.argv[4]
-    out_entry = sys.argv[5]
-    
-    st = read_state(exit_h)
-    rows = parse(prev_room)[0]
-    side = exit_side(st, len(rows[0]) * 8, len(rows) * 8)
-    nrows = parse(next_room)[0]
-    
-    print(f"Exit side from {prev_room}: {side}")
-    print(f"Prev origin: {origin_of(prev_room)}, Next origin: {origin_of(next_room)}")
-    print(f"Next room size: {len(nrows[0]) * 8} x {len(nrows) * 8}")
-    
-    e = enter_room(st, side, origin_of(prev_room), origin_of(next_room),
-                   len(nrows[0]) * 8, len(nrows) * 8, tables(bdir))
+    if len(sys.argv) != 6:
+        sys.exit(__doc__)
+    exit_h, prev_room, next_room, bdir, out_entry = sys.argv[1:]
+    e, side = entry_from_exit_state(read_state(exit_h), prev_room, next_room, tables(bdir))
     write_state(e, out_entry, f"entering {os.path.basename(next_room)} from {os.path.basename(prev_room)}")
-    print(f"Wrote {out_entry}:")
-    print(f"  Pos: ({e['x']}, {e['y']})")
-    print(f"  Spd: ({e['spdX']}, {e['spdY']})")
-    print(f"  Dashes: {e['dashes']}, Stamina: {e['stamina']}")
+    print(f"left {os.path.basename(prev_room)} through its {side} edge; wrote {out_entry}:")
+    print(f"  position ({e['x']}, {e['y']}), speed ({e['spdX']:g}, {e['spdY']:g}), "
+          f"dashes {e['dashes']}, stamina {e['stamina']:g}")
+
 
 if __name__ == "__main__":
     main()

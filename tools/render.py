@@ -10,18 +10,21 @@ spec.json:
               "log": [{"q": "...", "free": 13, "kind": "unsat", "a": "no", "time": "86 s"}],
               "status": "..."}]}
 """
-import json, os, sys
+import json
+import os
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from make_room import parse, spike_box  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat.paths import ROOT  # noqa: E402
+from celeste_sat.room import parse, spike_box  # noqa: E402
 
 
 def main():
     spec = json.load(open(sys.argv[1]))
     rooms = []
     for r in spec["rooms"]:
-        rows, _, exits, colliders, jumpthrus, *rest = parse(os.path.join(ROOT, r["room"]))
+        room = parse(os.path.join(ROOT, r["room"]))
+        rows, exits, colliders, jumpthrus = room.rows, room.exits, room.colliders, room.jumpthrus
         spikes = [c[1:] for c in colliders if c[0] == "spikes"]
         springs = [list(c[1:]) for c in colliders if c[0] == "spring"]
         trace = json.load(open(os.path.join(ROOT, r["build"], "trace.json")))
