@@ -1,11 +1,19 @@
+# everything the tools build or download
 build/
+__pycache__/
+*.egg-info/
 *.cnf
 *.smt2
-__pycache__/
-# rooms extracted from your own copy of the game stay local
-rooms/vanilla/
-results/vanilla/
-2-OldSite.bin
-# ...except Chapter 2's rooms, which are committed: 2-OldSite.bin is not in the
-# repo, so tools/import_chapter2.py cannot re-export them from a fresh clone
+
+# The game's own files are never committed: copy the map files from
+# <Celeste>/Content/Maps into game/ (see game/README.md)
+game/*
+!game/README.md
+*.bin
+
+# rooms exported from your own copy of the game stay local (tests/chain_tas.py
+# writes Chapter 1's) -- except Chapter 2's, which are committed for now
+# (see ROADMAP.md, "Before going public")
+rooms/vanilla/*
 !rooms/vanilla/2a_*.txt
+results/vanilla/

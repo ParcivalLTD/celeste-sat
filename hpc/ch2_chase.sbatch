@@ -24,7 +24,7 @@ source hpc/env.sh
 
 BEAM=${BEAM:-500000}
 # The chase is meaningless while these rooms let her walk through invisible barriers
-# (brain.md 4b): re-export them from 2-OldSite.bin first (python3 tools/import_chapter2.py).
+# re-export them from 2-OldSite.bin first (python3 tools/import_chapter2.py).
 for r in 2a_lvl_2 2a_lvl_9 2a_lvl_10; do
     if grep -q "NOT MODELLED.*invisibleBarrier" "rooms/vanilla/${r}.txt"; then
         echo "rooms/vanilla/${r}.txt has no invisible barriers yet: re-export the Chapter 2 rooms first" >&2

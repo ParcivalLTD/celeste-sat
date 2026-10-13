@@ -3,7 +3,7 @@
 entity_census.py -- which entities are still unmodelled, and where.
 
     python3 tools/entity_census.py "<Celeste>/Content/Maps"            # every map
-    python3 tools/entity_census.py 1-ForsakenCity.bin --tas recordings/1A.tas
+    python3 tools/entity_census.py game/1-ForsakenCity.bin --tas community   # the community 1A.tas
     python3 tools/entity_census.py "<Celeste>/Content/Maps" --json census.json
 
 The verdict comes from tools/import_map.py itself: every room is exported and
@@ -14,17 +14,21 @@ supports -- add an entity there and it disappears from here.
 With --tas, the rooms a community TAS actually visits are marked on-route.
 An entity in an on-route room blocks that chapter; one only in side rooms
 (cassette, B-side gems, collectables) does not, and that distinction is the
-whole point of the ranking: ROADMAP.md "Phase 1" works down this list.
+whole point of the ranking: it is the backlog for every chapter after the second.
 
 Exit status is 0 even when entities are missing -- it is a report, not a test.
 """
-import argparse, json, os, re, sys
+import argparse
+import json
+import os
+import re
+import sys
 from collections import defaultdict
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-sys.path.insert(0, os.path.join(ROOT, "tests"))
-from import_map import entities, export, read_map, rooms  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import community  # noqa: E402
+from celeste_sat.celeste_map import entities, export, read_map, rooms  # noqa: E402
+from celeste_sat.tas import sections  # noqa: E402
 
 NOT_MODELLED = re.compile(r"^; NOT MODELLED \(ignored\): (.*)$", re.M)
 COSMETIC_LINE = re.compile(r"^; no effect on movement: (.*)$", re.M)
@@ -32,7 +36,6 @@ COSMETIC_LINE = re.compile(r"^; no effect on movement: (.*)$", re.M)
 
 def route_rooms(tas_path, names):
     """the rooms a CelesteTAS file visits, in order (its #room labels)"""
-    from chain_tas import sections
     return sections(open(tas_path).read(), names)[1]
 
 
@@ -70,8 +73,8 @@ def census_map(path, tas=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("maps", nargs="+", help="map files, or a directory of them (Content/Maps)")
-    ap.add_argument("--tas", help="a community TAS file: mark the rooms it visits as on-route "
-                                  "(only meaningful with a single map)")
+    ap.add_argument("--tas", help="a TAS file: mark the rooms it visits as on-route (only meaningful with a "
+                                  "single map); 'community' = the community 1A.tas (celeste_sat/community.py)")
     ap.add_argument("--json", help="also write the full per-room census here")
     a = ap.parse_args()
 
@@ -83,6 +86,8 @@ def main():
             paths.append(m)
     if not paths:
         sys.exit("no .bin map files found")
+    if a.tas == "community":
+        a.tas = community.fetch_path("1A.tas")
     if a.tas and len(paths) > 1:
         sys.exit("--tas marks the route of one map; give a single map file with it")
 

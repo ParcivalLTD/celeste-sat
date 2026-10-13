@@ -11,15 +11,16 @@ plays the community TAS's lvl_1 up to a point, leaves the room another way
 (the model's exit height, state and ducking in the name), and records 60
 more frames: the stop point is where the recorded position settles in [2].
 
-    python3 tests/make_up_probes.py OUTDIR [1A.tas]
+    python3 experiments/make_up_probes.py OUTDIR [1A.tas]
 
 The endings were found with the model (y is the height she leaves room 1 at).
 """
-import os, re, subprocess, sys
+import os
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tests"))
-from chain_tas import sections  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import community  # noqa: E402
+from celeste_sat.tas import sections  # noqa: E402
 
 # (tag, lines of the TAS's #lvl_1 kept, ending)
 PROBES = [
@@ -35,8 +36,8 @@ PROBES = [
 
 def main():
     out = sys.argv[1]
-    tas = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "recordings", "1A.tas")
-    lvl1 = sections(open(tas).read(), {"lvl_1", "lvl_2"})[0]["lvl_1"]
+    text = community.fetch("1A.tas", sys.argv[2] if len(sys.argv) > 2 else None)
+    lvl1 = sections(text, {"lvl_1", "lvl_2"})[0]["lvl_1"]
     os.makedirs(out, exist_ok=True)
     for tag, cut, end in PROBES:
         lines = lvl1[:cut] + end
