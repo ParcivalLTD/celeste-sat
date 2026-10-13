@@ -1,0 +1,124 @@
+{
+ "room": "rooms/vanilla/1a_lvl_5.txt",
+ "route": "build/chain_tas/lvl_5/route.tas",
+ "exit": 139,
+ "width": 16,
+ "windows": {
+  "112": {
+   "found": false,
+   "seconds": 7288,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "113": {
+   "found": false,
+   "seconds": 6562,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "114": {
+   "found": false,
+   "seconds": 6590,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "115": {
+   "found": false,
+   "seconds": 6474,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "116": {
+   "found": false,
+   "seconds": 7123,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "117": {
+   "found": false,
+   "seconds": 7301,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "118": {
+   "found": false,
+   "seconds": 7655,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "119": {
+   "found": false,
+   "seconds": 7842,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "120": {
+   "found": false,
+   "seconds": 6769,
+   "ignored": [
+    "onGround",
+    "wallSpeedRetention",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "hopWaitX"
+   ]
+  },
+  "121": {
+   "found": false,
+   "seconds": 8529,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  }
+ },
+ "better": []
+}
