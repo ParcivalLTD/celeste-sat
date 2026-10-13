@@ -232,22 +232,24 @@ entry to make the frames back. That is the seam problem ([ROADMAP.md](../ROADMAP
 not a result yet. `tools/windows.py` now marks each YES as "same exit state"
 or "different exit state".
 
-**The real lead: `lvl_6a` in 118 frames.** The beam-search sweep, polishing
-the TAS's own route from the TAS's entry into the room, found a 118-frame
-`lvl_6a` (the TAS takes 161). It climbs the narrow shaft at the left and
-runs along *above* the room's top edge (y ≈ −2 to −6; with no room above, the
-game only stops her 24 px above it, and the model treats the space outside
-the room as empty) before dropping into the open area. It replays from the
-TAS's entry, not from the room's spawn. From the new exit,
-`hpc/candidate_checks.sbatch` found a 137-frame `lvl_6b` (TAS 110): 255
-frames for the two rooms against 271. But the TAS's `lvl_6c` inputs fail
-after that `lvl_6b`, and the best `lvl_6c` found from there so far is ~154
-frames (TAS 110). So the route is not yet faster over the chapter, and the
-`lvl_6a` route itself has not been played in the game. A 43-frame shortcut
-in a room humans have optimised for years means either the game stops her
-somewhere the model doesn't, or the shortcut is real. `test_through_6b_logged.tas`
-(commit 2af9286) plays the chapter from the start with this `lvl_6a` while
-recording; its recording (`dump_6a_6b.txt`) answers that.
+**The `lvl_6a` lead in 118 frames does not work in the game (2026-10-13).**
+The beam-search sweep, polishing the TAS's own route from the TAS's entry
+into the room, found a 118-frame `lvl_6a` (the TAS takes 161). It climbs the
+narrow shaft at the left and runs along *above* the room's top edge (y ≈ −2
+to −6) before dropping into the open area. The model treated the space
+outside the room as empty, and the game does not. Played from the chapter
+start (`results/celestetas/1a_6a118_check.tas`, recorded in
+`data/recordings/celeste-sat-1a-6a118.txt`), the game matches the model
+through `lvl_1` to `lvl_6` (760 frames, every room left on its last frame)
+and through the first 29 frames of `lvl_6a`. On frame 30, at y = −0.75, the
+wall she is climbing ends in the model and she hops over it. In the game the
+wall goes on above the room, she stays at x = 28, and later she dies. So
+Celeste has solid tiles outside the room there. Its level loader fills the
+grid between rooms, apparently by extending the rooms' edge tiles. The exact
+rule (`LevelLoader`) is still to be read with ILSpy and put into the model
+(ROADMAP, step 2). Until then, no route that leaves a room's area can be
+trusted, and the 118-frame route, with the 137-frame `lvl_6b` from its exit,
+is void.
 
 ## Chapter 2: the Badeline chase
 

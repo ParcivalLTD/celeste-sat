@@ -11,6 +11,7 @@ the Python pieces the pipelines are built from.
 import glob
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from celeste_sat import cbmc, room_header  # noqa: E402
 from celeste_sat.paths import ROOMS, ROOT, VANILLA  # noqa: E402
+from celeste_sat.recording import STATE_NAMES, parse_dump  # noqa: E402
 from celeste_sat.room import parse, spike_box  # noqa: E402
 from celeste_sat.state import read_state, write_state  # noqa: E402
 from celeste_sat.tas import NOTHING, REPRESS, read_tas, sections, tas_keys, tas_lines, write_tas  # noqa: E402
@@ -196,6 +198,30 @@ class Chapter2Export(unittest.TestCase):
         m = load_tool("import_chapter2")
         self.assertEqual(m.apply_fixes("lvl_9", "a\n; exit down 256 576   (-> lvl_10)\nb"),
                          "a\n; exit down 488 512   (-> lvl_10)\nb")
+
+
+class Recordings(unittest.TestCase):
+    # two rows of data/recordings/celeste-sat-1a-6a118.txt (shortened): the
+    # second has the extra LiftBoost column CelesteTAS adds before the room
+    ROWS = ("Line\tInputs\tFrames\tTime\tPosition\tSpeed\tState\tStatuses\tRoom\tEntities\n"
+            "131\t11/  13,R,X\t832\t0:11.713(689)\t1148.9, -763.0\t240.0, 0.0\tStDash\tJump(2)\t[5]\tWind: 0, 0\n"
+            "131\t12/  13,R,X\t833\t0:11.730(690)\t1152.9, -763.0\t240.0, 0.0\tStDash\tJump(1)\t"
+            "LiftBoost(10): 0.0, -58.6\t[5]\tWind: 0, 0\n")
+
+    def test_an_extra_column_before_the_room(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dump.txt")
+            with open(path, "w") as f:
+                f.write(self.ROWS)
+            rows = parse_dump(path)
+        self.assertEqual([r["room"] for r in rows], ["[5]", "[5]"])
+        self.assertEqual(rows[1]["statuses"], "Jump(1) LiftBoost(10): 0.0, -58.6")
+        self.assertEqual(rows[1]["entities"], "Wind: 0, 0")
+
+    def test_every_model_state_has_the_game_name(self):
+        text = open(os.path.join(ROOT, "model", "celeste.h")).read()
+        for name, value in re.findall(r"#define (ST_\w+)\s+(\d+)", text):
+            self.assertIn(int(value), STATE_NAMES, name)
 
 
 if __name__ == "__main__":

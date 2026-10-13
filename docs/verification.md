@@ -142,6 +142,16 @@ What is still inferred rather than taken from code or checked against the game
 (settled by the recordings above: the 0.2 s dash cooldown, which the 1.2.5.0
 changelog gives as 0.15 s; the upward room transition):
 
+- **The tiles outside a room (known wrong, 2026-10-13).** The model treats
+  everything outside the room's tile grid as empty, and the game does not.
+  The recording of the 118-frame `lvl_6a` (`celeste-sat-1a-6a118.txt`)
+  matches for 760 frames, up to `lvl_6a` frame 30. There she climbs above
+  the room's top edge (y = −0.75), and in the game the wall goes on where
+  the model has none. Celeste's `LevelLoader` fills the grid between rooms,
+  apparently by extending the rooms' edge tiles. The rule has to be read
+  (ILSpy, `Celeste.LevelLoader`) and exported with the room. Until then a
+  route that leaves the room's area, above the top in particular, is not to
+  be trusted.
 - The wallbounce reach: mods confirm a 5 px distance in `WallJumpCheck`
   besides the usual 3; that it applies while dash-attacking after a
   straight-up dash is now confirmed by the 106-frame `lvl_3` ending. That
@@ -210,19 +220,32 @@ bug. In order of how much a route depends on each part:
 - **Dream blocks: the entry and exit frames (fixed 2026-10-13).** The chase
   recording matched the model until `2a_lvl_3` frame 52, the frame a dash
   enters a dream block from the side. There the game's y stayed at 118.171484
-  and the model's moved on to 115.343051, and from then on the model was one
-  frame's movement ahead. In `Player.Update` the state is checked before
-  `MoveH` and again before `MoveV`, so a dash that `MoveH`'s collision turns
-  into a dream dash does not move vertically on that frame. The model moved
-  both ways. Reading `DreamDashUpdate` turned up a second difference: the game
-  moves first (`NaiveMove`) and then checks whether she is still in a block.
-  The model checked first and moved at the end of the frame, so it saw her
-  leave every dream block a frame late. Both are fixed (`dream_dash_update`
-  and the movement block of `player_update`). After the fix the model gives
-  the recorded y on frames 52, 53 and 54, the frames compared so far. The rest
-  of the recording has to be compared again, with the recording in
-  `data/recordings/`. Every Chapter 2 route made before
-  the fix was made with the old timing and has to be re-solved.
+  and the model's moved on to 115.343051. In `Player.Update` the state is
+  checked before `MoveH` and again before `MoveV`, so a dash that `MoveH`'s
+  collision turns into a dream dash does not move vertically on that frame.
+  `DreamDashUpdate` also moves first (`NaiveMove`) and then checks whether
+  she is still in a block, where the model checked first and so saw her
+  leave a frame late. Both are fixed.
+- **Dream blocks: the push back on leaving (fixed 2026-10-13).** The next
+  difference was `2a_lvl_3` frame 66, the frame she leaves the block: 0.40 px
+  in x, exactly her x remainder. The game (1.4) has code the published
+  `Player.cs` lacks. Leaving sideways without a jump, with a solid within
+  5 px behind her, she does `MoveHExact(∓5)` back towards it. That stops at
+  the solid (usually the dream block, the moment she touches it) and zeroes
+  her x remainder. CommunalHelper's dream tunnel dash, which copies the
+  vanilla update, has the same lines. With both fixes the model follows the
+  recording through `2a_lvl_3`, `lvl_4` and `lvl_5` (365 frames, every room
+  left on its last frame) and into `lvl_6`, where both agree that the old
+  route does not leave on frame 222.
+- **Switch gates (open).** On `2a_lvl_6` frame 227 the gate, near the end of
+  its travel, moves down from y = 101 to 102 in the model, and she is
+  standing on it, so it carries her down 1 px. In the game she stays at
+  100.6575 and is still on the gate on frame 228 (`Coyote(5)`), so its top
+  was still at 101 under her. A one-update shift of the gate's schedule
+  doesn't fix it, and neither does updating the gate before her. The gate's
+  code (`SwitchGate`, `Switch`) needs reading in ILSpy, and a recording with
+  the gate's position (`ExportGameInfo, <file>, SwitchGate`) will show its
+  real schedule. Every route through a switch room waits on this.
 - **Touch switches (confirmed 2026-10-13).** The model checks the switch's
   30 × 30 `PlayerCollider` (±15 px around it) against her hurtbox (bottom
   2 px above her feet). ILSpy on the game's `Celeste.dll` shows
@@ -244,8 +267,6 @@ bug. In order of how much a route depends on each part:
   the transition's 40 frames standing at the entry.
 - **Dream blocks.** `DREAM_DASH_MIN_TIME`, the speed and the exits (with a
   jump, into a climb, into a solid with the ±5 px wiggle).
-- **Switch gates.** The timing of `SwitchGate.Sequence()` (it starts moving
-  46 updates after the last switch, arrives after 165).
 
 The chase recording, compared to its end, settles most of this the way
 the `lvl_4` recording settled falling-unduck in Chapter 1.

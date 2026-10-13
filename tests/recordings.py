@@ -119,6 +119,13 @@ def check(path, rdir, work):
             c = 0
             while c < len(rows) and "NoControl" in rows[c]["statuses"]:
                 c += 1
+            # a freeze when control comes back (Frozen(3) after the upward
+            # transition into 1a_lvl_6, entered dashing): the game does not
+            # update on those frames and the TAS waits them out. A frame was
+            # frozen if the row before it shows Frozen (statuses are read
+            # after the frame).
+            while c + 1 < len(rows) and "Frozen" in rows[c]["statuses"]:
+                c += 1
             rows = rows[c + 1:]
             proom, pbdir, proute, pexit = prev
             start = os.path.join(work, f"entry_{k}.h")
