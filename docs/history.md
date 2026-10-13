@@ -5,6 +5,34 @@ README and the other docs describe the project as it is; this is how it got
 there. Entries before 2026-10-12 come from `brain.md`, the working notes of
 the time, and describe the code as it was then (file names included).
 
+## 2026-10-13 (evening): the touch switch, corrected; Chapter 2 matches
+
+The recording with the switch gate's position (`celeste-sat-2a-gate.txt`,
+the first chase run played again from its rebuilt file) settled the gate.
+The game's gate started moving on frame 153, the model's on frame 150, with
+the same motion. So the gate opened 3 frames late in the game, and the
+cause was the touch.
+
+The ILSpy line read in the morning,
+`new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`,
+had been read wrongly. `PlayerCollider`'s arguments are (callback, collider,
+feather collider). The collider is null, so the switch's own 16 × 16
+`Collider` touches her; the 30 × 30 box only counts while she flies with a
+feather. Commit 1d3e148 had it right. The revert of 2026-10-12 was wrong,
+and so was the morning's "confirmation", which read the argument that
+happens to be present instead of checking which parameter it fills. The
+user had said the change was a needed fix.
+
+With the 16 × 16 box against her hurtbox, the model has her touch the
+switch on frame 105 instead of 102. All three Chapter 2 recordings now
+match on every frame: the chase through `2a_lvl_3` to `lvl_6` and 151
+frames of `lvl_7`, to a death on frame 152 in both (851 frames), with the
+gate where the game has it on all 334 frames of `lvl_6`; and the other route
+to its death in `lvl_6`. The fuzzer agrees (626 touches, all rooms
+identical). Whether the switch tests her hurtbox (the published
+`Player.cs`) or her collider (1d3e148) is not decided by this recording;
+the model uses the hurtbox.
+
 ## 2026-10-13 (afternoon): the tiles outside the rooms
 
 ILSpy on `LevelLoader` gave the rule for the tiles between rooms. The game's
@@ -46,7 +74,8 @@ step 5).
 
 ## 2026-10-13: the first Chapter 2 recording, and ILSpy
 
-**The touch-switch hitbox is confirmed.** ILSpy on the game's `Celeste.dll`
+**The touch-switch hitbox is confirmed.** (Wrong: see the evening entry.
+The 30 × 30 box is the feather collider.) ILSpy on the game's `Celeste.dll`
 (Everest install) shows `TouchSwitch`'s constructor adding
 `new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`. The
 `Hitbox(16f, 16f, -8f, -8f)` that 1d3e148 had used is the entity's own
@@ -149,7 +178,8 @@ What the audit found, beyond the code:
 - **`ledge` has a 17-frame route** in the full model (brain.md had found it;
   now `results/routes/ledge_17.tas`), so the README's "18 is optimal" holds
   only for the first model.
-- **The touch-switch hitbox change of 1d3e148 was reverted.** It replaced the
+- **The touch-switch hitbox change of 1d3e148 was reverted.** (Wrongly:
+  1d3e148's 16 × 16 box is the game's; see 2026-10-13, evening.) It replaced the
   switch's 30 × 30 `PlayerCollider` against her hurtbox with the 16 × 16
   entity `Collider` against her collider. The published `Player.cs` (the
   hurtbox swap around the `PlayerCollider` loop) and a mod that mirrors the

@@ -260,8 +260,9 @@ disassembled):
   The model keeps her last 256 positions (`celeste_sat/transition.py` carries them into
   the next room) and checks the frames 91–93 (+24 × i) back, since which one
   "1.55 s ago" picks depends on the rounding of `Scene.TimeActive`.
-- **Switch gates** (rooms 6, 7, 9, 10). `TouchSwitch`: a 30 × 30
-  `PlayerCollider`; when every switch in the room is on they all finish at
+- **Switch gates** (rooms 6, 7, 9, 10). `TouchSwitch`: its own
+  16 × 16 box against her hurtbox (its `PlayerCollider` has no box of its
+  own; the 30 × 30 one is for feather flight); when every switch in the room is on they all finish at
   once. `SwitchGate.Sequence()`: `yield 0.1 s`, the icon spin-up
   (`Rate += 2 dt` per frame to 1), `yield 0.1 s`, then a 2 s `Ease.CubeOut`
   tween to its node (`Platform.MoveTo`), updated from the next frame. It is
