@@ -136,6 +136,11 @@ Do not let a mechanic reach a route before step 4.
 - `harness/input_rules.h` has no `ST_DREAM_DASH` dominance rules: during a
   dream dash almost every input is a don't-care, which is free formula size
   if CBMC is ever pointed at a dream-block room.
+- During a dream dash `player_update` skips the jump-through assist and
+  falling unducking; the game does not. They would matter for a jump-through
+  where she dream dashes, or a ducked dream dash. No modelled room has the
+  first; the second is untested. (Floor snapping needs a dash attack, which
+  entering a dream block ends, so skipping it changes nothing.)
 - `tests/random_room.py` places a switch gate only when fewer than three zip
   movers are already there (they share `MAX_ZIP_MOVERS`), so check the
   coverage counters, not the seed, to know whether something was exercised.

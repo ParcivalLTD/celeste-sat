@@ -200,32 +200,43 @@ changelog gives as 0.15 s; the upward room transition):
   `ExportGameInfo, <file>, ZipMover` also record its position, and
   `tests/recordings.py` prints it next to the model's at the first difference.
 
-### Chapter 2 (nothing recorded yet)
+### Chapter 2 (one recording so far)
 
-Everything Chapter 2 adds rests on the game's code as read, the differential
-fuzzer and the demo-room checks (`tests/test_chapter2.py`), and none of it on
-a recording. In order of how much a route depends on it:
+Chapter 2 rests mostly on the game's code as read, the differential fuzzer
+and the demo-room checks (`tests/test_chapter2.py`). The first recording,
+the 12-room chase route played in Celeste 1.4 (2026-10-13), already found a
+bug. In order of how much a route depends on each part:
 
-- **Touch switches.** The model checks the switch's 30 × 30
-  `PlayerCollider` (±15 px around it) against her hurtbox (bottom 2 px above
-  her feet). Two sources back that. The published `Player.cs` swaps in the
-  hurtbox for the whole `PlayerCollider` loop of `Update`. MaxHelpingHand's
-  `FlagTouchSwitch`, a mod that mirrors the vanilla switch, builds
-  `new PlayerCollider(onPlayer, null, new Hitbox(30f, 30f, -15f, -15f))` next
-  to a 16 × 16 entity `Collider`. Commit 1d3e148 had switched the model to the
-  16 × 16 box against her collider. That reads the entity's `Collider` where
-  the `PlayerCollider`'s own box applies, so it was reverted on 2026-10-12.
-  With the revert, the 12-room chase route of 2026-10-01 replays again
-  (under the 16 × 16 box it died in `2a_lvl_6`). Chapter 2 results computed
-  between the two (the Leonardo chase run) have to be redone. A recording of
-  a switch room (`2a_lvl_6`) would settle it for good, and so would two
-  minutes in ILSpy: open `Celeste.exe`, go to `Celeste.TouchSwitch`'s
-  constructor and read the `PlayerCollider` it adds. Until then the other
-  reading is one flag away: `-DTOUCH_ENTITY_COLLIDER` (in Python,
-  `build(room, bdir, start, defines=["TOUCH_ENTITY_COLLIDER"])`).
-  Replaying the community 2A TAS through the model doesn't decide it yet. The
-  TAS's inputs stop working in `2a_lvl_4` with either hitbox, before any
-  switch room. That finding matters by itself (ROADMAP, step 3).
+- **Dream blocks: the entry and exit frames (fixed 2026-10-13).** The chase
+  recording matched the model until `2a_lvl_3` frame 52, the frame a dash
+  enters a dream block from the side. There the game's y stayed at 118.171484
+  and the model's moved on to 115.343051, and from then on the model was one
+  frame's movement ahead. In `Player.Update` the state is checked before
+  `MoveH` and again before `MoveV`, so a dash that `MoveH`'s collision turns
+  into a dream dash does not move vertically on that frame. The model moved
+  both ways. Reading `DreamDashUpdate` turned up a second difference: the game
+  moves first (`NaiveMove`) and then checks whether she is still in a block.
+  The model checked first and moved at the end of the frame, so it saw her
+  leave every dream block a frame late. Both are fixed (`dream_dash_update`
+  and the movement block of `player_update`). After the fix the model gives
+  the recorded y on frames 52, 53 and 54, the frames compared so far. The rest
+  of the recording has to be compared again, with the recording in
+  `data/recordings/`. Every Chapter 2 route made before
+  the fix was made with the old timing and has to be re-solved.
+- **Touch switches (confirmed 2026-10-13).** The model checks the switch's
+  30 × 30 `PlayerCollider` (±15 px around it) against her hurtbox (bottom
+  2 px above her feet). ILSpy on the game's `Celeste.dll` shows
+  `TouchSwitch`'s constructor adding
+  `new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`;
+  the 16 × 16 `Hitbox(16f, 16f, -8f, -8f)` is the entity's own `Collider`
+  (with a 20 × 20 `HoldableCollider` and a 24 × 24 `SeekerCollider`). The
+  published `Player.cs` swaps in the hurtbox for the whole `PlayerCollider`
+  loop. Commit 1d3e148 had switched the model to the 16 × 16 box against her
+  collider; that was reverted on 2026-10-12. Chapter 2 results computed
+  between the two (the Leonardo chase run) used the wrong box and are void.
+- **The community 2A TAS** does not yet go through the model. Its inputs
+  stop working in `2a_lvl_4` (a first try, 2026-10-13, before the dream-block
+  fix), before any switch room. Try it again with the fix (ROADMAP, step 3).
 - **The chaser.** Its delay (1.55 s plus 0.4 s per chaser, read three frames
   wide because of `Scene.TimeActive` rounding), its 6 × 6 hitbox at (−3, −7),
   the wake-up delay after a respawn (`CHASER_WAKE`, 6 frames in the model,
@@ -236,5 +247,5 @@ a recording. In order of how much a route depends on it:
 - **Switch gates.** The timing of `SwitchGate.Sequence()` (it starts moving
   46 updates after the last switch, arrives after 165).
 
-One recording of the chase settles most of this the way the `lvl_4`
-recording settled falling-unduck in Chapter 1.
+The chase recording, compared to its end, settles most of this the way
+the `lvl_4` recording settled falling-unduck in Chapter 1.
