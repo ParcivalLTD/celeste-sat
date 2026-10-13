@@ -199,6 +199,7 @@ class Chapter2Export(unittest.TestCase):
         m = load_tool("import_chapter2")
         self.assertEqual(m.apply_fixes("lvl_9", "a\n; exit down 256 576   (-> lvl_10)\nb"),
                          "a\n; exit down 488 512   (-> lvl_10)\nb")
+        self.assertIn("; spawn 120 168 -1\n", m.apply_fixes("lvl_3", "a\n; spawn 120 168\nb"))
 
 
 class Recordings(unittest.TestCase):
