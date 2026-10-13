@@ -42,6 +42,39 @@ a recording before compute.
 `celeste_sat/recording.py` also learnt the name of the dream-dash state, so
 a recording's `StDreamDash` frames compare equal to the model's.
 
+**Later the same day: both recordings in full.** With the recordings
+committed, `tests/recordings.py` compared them to the end:
+
+- *The dream-block exit, part two.* The chase then differed on `2a_lvl_3`
+  frame 66, the frame she leaves the block: 0.40 px in x, exactly her x
+  remainder, with y right. Zeroing the remainder on leaving made `lvl_3`
+  match but broke `lvl_4`, where she leaves with a jump. The explanation is
+  in CommunalHelper's dream tunnel dash, which copies the vanilla 1.4
+  update. On a non-jump exit sideways, with a solid within 5 px behind her,
+  she does `MoveHExact(∓5)` back towards it. Usually that is the block she
+  just left, so the move stops at once and only zeroes the remainder. The
+  published `Player.cs` doesn't have it. With it the model follows the game
+  through `2a_lvl_3` to `lvl_5` and into `lvl_6`, 590 frames, where both say
+  the old route does not leave on frame 222. The fuzzer covers the new code
+  (27 push-backs, all rooms identical).
+- *Switch gates: open.* On `2a_lvl_6` frame 227 the model's gate carries
+  her 1 px down and the game's doesn't. Shifting the gate's schedule by an
+  update either way doesn't fix it, and neither does updating the gate
+  before her. Left for ILSpy and a recording that tracks the gate.
+- *The tiles outside a room.* The `lvl_6a` recording first seemed to stop
+  in `lvl_5`. CelesteTAS adds a `LiftBoost(n): x, y` column while a lift
+  speed lasts, which shifted the room column; `parse_dump` now finds the
+  room column by its look. `recordings.py` also skips the freeze frames
+  (`Frozen(3)`) after the upward transition into `lvl_6`, which the TAS
+  waits out. After that the game and the model agree for 760 frames, from
+  the chapter start to `lvl_6a` frame 29. On frame 30, at y = −0.75 above
+  the room, the wall she climbs goes on in the game and ends in the model.
+  Celeste fills the tile grid between rooms, and the model has the space
+  outside a room empty. The 118-frame `lvl_6a`, the project's biggest lead,
+  was built on that. It is void, a model bug the paper can show with the
+  recording.
+
+
 ## 2026-10-12: cleanup, and an audit of the claims
 
 The repository was restructured (see the commit for the full list): a Python

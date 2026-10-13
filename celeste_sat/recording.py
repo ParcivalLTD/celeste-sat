@@ -38,12 +38,17 @@ def parse_dump(path, origin=(0, 0)):
         spd = re.findall(num, cols[5])
         if len(pos) < 2 or len(spd) < 2:
             continue
-        ents = cols[9] if len(cols) > 9 else ""
+        # Statuses, then the room ("[5]"), then the entities. CelesteTAS puts
+        # extra columns before the room when it has more to say (a
+        # "LiftBoost(10): 0, -58.7" column while a lift speed lasts), so the
+        # room is the first column after the state that looks like one.
+        room_i = next((i for i in range(8, len(cols)) if re.fullmatch(r"\[[^\]]*\]", cols[i].strip())), 8)
+        ents = cols[room_i + 1] if len(cols) > room_i + 1 else ""
         zm = re.search(r"ZipMover(?:\[[^\]]*\])?\s*:?\s*\(?\s*(" + num + r")\s*,\s*(" + num + ")", ents)
         rows.append(dict(line=cols[0], inputs=cols[1], x=float(pos[0]) - origin[0], y=float(pos[1]) - origin[1],
                          vx=float(spd[0]), vy=float(spd[1]), state=cols[6].strip(),
-                         statuses=cols[7] if len(cols) > 7 else "",
-                         room=cols[8].strip() if len(cols) > 8 else "", entities=ents,
+                         statuses=" ".join(c for c in cols[7:room_i] if c),
+                         room=cols[room_i].strip() if len(cols) > room_i else "", entities=ents,
                          zip=(float(zm.group(1)), float(zm.group(2))) if zm else None))
     return rows
 
