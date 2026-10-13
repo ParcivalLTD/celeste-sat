@@ -97,7 +97,8 @@
 ; outside 41 47 29
 ; outside -2 10 30
 ; outside 41 47 30
-; spawn 120 168
+; spawn 120 168 -1
+; (facing left: CS02_BadelineIntro, skipped after `console load 2 3`, ends with Facing = Left)
 #######################################....##
 #######################################....##
 ##############....#####################....##

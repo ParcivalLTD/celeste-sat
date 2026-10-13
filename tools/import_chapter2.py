@@ -43,15 +43,20 @@ ROOMS = [
     ("lvl_13", []),
 ]
 
-# room -> {exported exit line: the line to use instead}. The export makes the
+# room -> {exported line: the line(s) to use instead}. The export makes the
 # whole shared edge with the goal room an exit; where only part of that edge
 # leads anywhere useful, the goal is narrowed to it (commit 588c008):
 #   lvl_9 -> lvl_10: the chute through the switch gate, x in [488, 512); leaving
 #     further left (x = 257) put her inside lvl_10's rock.
 #   lvl_10 -> lvl_2: the opening at x in [80, 112).
+#   lvl_3: she starts facing left. The intro cutscene that `console load 2 3`
+#     skips (CS02_BadelineIntro) ends with Facing = Left; the map's spawn has
+#     no facing.
 EXIT_FIXES = {
     "lvl_9": {"; exit down 256 576   (-> lvl_10)": "; exit down 488 512   (-> lvl_10)"},
     "lvl_10": {"; exit down 64 448   (-> lvl_2)": "; exit down 80 112   (-> lvl_2)"},
+    "lvl_3": {"; spawn 120 168\n": "; spawn 120 168 -1\n; (facing left: CS02_BadelineIntro, skipped after "
+                                    "`console load 2 3`, ends with Facing = Left)\n"},
 }
 
 
