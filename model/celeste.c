@@ -71,7 +71,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
        C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND,
        C_DREAMENTER, C_DREAMEXIT, C_DREAMJUMP, C_DREAMCLIMB, C_DREAMWIGGLE, C_DREAMDEATH,
-       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_BARRIER, C_NCOV };
+       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_BARRIER, C_DREAMPUSHBACK, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -90,7 +90,7 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "dream block left into a climb", "dream block left into a solid (wiggled out)",
        "dream block left into a solid (death)",
        "touch switch hit", "switch gate opens", "caught by a chaser (death)",
-       "blocked by an invisible barrier" };
+       "blocked by an invisible barrier", "dream block left: moved back towards a solid (1.4)" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -1789,11 +1789,25 @@ static int dream_dash_update(State *s, Input in)
                 s->dreamJump = true;
                 jump(s);
                 return ST_NORMAL;
-            } else {
+            } else if (s->dashDirY >= 0 || s->dashDirX != 0) {
+                /* Not in the published Player.cs, but in the game (1.4):
+                 * leaving sideways without a jump, with a solid within 5 px
+                 * behind her (usually the dream block she came out of), she
+                 * moves back towards it (MoveHExact(-+5), no callback). It
+                 * stops at the solid and zeroes her x remainder, often without
+                 * moving a pixel. Found with the chase recording (2a_lvl_3
+                 * frame 66: 0.40 px); CommunalHelper's dream tunnel dash,
+                 * which copies the vanilla update, has the same code. */
+                if (s->dashDirX > 0 && collide_at(s, s->x - 5, s->y)) {
+                    COV(C_DREAMPUSHBACK);
+                    move_h_exact(s, -5);
+                } else if (s->dashDirX < 0 && collide_at(s, s->x + 5, s->y)) {
+                    COV(C_DREAMPUSHBACK);
+                    move_h_exact(s, 5);
+                }
                 bool left = climb_check(s, -1, 0);
                 bool right = climb_check(s, 1, 0);
-                if (in.grab && (s->dashDirY >= 0 || s->dashDirX != 0)
-                    && ((s->moveX == 1 && right) || (s->moveX == -1 && left))) {
+                if (in.grab && ((s->moveX == 1 && right) || (s->moveX == -1 && left))) {
                     COV(C_DREAMCLIMB);
                     s->facing = s->moveX;
                     return ST_CLIMB;

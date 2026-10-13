@@ -20,7 +20,7 @@ is one sequence, and every step says which goal it serves.
 | Model self-consistency | **verified**: 2.95 M fuzzed frames bit-identical between the literal and the solver build; the SAT harnesses' input rules (2.0 M checks) and state comparison (6.8 M) fuzzed too | `tests/diff.sh` |
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
 | Local optimality (Tier B) | **W = 12 and 16 over all of Chapter 1** (3,826 windows proven, 6 timeouts), W = 18 over room 1; all 18 room transitions proven at two window sizes | `results/leonardo/`, `hpc/summary.py` |
-| Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The one big lead: `lvl_6a` in 118 frames instead of 161 (over the top of the room), not yet a chapter saving and not yet played in the game | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
+| Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The `lvl_6a` lead (118 frames instead of 161, over the top of the room) **fails in the game**: there are solid tiles above the room that the model does not have | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
 | Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed. **The first recording found a bug**: the dream-dash entry and exit frames, fixed 2026-10-13 (the rest of the recording still to compare). The touch-switch hitbox is confirmed with ILSpy | [docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far) |
 | Chapter 2 routes | made with the dream-block bug, so **all to be re-solved**: `results/routes/2a_chase.tas` dies in `2a_lvl_4` in the fixed model. Before the fix the project's own search was ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames) | `tools/chain_chapter2.py` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
@@ -44,29 +44,23 @@ are not a saving (step 2).
 The window proofs say the community TAS has no local slack: everything the
 SAT solver can still find is a different *ending* of a room, which then has
 to be paid back in the next room. So the frames are in the seams. Two
-concrete leads, best first:
+things to do, in order:
 
-1. **`lvl_6a` in 118 frames (TAS: 161).** Found by the beam sweep from the
-   TAS's own entry. It runs along above the room's top edge (see
-   [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
-   - **Play it in the game first.** `test_through_6b_logged.tas` (in git
-     history, commit 2af9286: `git show 2af9286:recordings/test_through_6b_logged.tas`)
-     plays the chapter from the start with this `lvl_6a` and records
-     everything to `dump_6a_6b.txt`. If you played it, rename the dump to
-     `celeste-sat-1a-6a118.txt` and run `python3 tests/recordings.py <folder>`.
-     If you didn't, play it. Don't use `console load 1 lvl_6a`: that starts
-     her at the room's spawn, not where the TAS enters.
-   - If the game agrees, 43 frames are on the table, and the job is to
-     re-route `lvl_6b` and `lvl_6c` from the new entry so the chain closes
-     with fewer than 381 frames for the three rooms (TAS: 161 + 110 + 110).
-     So far: `lvl_6b` 137 (Leonardo, width 500k), then `lvl_6c` ~154 (here,
-     width 100k), 409 in all. Search `lvl_6b` for exits that suit `lvl_6c`
-     (`--exit-x`, or a two-room beam), and use `tools/cross.py` on the seam.
-     Check the whole chapter with `tools/splice_tas.py chapter` and
-     `tests/chain_tas.py --tas`.
-   - If the game disagrees, that is a model bug worth a paragraph in the
-     paper: find the first frame that differs (`tests/recordings.py`), fix
-     it, add the recording to `data/recordings/`.
+1. **The tiles outside the rooms.** The `lvl_6a` lead (118 frames, TAS 161)
+   ran along above the room's top edge, where the model had nothing. Played
+   in the game (2026-10-13), it matches the model for 760 frames up to
+   `lvl_6a` frame 30. There a wall she climbs goes on above the room in the
+   game and ends in the model
+   ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
+   So the 118 is void. Celeste's `LevelLoader` fills the tile grid between
+   rooms, apparently by extending the rooms' edge tiles. Read the rule with
+   ILSpy (`Celeste.LevelLoader`, the loading thread, where it builds the
+   solid tile map) and put it into the room export
+   (`celeste_sat/celeste_map.py`): the room file needs the tiles a few
+   cells beyond its edges, at least up to the 24 px the game lets her rise
+   above the top. Then re-run the `lvl_6a` sweep. A route over the top may
+   still exist where the extended tiles leave a gap. The recording is a
+   ready-made test.
 2. **The faster endings.** `lvl_6a` −5, `lvl_12` −4, `lvl_9b` −3, `lvl_3b`
    −2, each in a different exit state. Each is worth something only if the
    next room can be done from the new entry within (TAS frames + saving − 1).
@@ -89,18 +83,24 @@ When a candidate checks out in the model, play it in the game. Then:
 Chapter 2 has met the game once, and the meeting found a bug. Settle the
 model before spending more compute on it.
 
-1. **Finish comparing the chase recording.** Played on 2026-10-13, it
-   matched until `2a_lvl_3` frame 52, where a dash enters a dream block: the
-   game did not move her vertically on that frame, the model did. Reading
-   `DreamDashUpdate` showed a second difference: the model also saw her
-   leave every dream block a frame late. Both are fixed
-   ([docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far)),
-   and the fixed model gives the recorded frames 52-54. Commit the recording
-   (`celeste-sat-2a-chase.txt`) to `data/recordings/` and run
-   `tests/recordings.py` on it again. The game played the old route's
-   inputs, so the fixed model must now follow the recording on every frame,
-   including wherever the game shows the old route failing. (In the fixed
-   model it dies in `2a_lvl_4` on frame 103.) Then re-solve the chase
+1. **Finish comparing the chase recording.** Played on 2026-10-13
+   (`data/recordings/celeste-sat-2a-chase.txt`), it has already found three
+   things. The dream-dash entry and exit frames, and the push back towards
+   the block when leaving it without a jump (code the published `Player.cs`
+   lacks), are all fixed. With them the model follows the game through
+   `2a_lvl_3`, `lvl_4` and `lvl_5` (365 frames, every room left on its last
+   frame) and into `lvl_6`, where both agree that the old route fails to
+   leave on frame 222
+   ([docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far)).
+   The third is open: on `lvl_6` frame 227 the switch gate, near the end of
+   its travel, carries her 1 px down in the model and not in the game, where
+   she is still standing on it on frame 228 (`Coyote(5)`). Neither a
+   one-update shift of the gate nor updating it before her explains it. Two
+   things settle it. In ILSpy, read `Celeste.SwitchGate` (`Depth`, the
+   constructor, `Sequence`) and `Celeste.Switch` (`Check`, `Activate`,
+   `FinishedCheck`). And record `2a_lvl_6` with the gate's position:
+   `ExportGameInfo, celeste-sat-2a-gate.txt, SwitchGate`, then teach
+   `celeste_sat/recording.py` to read the column. Then re-solve the chase
    (`tools/chain_chapter2.py --polish`), write a new
    `results/celestetas/2a_chase.tas`, and record that too. The touch-switch
    hitbox is settled: ILSpy shows `TouchSwitch` adding a `PlayerCollider`
@@ -144,7 +144,8 @@ reproduced from committed data.
 **Evaluation it needs:**
 - fidelity: the community TAS, the recordings, the fuzzer counts, and the
   model bugs found by recordings (falling-unduck, the upward stop point, the
-  climb trigger, the dream-dash entry frame) as evidence that the checks have
+  climb trigger; in 2026-10 the dream-dash timing, the 1.4 dream-block exit
+  push and the tiles outside the rooms) as evidence that the checks have
   teeth;
 - the certificate: windows per room and W, proven / timeout / faster, core-
   hours;
