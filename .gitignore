@@ -17,3 +17,9 @@ game/*
 rooms/vanilla/*
 !rooms/vanilla/2a_*.txt
 results/vanilla/
+
+# decompiled game code (ILSpy output) is the game's, not ours: keep it out of the repository
+*.cs
+!tests/**/*.cs
+# Everest / Celeste logs
+log.txt

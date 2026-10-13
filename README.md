@@ -23,9 +23,10 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   ([VampireFlower/CelesteTAS](https://github.com/VampireFlower/CelesteTAS))
   replays in the model room after room: 19 rooms, 2,275 frames of control,
   with zip movers, falling, crumble and dash blocks, refills and springs.
-  Each room's inputs leave that room on exactly their last frame. Fifteen
-  recordings made in Celeste 1.4 with CelesteTAS match the model on every
-  frame, subpixels included.
+  Each room's inputs leave that room on exactly their last frame. Sixteen
+  recordings of Chapter 1 made in Celeste 1.4 with CelesteTAS match the
+  model on every frame, subpixels included. The longest is 880 frames over
+  8 rooms, up to a death the model predicts on the same frame.
 - **The model agrees with itself.** A literal port (float timers,
   pixel-by-pixel movement) and the optimised build the solver uses agree bit
   for bit on 2.95 million fuzzed frames in random rooms. Every shortcut the
@@ -45,9 +46,11 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
   chasers, switch gates and invisible barriers, all in the fuzzer. The first
-  recording of it in the game found a timing bug on the frames a dash enters
-  and leaves a dream block. It is fixed, and the Chapter 2 routes, which were
-  made with the bug, are being solved again.
+  recording of it in the game found three differences in how a dash enters
+  and leaves a dream block, all now fixed. The model then follows the game
+  for 590 frames, into a switch room, where the gate's timing is still
+  open. The Chapter 2 routes were made before these fixes and are to be
+  solved again.
 
 "Proven" here always means *within the model*, and usually *given the frames
 before the window*. What can and can't be claimed is in

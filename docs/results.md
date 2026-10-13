@@ -232,22 +232,23 @@ entry to make the frames back. That is the seam problem ([ROADMAP.md](../ROADMAP
 not a result yet. `tools/windows.py` now marks each YES as "same exit state"
 or "different exit state".
 
-**The real lead: `lvl_6a` in 118 frames.** The beam-search sweep, polishing
-the TAS's own route from the TAS's entry into the room, found a 118-frame
-`lvl_6a` (the TAS takes 161). It climbs the narrow shaft at the left and
-runs along *above* the room's top edge (y ≈ −2 to −6; with no room above, the
-game only stops her 24 px above it, and the model treats the space outside
-the room as empty) before dropping into the open area. It replays from the
-TAS's entry, not from the room's spawn. From the new exit,
-`hpc/candidate_checks.sbatch` found a 137-frame `lvl_6b` (TAS 110): 255
-frames for the two rooms against 271. But the TAS's `lvl_6c` inputs fail
-after that `lvl_6b`, and the best `lvl_6c` found from there so far is ~154
-frames (TAS 110). So the route is not yet faster over the chapter, and the
-`lvl_6a` route itself has not been played in the game. A 43-frame shortcut
-in a room humans have optimised for years means either the game stops her
-somewhere the model doesn't, or the shortcut is real. `test_through_6b_logged.tas`
-(commit 2af9286) plays the chapter from the start with this `lvl_6a` while
-recording; its recording (`dump_6a_6b.txt`) answers that.
+**The `lvl_6a` lead in 118 frames does not work in the game (2026-10-13).**
+The beam-search sweep, polishing the TAS's own route from the TAS's entry
+into the room, found a 118-frame `lvl_6a` (the TAS takes 161). It climbs the
+narrow shaft at the left and runs along *above* the room's top edge (y ≈ −2
+to −6) before dropping into the open area. The model treated the space
+outside the room as empty, and the game does not. Played from the chapter
+start (`results/celestetas/1a_6a118_check.tas`, recorded in
+`data/recordings/celeste-sat-1a-6a118.txt`), the game followed the model
+through `lvl_1` to `lvl_6` and 29 frames of `lvl_6a`. Then, above the
+room, the wall she climbs went on in the game and ended in the model.
+Celeste's level loader (read with ILSpy) copies a room's solid top-row
+tiles 3 tiles upwards. Above `lvl_6a`, columns 4 to 14 of the top row are
+solid, so there is wall from y = −24 to 0, exactly as high as the game lets
+her go (24 px above the room). There is no way over the top of that block.
+With the tiles in the model, the recording matches it on every frame, to
+her death on frame 136 of `lvl_6a`. The 118, and the 137-frame `lvl_6b`
+from its exit, are void.
 
 ## Chapter 2: the Badeline chase
 

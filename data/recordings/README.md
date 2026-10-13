@@ -19,6 +19,9 @@ python3 tests/recordings.py data/recordings      # every frame of every recordin
 | `community-lvl3-edit.txt` | the same with the SAT's 106-frame ending |
 | `celeste-sat-community-lvl4.txt` | the community TAS from `#lvl_4` to `#lvl_5`, with the zip mover's position |
 | `celeste-sat-community-lvl4-edit.txt` | `lvl_4` after the 106-frame `lvl_3` ending (dies on spikes, in the game as in the model) |
+| `celeste-sat-1a-6a118.txt` | Chapter 1 from the start with the 118-frame `lvl_6a` (`results/celestetas/1a_6a118_check.tas`): matches for 880 frames, to her death in `lvl_6a`; found the tiles outside the rooms |
+| `celeste-sat-2a-chase.txt` | the Chapter 2 chase (the file is rebuilt in `results/celestetas/2a_chase_recorded.tas`): found the dream-block bugs; open at the switch gate, `2a_lvl_6` frame 227 |
+| `celeste-sat-2a-gate.txt` | `results/celestetas/2a_chase.tas` with the switch gate tracked: dies in `2a_lvl_6` before the switch, in the game as in the model |
 
 `tests/recordings.py` knows the edit (`EDIT_*` there) and computes the entry
 into `lvl_4` after it. New recordings go here, named `celeste-sat-*.txt` (or `celeste-sat-2a-*.txt`

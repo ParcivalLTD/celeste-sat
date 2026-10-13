@@ -11,6 +11,7 @@ the Python pieces the pipelines are built from.
 import glob
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,8 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from celeste_sat import cbmc, room_header  # noqa: E402
 from celeste_sat.paths import ROOMS, ROOT, VANILLA  # noqa: E402
+from celeste_sat.celeste_map import Element, solid_grid  # noqa: E402
+from celeste_sat.recording import STATE_NAMES, parse_dump  # noqa: E402
 from celeste_sat.room import parse, spike_box  # noqa: E402
 from celeste_sat.state import read_state, write_state  # noqa: E402
 from celeste_sat.tas import NOTHING, REPRESS, read_tas, sections, tas_keys, tas_lines, write_tas  # noqa: E402
@@ -196,6 +199,75 @@ class Chapter2Export(unittest.TestCase):
         m = load_tool("import_chapter2")
         self.assertEqual(m.apply_fixes("lvl_9", "a\n; exit down 256 576   (-> lvl_10)\nb"),
                          "a\n; exit down 488 512   (-> lvl_10)\nb")
+
+
+class Recordings(unittest.TestCase):
+    # two rows of data/recordings/celeste-sat-1a-6a118.txt (shortened): the
+    # second has the extra LiftBoost column CelesteTAS adds before the room
+    ROWS = ("Line\tInputs\tFrames\tTime\tPosition\tSpeed\tState\tStatuses\tRoom\tEntities\n"
+            "131\t11/  13,R,X\t832\t0:11.713(689)\t1148.9, -763.0\t240.0, 0.0\tStDash\tJump(2)\t[5]\tWind: 0, 0\n"
+            "131\t12/  13,R,X\t833\t0:11.730(690)\t1152.9, -763.0\t240.0, 0.0\tStDash\tJump(1)\t"
+            "LiftBoost(10): 0.0, -58.6\t[5]\tWind: 0, 0\n")
+
+    def test_an_extra_column_before_the_room(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "dump.txt")
+            with open(path, "w") as f:
+                f.write(self.ROWS)
+            rows = parse_dump(path)
+        self.assertEqual([r["room"] for r in rows], ["[5]", "[5]"])
+        self.assertEqual(rows[1]["statuses"], "Jump(1) LiftBoost(10): 0.0, -58.6")
+        self.assertEqual(rows[1]["entities"], "Wind: 0, 0")
+
+    def test_every_model_state_has_the_game_name(self):
+        text = open(os.path.join(ROOT, "model", "celeste.h")).read()
+        for name, value in re.findall(r"#define (ST_\w+)\s+(\d+)", text):
+            self.assertIn(int(value), STATE_NAMES, name)
+
+
+def _map(levels, fillers=()):
+    """a map tree like read_map's: levels as (name, x, y, rows), fillers in tiles"""
+    root, lv, fl = Element("Map"), Element("levels"), Element("Filler")
+    for name, x, y, rows in levels:
+        e, s = Element("level"), Element("solids")
+        e.attrs = {"name": name, "x": x, "y": y, "width": len(rows[0]) * 8, "height": len(rows) * 8}
+        s.attrs = {"innerText": "\n".join(r.replace("#", "1").replace(".", "0") for r in rows)}
+        e.children = [s]
+        lv.children.append(e)
+    for x, y, w, h in fillers:
+        f = Element("rect")
+        f.attrs = {"x": x, "y": y, "w": w, "h": h}
+        fl.children.append(f)
+    root.children = [fl, lv]
+    return root
+
+
+class TilesOutsideRooms(unittest.TestCase):
+    # LevelLoader's fill (celeste_map.solid_grid): a 4 x 3 room at tile (10, 10)
+    # far from the map's edge (a second room and a filler stretch the bounds)
+    ROOM = ["#..#", "#...", "####"]
+
+    def grid(self, fillers=()):
+        return solid_grid(_map([("a", 80, 80, self.ROOM), ("far", 0, 0, ["."]), ("far2", 200, 200, ["."])], fillers))
+
+    def test_solid_top_tiles_extend_three_up(self):
+        g = self.grid()
+        self.assertTrue({(10, 9), (10, 8), (10, 7), (13, 7)} <= g)
+        self.assertNotIn((10, 6), g)
+
+    def test_air_top_tiles_keep_the_column_above_empty(self):
+        g = self.grid()
+        self.assertFalse({(11, 9), (12, 9), (11, 7)} & g)
+
+    def test_edge_columns_extend_three_sideways(self):
+        g = self.grid()
+        self.assertTrue({(9, 12), (8, 12), (7, 12), (9, 10)} <= g)
+        self.assertNotIn((6, 12), g)
+        self.assertNotIn((14, 11), g)                   # right edge of row 1 is air
+
+    def test_a_filler_is_solid(self):
+        g = self.grid(fillers=[(20, 20, 2, 2)])
+        self.assertTrue({(20, 20), (21, 21)} <= g)
 
 
 if __name__ == "__main__":
