@@ -12,6 +12,47 @@
 ; dreamblock 376 32 32 144
 ; dreamblock 472 8 32 160
 ; spring 48 152
+; outside 27 47 -8
+; outside 65 72 -8
+; outside 29 47 -7
+; outside 65 70 -7
+; outside 29 47 -6
+; outside 65 70 -6
+; outside 29 47 -5
+; outside 65 70 -5
+; outside 29 47 -4
+; outside 65 70 -4
+; outside 29 47 -3
+; outside 61 70 -3
+; outside 29 47 -2
+; outside 52 70 -2
+; outside 29 47 -1
+; outside 52 70 -1
+; outside -4 -1 19
+; outside 74 77 19
+; outside -4 -1 20
+; outside 74 77 20
+; outside -4 -1 21
+; outside 74 77 21
+; outside -4 -1 22
+; outside 74 77 22
+; outside -4 46 23
+; outside 51 52 23
+; outside 55 77 23
+; outside -4 46 24
+; outside 55 77 24
+; outside -4 46 25
+; outside 55 61 25
+; outside 39 46 26
+; outside 51 56 26
+; outside 59 61 26
+; outside 39 46 27
+; outside 51 54 27
+; outside 39 46 28
+; outside 51 52 28
+; outside 39 46 29
+; outside 51 52 29
+; outside 39 46 30
 ; spawn 8 152
 .............................###################....###################...
 ...............................####....######...........###....######.....
