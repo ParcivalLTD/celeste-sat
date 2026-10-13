@@ -399,7 +399,7 @@ def _outside(room, w, h):
 
 def _touch_switches(room):
     touches = room.touches
-    out = ["", "/* touch switches: { x, y } (a 30 x 30 PlayerCollider around it, see touch_update); all on = TS_ALL */",
+    out = ["", "/* touch switches: { x, y } (a 16 x 16 box around it touches her hurtbox, see touch_update); all on = TS_ALL */",
            f"#define NTOUCH {len(touches)}"]
     if touches:
         out.append(f"#define TS_ALL {(1 << len(touches)) - 1}")

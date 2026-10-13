@@ -2287,19 +2287,22 @@ static void chaser_update(State *s)
 #endif
 
 #if NTOUCH > 0
-/* TouchSwitch: its PlayerCollider has a box of its own, 30 x 30 around the
- * switch (Hitbox(30, 30, -15, -15); the entity's 16 x 16 Collider is not the
- * one that touches her), and Player.Update checks every PlayerCollider against
- * her hurtbox (8 x 9 at (-4, -11), ducking 8 x 4 at (-4, -6): its bottom is
- * 2 px above her feet), as player_colliders() does. Switch.Activate -> when
- * every switch in the room is on, all finish at once and the switch gates'
- * Sequence() sees it in their update this frame.
- * Read from the game's Celeste.dll with ILSpy on 2026-10-13 (TouchSwitch's
- * constructor). Commit 1d3e148 had used the 16 x 16 Collider against her
- * collider; that was reverted (docs/history.md). */
+/* TouchSwitch: `new PlayerCollider(OnPlayer, null, new Hitbox(30, 30, -15,
+ * -15))` (ILSpy). The second argument is the collider: null, so the switch's
+ * own Collider, 16 x 16 around it (Hitbox(16, 16, -8, -8)), is what touches
+ * her. The 30 x 30 box is the third argument, the feather collider, used
+ * only while she flies with a feather (StStarFly, not modelled). Player.Update
+ * checks every PlayerCollider against her hurtbox (8 x 9 at (-4, -11),
+ * ducking 8 x 4 at (-4, -6): its bottom is 2 px above her feet), as
+ * player_colliders() does. Switch.Activate -> when every switch in the room
+ * is on, all finish at once and the switch gates' Sequence() sees it in
+ * their update this frame. Checked with the chase recording, the gate's
+ * position included (data/recordings/celeste-sat-2a-gate.txt). From
+ * 2026-10-12 to 10-13 the model had the 30 x 30 box (a misreading of the
+ * constructor's arguments): the gate opened 3 frames early. */
 static void touch_update(State *s)
 {
-    const int R = 15, bot = s->y - 2;
+    const int R = 8, bot = s->y - 2;
     int top = s->y - (s->ducking ? 6 : 11);
     for (int j = 0; j < NTOUCH; j++)
         if (s->x - 4 < TOUCHSWITCHES[j][0] + R && s->x + 4 > TOUCHSWITCHES[j][0] - R
