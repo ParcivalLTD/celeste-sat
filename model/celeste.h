@@ -196,7 +196,7 @@ typedef struct {
     Timer refillTimer[MAX_REFILLS];
 
     /* Player */
-    int   state;             /* ST_NORMAL, ST_CLIMB or ST_DASH */
+    int   state;             /* ST_NORMAL, ST_CLIMB, ST_DASH or ST_DREAM_DASH */
     int   facing;            /* -1 or 1 */
     bool  ducking;
     bool  onGround;

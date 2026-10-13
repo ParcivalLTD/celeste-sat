@@ -1762,8 +1762,15 @@ static bool dream_blocks_overlap(int x, int y, int h)
 }
 #endif
 
+/* Player.DreamDashUpdate. As in the game she moves first (NaiveMove) and the
+ * checks below look at where she has moved to: on the frame she comes out
+ * of the block she both moves here and, the state being Normal again, moves
+ * with MoveH/MoveV in player_update. Until 2026-10-13 the model checked
+ * first and moved at the end of the frame, so it saw her leave the block a
+ * frame late (found with data/recordings/celeste-sat-2a-chase.txt). */
 static int dream_dash_update(State *s, Input in)
 {
+    move_naive(s, s->spdX * DT, s->spdY * DT);
     if (TPOS(s->dreamDashCanEndTimer)) TDEC(s->dreamDashCanEndTimer);
 
 #if NDREAMBLOCKS > 0
@@ -2216,17 +2223,12 @@ static void chaser_update(State *s)
  * 2 px above her feet), as player_colliders() does. Switch.Activate -> when
  * every switch in the room is on, all finish at once and the switch gates'
  * Sequence() sees it in their update this frame.
- * Commit 1d3e148 had changed this to the 16 x 16 box against her collider; the
- * hurtbox swap is in the published Player.cs, and the 30 x 30 box is what
- * mods that mirror the vanilla switch build (MaxHelpingHand's FlagTouchSwitch).
- * Not yet checked against a recording (docs/verification.md). */
+ * Read from the game's Celeste.dll with ILSpy on 2026-10-13 (TouchSwitch's
+ * constructor). Commit 1d3e148 had used the 16 x 16 Collider against her
+ * collider; that was reverted (docs/history.md). */
 static void touch_update(State *s)
 {
-#ifdef TOUCH_ENTITY_COLLIDER   /* the reading of 1d3e148, for experiments: 16 x 16 against her collider */
-    const int R = 8, bot = s->y;
-#else
     const int R = 15, bot = s->y - 2;
-#endif
     int top = s->y - (s->ducking ? 6 : 11);
     for (int j = 0; j < NTOUCH; j++)
         if (s->x - 4 < TOUCHSWITCHES[j][0] + R && s->x + 4 > TOUCHSWITCHES[j][0] - R
@@ -2395,12 +2397,18 @@ static void player_update(State *s, Input in)
          * off a ledge ducked, jumps in coyote time and goes on ducked under a wall) */
         if (s->spdY > 0 && can_unduck(s) && !s->onGround && !TPOS(s->jumpGraceTimer)) s->ducking = false;
 
-        /* Physics */
+        /* Physics. The game checks the state before each move, so a dash
+         * that MoveH's collision turns into a dream dash (on_collide_h ->
+         * dream_block_collide) does not move vertically on that frame. */
         move_h(s, s->spdX * DT);
-        move_v(s, s->spdY * DT);
-    } else {
-        move_naive(s, s->spdX * DT, s->spdY * DT);
+        if (s->state != ST_DREAM_DASH) move_v(s, s->spdY * DT);
     }
+    /* In ST_DREAM_DASH she has already moved, in dream_dash_update. (The
+     * game does not skip the jump-through assist, floor snapping and falling
+     * unducking above for a dream dash. Floor snapping needs a dash attack,
+     * which entering the block ends. The assist needs a jump-through where
+     * she dream dashes, unducking a ducked dream dash: not modelled, see
+     * developing.md, known warts.) */
 
     /* Player colliders (spikes, springs), then the room bounds */
     player_colliders(s);

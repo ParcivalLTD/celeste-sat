@@ -12,7 +12,7 @@ They are the same work. Goal 1 gives the paper its headline result, and the
 paper and the record together are what a CV can point to. So the plan below
 is one sequence, and every step says which goal it serves.
 
-## Where things stand (2026-10-12)
+## Where things stand (2026-10-13)
 
 | | status | evidence |
 |---|---|---|
@@ -21,8 +21,8 @@ is one sequence, and every step says which goal it serves.
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
 | Local optimality (Tier B) | **W = 12 and 16 over all of Chapter 1** (3,826 windows proven, 6 timeouts), W = 18 over room 1; all 18 room transitions proven at two window sizes | `results/leonardo/`, `hpc/summary.py` |
 | Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The one big lead: `lvl_6a` in 118 frames instead of 161 (over the top of the room), not yet a chapter saving and not yet played in the game | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
-| Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; the touch-switch hitbox change of 1d3e148 reverted to the game's | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
-| Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 252 vs 221). `results/routes/2a_chase.tas` replays in the current model; it beats the community only in `lvl_10` (628 vs 633) | `results/routes/2a_chase.tas` |
+| Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed. **The first recording found a bug**: the dream-dash entry and exit frames, fixed 2026-10-13 (the rest of the recording still to compare). The touch-switch hitbox is confirmed with ILSpy | [docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far) |
+| Chapter 2 routes | made with the dream-block bug, so **all to be re-solved**: `results/routes/2a_chase.tas` dies in `2a_lvl_4` in the fixed model. Before the fix the project's own search was ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames) | `tools/chain_chapter2.py` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
 
 The record to beat for Chapter 1 is the community TAS's **0:49.079** (2,887
@@ -86,32 +86,39 @@ When a candidate checks out in the model, play it in the game. Then:
 
 ## Step 3 -- make Chapter 2 trustworthy (2-4 weeks; the paper's second chapter)
 
-Chapter 2 rests on code that has never met the game. Settle that before
-spending more compute on it.
+Chapter 2 has met the game once, and the meeting found a bug. Settle the
+model before spending more compute on it.
 
-1. **The touch-switch hitbox.** Commit 1d3e148's change was reverted on
-   2026-10-12 to the game's 30 × 30 `PlayerCollider` against the hurtbox. The
-   published `Player.cs` and a mod that mirrors the vanilla switch both
-   support it ([docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet)).
-   Confirm it with ILSpy (`TouchSwitch`'s constructor) or a recording of
-   `2a_lvl_6`. Then re-solve the chase rooms the Leonardo run solved with the
-   other hitbox. If `2a_lvl_7` is hard for the beam search again, that is a
-   search problem (step 6), not a model one.
+1. **Finish comparing the chase recording.** Played on 2026-10-13, it
+   matched until `2a_lvl_3` frame 52, where a dash enters a dream block: the
+   game did not move her vertically on that frame, the model did. Reading
+   `DreamDashUpdate` showed a second difference: the model also saw her
+   leave every dream block a frame late. Both are fixed
+   ([docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far)),
+   and the fixed model gives the recorded frames 52-54. Commit the recording
+   (`celeste-sat-2a-chase.txt`) to `data/recordings/` and run
+   `tests/recordings.py` on it again. The game played the old route's
+   inputs, so the fixed model must now follow the recording on every frame,
+   including wherever the game shows the old route failing. (In the fixed
+   model it dies in `2a_lvl_4` on frame 103.) Then re-solve the chase
+   (`tools/chain_chapter2.py --polish`), write a new
+   `results/celestetas/2a_chase.tas`, and record that too. The touch-switch
+   hitbox is settled: ILSpy shows `TouchSwitch` adding a `PlayerCollider`
+   with `Hitbox(30f, 30f, -15f, -15f)`, which the model uses.
 2. **The community 2A TAS through the model.** This is the cheapest strong
    check there is, the same one that made Chapter 1 believable. A first try
-   (2026-10-13) failed in `2a_lvl_4` with either touch-switch hitbox. Its
-   `lvl_3` starting state was reconstructed by scanning start positions,
-   because the TAS plays part of `lvl_3` before the intro cutscene. So
-   either that reconstruction or the model is off before any switch room. Generalise
+   (2026-10-13, before the dream-block fix) failed in `2a_lvl_4`. `2a_lvl_3`
+   has a dream block, so try again with the fix first. Its `lvl_3` starting
+   state was reconstructed by scanning start positions, because the TAS
+   plays part of `lvl_3` before the intro cutscene. Generalise
    `tests/chain_tas.py` to a chapter argument: the rooms and goals come from
    `tools/import_chapter2.py`, the chase starts in `lvl_3` after the cutscene
    skip (the TAS's `1,S` lines), and the chaser history runs on across rooms.
    Every room's inputs must leave it on their last frame. Where they don't,
    the model is wrong.
-3. **One recording** of the chase for the chaser delay and hitbox, the
-   dream-block timing and the switch gates. `results/celestetas/2a_chase.tas`
-   (the 12-room route, which replays in the current model) is ready to play.
-   Then `python3 tests/recordings.py <Celeste folder>`.
+3. **More recordings** for what the chase recording does not reach: the
+   chaser's wake-up delay after a respawn, a dream-block exit into a climb
+   and into a solid, and the switch gates' timing.
 4. Only then: windows over the community 2A TAS (`hpc/make_tasks.py`
    generalised to a chapter), the same way as Chapter 1. Don't race the
    community TAS with the beam search. It is ~9 % behind over the chase,
@@ -137,7 +144,8 @@ reproduced from committed data.
 **Evaluation it needs:**
 - fidelity: the community TAS, the recordings, the fuzzer counts, and the
   model bugs found by recordings (falling-unduck, the upward stop point, the
-  climb trigger) as evidence that the checks have teeth;
+  climb trigger, the dream-dash entry frame) as evidence that the checks have
+  teeth;
 - the certificate: windows per room and W, proven / timeout / faster, core-
   hours;
 - scaling: proof time against free frames (the ~1.5x per frame), formula
