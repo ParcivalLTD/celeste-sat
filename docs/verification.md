@@ -216,6 +216,9 @@ changelog gives as 0.15 s; the upward room transition):
 
 ### Chapter 2 (one recording so far)
 
+(The heading keeps its old name so links to it keep working: three
+recordings now, all matching.)
+
 Chapter 2 rests mostly on the game's code as read, the differential fuzzer
 and the demo-room checks (`tests/test_chapter2.py`). The first recording,
 the 12-room chase route played in Celeste 1.4 (2026-10-13), already found a
@@ -241,34 +244,30 @@ bug. In order of how much a route depends on each part:
   recording through `2a_lvl_3`, `lvl_4` and `lvl_5` (365 frames, every room
   left on its last frame) and into `lvl_6`, where both agree that the old
   route does not leave on frame 222.
-- **Switch gates (open).** On `2a_lvl_6` frame 227 the gate, near the end of
-  its travel, moves down from y = 101 to 102 in the model, and she is
-  standing on it, so it carries her down 1 px. In the game she stays at
-  100.6575 and is still on the gate on frame 228 (`Coyote(5)`), so its top
-  was still at 101 under her. The game's gate is therefore at least two
-  updates behind the model's. The code (ILSpy: `SwitchGate.Sequence`,
-  `Switch.Check`) agrees with the model: the gate sees the switch in the
-  update she touches it in, and the waits are as modelled. So either the
-  touch frame or one of the waits is off, and only a recording of the
-  gate's position can tell. The second chase recording
-  (`celeste-sat-2a-committed-route.txt`, 2026-10-13) tracks the gate, but was played
-  from the committed `results/celestetas/2a_chase.tas`. That file differs
-  from the one behind the first recording, so in this run she dies in
-  `2a_lvl_6` before reaching the switch. (The model follows it on every
-  frame, including the death on frame 58.)
-  `results/celestetas/2a_chase_recorded.tas` is the first run's file,
-  rebuilt line for line from its recording, with the gate tracked.
-- **Touch switches (confirmed 2026-10-13).** The model checks the switch's
-  30 × 30 `PlayerCollider` (±15 px around it) against her hurtbox (bottom
-  2 px above her feet). ILSpy on the game's `Celeste.dll` shows
-  `TouchSwitch`'s constructor adding
-  `new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`;
-  the 16 × 16 `Hitbox(16f, 16f, -8f, -8f)` is the entity's own `Collider`
-  (with a 20 × 20 `HoldableCollider` and a 24 × 24 `SeekerCollider`). The
-  published `Player.cs` swaps in the hurtbox for the whole `PlayerCollider`
-  loop. Commit 1d3e148 had switched the model to the 16 × 16 box against her
-  collider; that was reverted on 2026-10-12. Chapter 2 results computed
-  between the two (the Leonardo chase run) used the wrong box and are void.
+- **Touch switches and switch gates (fixed 2026-10-13).** With the dream
+  blocks fixed, the chase recording differed on `2a_lvl_6` frame 227: a
+  switch gate near the end of its travel carried her 1 px down in the model
+  and not in the game. A recording with the gate's position
+  (`celeste-sat-2a-gate.txt`, the same run, played again from
+  `results/celestetas/2a_chase_recorded.tas`) showed the game's gate
+  starting to move on frame 153, 3 frames after the model's, with the same
+  motion. The cause was the touch switch. ILSpy shows `TouchSwitch` adding
+  `new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`.
+  The arguments are (callback, collider, feather collider). The collider is
+  null, so the switch's own `Collider`, `Hitbox(16f, 16f, -8f, -8f)`, is what
+  touches her. The 30 × 30 box is used only while she flies with a feather.
+  The model had read the 30 × 30 box as the one that touches her: it was
+  touched 3 frames early (frame 102, the corners overlapping by a pixel),
+  where the 16 × 16 box first touches on frame 105. Commit 1d3e148 had the
+  16 × 16 box. Reverting it on 2026-10-12 was wrong, and "confirming" the
+  revert with ILSpy was a misreading. Now the model checks the 16 × 16 box
+  against her hurtbox (`Player.Update` swaps the hurtbox in for the
+  `PlayerCollider` loop; 1d3e148 used her collider, and this recording
+  can't tell the two apart). All three Chapter 2 recordings match on every
+  frame: the chase to a death on `2a_lvl_7` frame 152 (851 frames, the gate
+  where the game has it on all 334 frames of `lvl_6`), and the other route
+  to its death in `lvl_6`. `SwitchGate.Sequence` and `Switch` (ILSpy) are
+  as modelled.
 - **The community 2A TAS** does not yet go through the model. Its inputs
   stop working in `2a_lvl_4` (a first try, 2026-10-13, before the dream-block
   fix), before any switch room. Try it again with the fix (ROADMAP, step 3).
