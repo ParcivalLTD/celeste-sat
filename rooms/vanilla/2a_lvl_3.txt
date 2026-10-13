@@ -11,8 +11,93 @@
 ; spikes up 264 160 32
 ; spikes up 296 168 40
 ; chaser 93
-; spawn 120 168 -1
-; (facing left: CS02_BadelineIntro, skipped after `console load 2 3`, ends with Facing = Left)
+; outside -4 5 -8
+; outside 43 47 -8
+; outside -3 8 -7
+; outside 21 24 -7
+; outside 43 47 -7
+; outside -3 12 -6
+; outside 21 24 -6
+; outside 43 47 -6
+; outside -3 12 -5
+; outside 18 24 -5
+; outside 43 47 -5
+; outside -3 24 -4
+; outside 43 47 -4
+; outside -2 24 -3
+; outside 43 47 -3
+; outside -2 24 -2
+; outside 33 38 -2
+; outside 43 47 -2
+; outside -2 38 -1
+; outside 43 47 -1
+; outside -2 -1 0
+; outside 45 47 0
+; outside -2 -1 1
+; outside 45 47 1
+; outside -2 -1 2
+; outside 45 47 2
+; outside -2 -1 3
+; outside 45 47 3
+; outside -2 -1 4
+; outside 45 47 4
+; outside -2 -1 5
+; outside 45 47 5
+; outside -4 -1 6
+; outside 45 47 6
+; outside -4 -1 7
+; outside 45 47 7
+; outside -4 -1 8
+; outside 45 47 8
+; outside -4 -1 9
+; outside 45 47 9
+; outside -4 -1 10
+; outside 45 47 10
+; outside -4 -1 11
+; outside 45 47 11
+; outside -4 -1 12
+; outside 45 47 12
+; outside -4 -1 13
+; outside 45 47 13
+; outside -4 -1 14
+; outside 45 47 14
+; outside -4 -1 15
+; outside 45 47 15
+; outside -4 -1 16
+; outside 45 47 16
+; outside -4 -1 17
+; outside 45 47 17
+; outside -4 -1 18
+; outside 45 47 18
+; outside -4 -1 19
+; outside 45 47 19
+; outside -4 -1 20
+; outside 45 47 20
+; outside -4 -1 21
+; outside 45 47 21
+; outside -4 -1 22
+; outside 45 47 22
+; outside -4 13 23
+; outside 17 47 23
+; outside -4 13 24
+; outside 17 47 24
+; outside -4 12 25
+; outside 19 23 25
+; outside 30 32 25
+; outside 39 47 25
+; outside -4 10 26
+; outside 19 23 26
+; outside 30 32 26
+; outside 39 47 26
+; outside -2 10 27
+; outside 41 47 27
+; outside -2 10 28
+; outside 41 47 28
+; outside -2 10 29
+; outside 41 47 29
+; outside -2 10 30
+; outside 41 47 30
+; spawn 120 168
 #######################################....##
 #######################################....##
 ##############....#####################....##

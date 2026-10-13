@@ -8,6 +8,32 @@
 ; dreamblock 128 24 48 32
 ; dreamblock 248 112 48 32
 ; dreamblock 312 72 24 40
+; outside -4 -2 -8
+; outside -4 -2 -7
+; outside -4 -4 -6
+; outside -4 -4 -5
+; outside -4 -4 -4
+; outside -4 -4 -3
+; outside -4 -4 -2
+; outside -4 -4 -1
+; outside -4 -4 0
+; outside -4 -4 1
+; outside -4 -1 20
+; outside 58 61 20
+; outside -4 -1 21
+; outside 58 61 21
+; outside -4 -1 22
+; outside 58 61 22
+; outside -4 -1 23
+; outside 58 61 23
+; outside -4 61 24
+; outside -4 61 25
+; outside 4 61 26
+; outside 9 17 27
+; outside 9 17 28
+; outside 10 17 29
+; outside 10 17 30
+; outside 10 17 31
 ; spawn 8 160
 ..........................................................
 ..........................................................

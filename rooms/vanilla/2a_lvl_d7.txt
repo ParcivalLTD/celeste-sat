@@ -28,6 +28,58 @@
 ; spikes down 224 16 56
 ; spikes left 304 32 56
 ; spikes right 208 88 48
+; outside -4 4 -4
+; outside 29 38 -4
+; outside -4 4 -3
+; outside 29 38 -3
+; outside -4 6 -2
+; outside 25 43 -2
+; outside -4 43 -1
+; outside -4 -1 0
+; outside 40 43 0
+; outside -4 -1 1
+; outside 40 43 1
+; outside -4 -1 2
+; outside 40 42 2
+; outside -4 -1 3
+; outside 40 42 3
+; outside -4 -1 4
+; outside 40 42 4
+; outside -4 -1 5
+; outside 40 41 5
+; outside -4 -1 6
+; outside 40 41 6
+; outside -4 -1 7
+; outside 40 41 7
+; outside -4 -1 8
+; outside 40 41 8
+; outside -4 -1 9
+; outside 40 41 9
+; outside -4 -1 10
+; outside 40 41 10
+; outside -4 -1 11
+; outside 40 41 11
+; outside -4 -1 12
+; outside 40 41 12
+; outside -4 -1 13
+; outside 40 41 13
+; outside -4 -1 14
+; outside 40 41 14
+; outside -4 -1 15
+; outside -4 -1 20
+; outside 40 43 20
+; outside -4 -1 21
+; outside 40 43 21
+; outside -4 -1 22
+; outside 40 43 22
+; outside -4 43 23
+; outside -4 43 24
+; outside -4 43 25
+; outside -4 43 26
+; outside -4 43 27
+; outside -4 43 28
+; outside -4 43 29
+; outside -4 43 30
 ; spawn 8 160
 ########################################
 ########vvvvvvvvvvvvv###################
