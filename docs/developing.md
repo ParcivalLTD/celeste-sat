@@ -141,6 +141,10 @@ Do not let a mechanic reach a route before step 4.
   where she dream dashes, or a ducked dream dash. No modelled room has the
   first; the second is untested. (Floor snapping needs a dash attack, which
   entering a dream block ends, so skipping it changes nothing.)
+- The beam search's distance field (`solid_px` in `search/beam.c`) sees only
+  the room's own tiles, not the `; outside` ones. It is only a heuristic, and
+  every route is replayed in the model, but it may lead the search into
+  space above a room that the model will then find blocked.
 - `tests/random_room.py` places a switch gate only when fewer than three zip
   movers are already there (they share `MAX_ZIP_MOVERS`), so check the
   coverage counters, not the seed, to know whether something was exercised.

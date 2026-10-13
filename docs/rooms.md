@@ -32,9 +32,16 @@ top of the tile. Directives:
 ; switchgate 48 0 24 16 48 64    a switch gate, moving to (48, 64) once every touch switch is on
 ; touchswitch 200 120    a touch switch centred at (200, 120)
 ; chaser 93              a Badeline chaser, 93 frames behind her (one line per chaser)
+; outside -3 -1 -2       solid tiles outside the room: tile columns -3..-1 of tile row -2
 ```
 
-Without an `exit` line the whole right edge is the exit. Spikes and springs
+Without an `exit` line the whole right edge is the exit. `; outside` lines
+give the map's tiles around the room, in the room's tile coordinates, up to
+4 columns either side and 8 rows above and below. The game's tile grid
+covers the whole map and fills the space between rooms (see
+`celeste_sat/celeste_map.py`, `solid_grid`). Without them everything
+outside the room is air, which is right for the demo rooms and wrong for
+the game's rooms wherever she can climb above the top edge. Spikes and springs
 act in the order they are listed, as in the game. Limits (from the sizes in
 `State`): 4 zip movers and switch gates together, 4 falling blocks, 8 crumble
 blocks, 8 dash blocks, 8 dream blocks, 8 barriers, 8 touch switches, 8

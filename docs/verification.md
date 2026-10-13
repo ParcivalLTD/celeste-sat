@@ -142,16 +142,22 @@ What is still inferred rather than taken from code or checked against the game
 (settled by the recordings above: the 0.2 s dash cooldown, which the 1.2.5.0
 changelog gives as 0.15 s; the upward room transition):
 
-- **The tiles outside a room (known wrong, 2026-10-13).** The model treats
-  everything outside the room's tile grid as empty, and the game does not.
-  The recording of the 118-frame `lvl_6a` (`celeste-sat-1a-6a118.txt`)
-  matches for 760 frames, up to `lvl_6a` frame 30. There she climbs above
-  the room's top edge (y = −0.75), and in the game the wall goes on where
-  the model has none. Celeste's `LevelLoader` fills the grid between rooms,
-  apparently by extending the rooms' edge tiles. The rule has to be read
-  (ILSpy, `Celeste.LevelLoader`) and exported with the room. Until then a
-  route that leaves the room's area, above the top in particular, is not to
-  be trusted.
+- **The tiles outside a room (fixed 2026-10-13).** The model used to treat
+  everything outside the room's tile grid as empty. The game's tile grid
+  covers the whole map, and `LevelLoader` (read with ILSpy) fills it between
+  the rooms. Filler rectangles are solid. A room's top-row tile is copied up
+  to 3 tiles up, unless it is air, in which case the 7 cells above are kept
+  as they are. The same happens downwards, and the left and right columns
+  are copied 3 tiles sideways. `celeste_sat/celeste_map.py` (`solid_grid`)
+  does the same, and each room file carries the map's tiles 4 columns
+  either side and 8 rows above and below (`; outside`). That covers all she
+  can touch: 24 px above the room before the clamp, 11 px below it before
+  she dies. Both builds read them, and the fuzzer has rooms with an opening
+  in the top wall and random outside tiles (26,010 collisions with them,
+  every room identical). With it, the `lvl_6a` recording
+  (`celeste-sat-1a-6a118.txt`) matches on every frame: 880 frames over 8
+  rooms, from the chapter start to her death in `lvl_6a` on frame 136.
+  Chapter 2's rooms still have to be exported again with the tiles.
 - The wallbounce reach: mods confirm a 5 px distance in `WallJumpCheck`
   besides the usual 3; that it applies while dash-attacking after a
   straight-up dash is now confirmed by the 106-frame `lvl_3` ending. That
@@ -190,9 +196,6 @@ changelog gives as 0.15 s; the upward room transition):
   too); why rooms one screen plus 4 px tall get 9 is not known. Sideways and downwards the stop point is
   inferred (4 px inside the edge she crossed, 12 px when falling in); the
   chapter chain goes through three sideways transitions exactly.
-- Tiles outside the room count as air. In the game they belong to the
-  neighbouring rooms; this only matters if Madeline's hitbox pokes out of the
-  room somewhere other than an exit.
 - Float results can differ between the old 32-bit XNA build (x87 registers) and
   64-bit builds (SSE). The port matches strict IEEE single precision, which is
   what Everest's .NET Core builds use.
@@ -241,11 +244,19 @@ bug. In order of how much a route depends on each part:
   its travel, moves down from y = 101 to 102 in the model, and she is
   standing on it, so it carries her down 1 px. In the game she stays at
   100.6575 and is still on the gate on frame 228 (`Coyote(5)`), so its top
-  was still at 101 under her. A one-update shift of the gate's schedule
-  doesn't fix it, and neither does updating the gate before her. The gate's
-  code (`SwitchGate`, `Switch`) needs reading in ILSpy, and a recording with
-  the gate's position (`ExportGameInfo, <file>, SwitchGate`) will show its
-  real schedule. Every route through a switch room waits on this.
+  was still at 101 under her. The game's gate is therefore at least two
+  updates behind the model's. The code (ILSpy: `SwitchGate.Sequence`,
+  `Switch.Check`) agrees with the model: the gate sees the switch in the
+  update she touches it in, and the waits are as modelled. So either the
+  touch frame or one of the waits is off, and only a recording of the
+  gate's position can tell. The second chase recording
+  (`celeste-sat-2a-gate.txt`, 2026-10-13) tracks the gate, but was played
+  from the committed `results/celestetas/2a_chase.tas`. That file differs
+  from the one behind the first recording, so in this run she dies in
+  `2a_lvl_6` before reaching the switch. (The model follows it on every
+  frame, including the death on frame 58.)
+  `results/celestetas/2a_chase_recorded.tas` is the first run's file,
+  rebuilt line for line from its recording, with the gate tracked.
 - **Touch switches (confirmed 2026-10-13).** The model checks the switch's
   30 × 30 `PlayerCollider` (±15 px around it) against her hurtbox (bottom
   2 px above her feet). ILSpy on the game's `Celeste.dll` shows

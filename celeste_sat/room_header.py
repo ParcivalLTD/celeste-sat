@@ -246,8 +246,9 @@ def render(room):
             lo = bits & 0xFFFFFFFFFFFFFFFF
             hi = bits >> 64
             out.append(f"    (((unsigned __int128)0x{hi:016x}ULL << 64) | 0x{lo:016x}ULL),")
-    out += ["};", "",
-            "/* exits: { side, from, to, goal } -- a neighbouring room on SIDE covering",
+    out += ["};", ""]
+    out += _outside(room, w, h)
+    out += ["/* exits: { side, from, to, goal } -- a neighbouring room on SIDE covering",
             " * [from, to) along that edge; goal 0 means going there counts as failing */",
             "#define EXIT_SIDE_LEFT 0", "#define EXIT_SIDE_RIGHT 1",
             "#define EXIT_SIDE_UP 2", "#define EXIT_SIDE_DOWN 3",
@@ -360,6 +361,40 @@ def _zip_movers(room):
         out.append("  {" + ",".join(f"{{{float(e[4]).hex()}f,{float(e[5]).hex()}f}}" for e in pad(c)) + "},")
     out.append("};")
     return out
+
+
+def _col_literal(bits, h):
+    if h <= 32:
+        return f"0x{bits:08x}u"
+    if h <= 64:
+        return f"0x{bits:016x}ULL"
+    return f"(((unsigned __int128)0x{bits >> 64:016x}ULL << 64) | 0x{bits & 0xFFFFFFFFFFFFFFFF:016x}ULL)"
+
+
+def _outside(room, w, h):
+    """the map's solid tiles around the room (only for rooms that have any, so
+    other rooms' room.h stay as they were)"""
+    if not room.outside:
+        return []
+    from .room import OUTSIDE_COLS as C, OUTSIDE_ROWS as R
+    assert R == 8, "OUT_ABOVE / OUT_BELOW are 8-bit masks"
+    out = ["/* the map's solid tiles around the room (; outside, celeste_map.solid_grid):",
+           f" * OUT_SIDE[k]: columns -{C}..-1 (k = 0..{C - 1}) and ROOM_W..ROOM_W+{C - 1} (k = {C}..{2 * C - 1}),",
+           " *   rows 0..ROOM_H-1, bits as in ROOM_COLS;",
+           f" * OUT_ABOVE[c + {C}]: bit j = row j - {R}; OUT_BELOW[c + {C}]: bit j = row ROOM_H + j;",
+           f" *   c from -{C} to ROOM_W+{C - 1} */",
+           "#define HAS_OUTSIDE 1",
+           f"static const room_col_t OUT_SIDE[{2 * C}] = {{"]
+    for cx in list(range(-C, 0)) + list(range(w, w + C)):
+        out.append(f"    {_col_literal(sum(1 << cy for cy in range(h) if (cx, cy) in room.outside), h)},")
+    out.append("};")
+    for name, base in (("OUT_ABOVE", -R), ("OUT_BELOW", h)):
+        masks = [sum(1 << j for j in range(R) if (cx, base + j) in room.outside) for cx in range(-C, w + C)]
+        out.append(f"static const unsigned char {name}[ROOM_W + {2 * C}] = {{")
+        for i in range(0, len(masks), 16):
+            out.append("    " + ", ".join(f"0x{m:02x}" for m in masks[i:i + 16]) + ",")
+        out.append("};")
+    return out + [""]
 
 
 def _touch_switches(room):

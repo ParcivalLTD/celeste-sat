@@ -23,9 +23,10 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   ([VampireFlower/CelesteTAS](https://github.com/VampireFlower/CelesteTAS))
   replays in the model room after room: 19 rooms, 2,275 frames of control,
   with zip movers, falling, crumble and dash blocks, refills and springs.
-  Each room's inputs leave that room on exactly their last frame. Fifteen
-  recordings made in Celeste 1.4 with CelesteTAS match the model on every
-  frame, subpixels included.
+  Each room's inputs leave that room on exactly their last frame. Sixteen
+  recordings of Chapter 1 made in Celeste 1.4 with CelesteTAS match the
+  model on every frame, subpixels included. The longest is 880 frames over
+  8 rooms, up to a death the model predicts on the same frame.
 - **The model agrees with itself.** A literal port (float timers,
   pixel-by-pixel movement) and the optimised build the solver uses agree bit
   for bit on 2.95 million fuzzed frames in random rooms. Every shortcut the
