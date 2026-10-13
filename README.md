@@ -44,9 +44,10 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   different state and break the next room. The frames left are in the seams
   between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
-  chasers, switch gates and invisible barriers, all in the fuzzer. A 12-room
-  chase route (2,531 frames) plays in the model. None of it has been checked
-  against the game yet.
+  chasers, switch gates and invisible barriers, all in the fuzzer. The first
+  recording of it in the game found a timing bug on the frames a dash enters
+  and leaves a dream block. It is fixed, and the Chapter 2 routes, which were
+  made with the bug, are being solved again.
 
 "Proven" here always means *within the model*, and usually *given the frames
 before the window*. What can and can't be claimed is in

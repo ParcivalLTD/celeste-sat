@@ -5,6 +5,43 @@ README and the other docs describe the project as it is; this is how it got
 there. Entries before 2026-10-12 come from `brain.md`, the working notes of
 the time, and describe the code as it was then (file names included).
 
+## 2026-10-13: the first Chapter 2 recording, and ILSpy
+
+**The touch-switch hitbox is confirmed.** ILSpy on the game's `Celeste.dll`
+(Everest install) shows `TouchSwitch`'s constructor adding
+`new PlayerCollider(OnPlayer, null, new Hitbox(30f, 30f, -15f, -15f))`. The
+`Hitbox(16f, 16f, -8f, -8f)` that 1d3e148 had used is the entity's own
+`Collider`. The revert of 2026-10-12 stands, and the experiment flag
+`TOUCH_ENTITY_COLLIDER` is gone.
+
+**The first recording of Chapter 2 found a model bug.** The 12-room chase
+route played in Celeste 1.4 matched the model until `2a_lvl_3` frame 52.
+That is the frame a dash (x moving at 227.5 px/s, y at -169.7) reaches a
+dream block from the side. The game's x stopped at 228 as the model's did,
+but its y stayed at 118.171484 while the model's moved on to 115.343051. On
+the next frames the model stayed one frame's movement ahead in y. The cause
+is in `Player.Update`: it checks the state before `MoveH` and again before
+`MoveV`, so when `MoveH`'s collision callback turns the dash into a dream
+dash, `MoveV` is skipped. The model moved both ways.
+
+Reading `DreamDashUpdate` for this turned up a second difference. The game
+moves first (`NaiveMove`), then counts down `dreamDashCanEndTimer` and checks
+whether she is still in a block. The model checked first and moved at the
+end of the frame. Inside a block that comes to the same positions, but the
+model saw her leave a frame late, every time. Both are fixed. The fixed
+model gives the recorded y on frames 52-54, the reference and solver builds
+stay identical (40 × 300 fuzzed rooms, all dream-block counters non-zero),
+and the chase route of 2026-10-01 no longer replays in the model (it dies in
+`2a_lvl_4` on frame 103). Every Chapter 2 route was made with the old
+timing.
+
+The fuzzer could not have found this: both builds had the same bug. It is
+the kind of error only the game catches, and the reason the ROADMAP asks for
+a recording before compute.
+
+`celeste_sat/recording.py` also learnt the name of the dream-dash state, so
+a recording's `StDreamDash` frames compare equal to the model's.
+
 ## 2026-10-12: cleanup, and an audit of the claims
 
 The repository was restructured (see the commit for the full list): a Python
@@ -49,7 +86,7 @@ What the audit found, beyond the code:
   through `2a_lvl_7`, but a 252-frame route through that room under the
   original hitbox was already committed (`results/routes/2a_chase.tas`). A
   room the search can't solve is a search problem, not a reason to change
-  the model. See [verification.md](verification.md#chapter-2-nothing-recorded-yet).
+  the model. See [verification.md](verification.md#chapter-2-one-recording-so-far).
 - `tools/import_chapter2.py` would have silently undone the exit fixes of
   588c008 on the next re-export; they are now part of it (`EXIT_FIXES`).
 - The beam search's default rollout was 10 in `beam.c` and 8 in
