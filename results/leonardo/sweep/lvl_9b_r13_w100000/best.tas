@@ -1,0 +1,18 @@
+# room 1a_lvl_9b: exits on frame 69
+# no SAT run
+   2
+   5,R,J
+   1,J
+   6,R,J
+   2,R
+   4,R,X
+  10,R,U
+   1,J,G
+   3
+   1,L
+   2
+   1,L
+   3,R,J
+   4,X
+  13,U
+  11,J
