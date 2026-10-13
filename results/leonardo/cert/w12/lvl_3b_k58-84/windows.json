@@ -1,0 +1,404 @@
+{
+ "room": "rooms/vanilla/1a_lvl_3b.txt",
+ "route": "build/chain_tas/lvl_3b/route.tas",
+ "exit": 98,
+ "width": 12,
+ "windows": {
+  "58": {
+   "found": false,
+   "seconds": 476,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "59": {
+   "found": false,
+   "seconds": 417,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "60": {
+   "found": false,
+   "seconds": 416,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "61": {
+   "found": false,
+   "seconds": 441,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "62": {
+   "found": false,
+   "seconds": 504,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "63": {
+   "found": false,
+   "seconds": 452,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "64": {
+   "found": false,
+   "seconds": 460,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "65": {
+   "found": false,
+   "seconds": 378,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "66": {
+   "found": false,
+   "seconds": 489,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "67": {
+   "found": false,
+   "seconds": 612,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "68": {
+   "found": false,
+   "seconds": 543,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "69": {
+   "found": false,
+   "seconds": 452,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "70": {
+   "found": false,
+   "seconds": 540,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "71": {
+   "found": false,
+   "seconds": 604,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "72": {
+   "found": false,
+   "seconds": 774,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "73": {
+   "found": false,
+   "seconds": 809,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "74": {
+   "found": false,
+   "seconds": 1044,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "75": {
+   "found": false,
+   "seconds": 256,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "76": {
+   "found": false,
+   "seconds": 352,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown"
+   ]
+  },
+  "77": {
+   "found": false,
+   "seconds": 539,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown"
+   ]
+  },
+  "78": {
+   "found": false,
+   "seconds": 811,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown"
+   ]
+  },
+  "79": {
+   "found": false,
+   "seconds": 20,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown"
+   ]
+  },
+  "80": {
+   "found": false,
+   "seconds": 39,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "81": {
+   "found": false,
+   "seconds": 51,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "82": {
+   "found": false,
+   "seconds": 84,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "83": {
+   "found": false,
+   "seconds": 154,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "84": {
+   "found": true,
+   "seconds": 245,
+   "ignored": [
+    "onGround"
+   ]
+  }
+ },
+ "better": [
+  {
+   "k": 84,
+   "exit": 96,
+   "route": "/leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w12/lvl_3b_k58-84/win_84_better.tas"
+  }
+ ]
+}

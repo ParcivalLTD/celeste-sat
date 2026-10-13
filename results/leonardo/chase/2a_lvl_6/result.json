@@ -1,0 +1,12 @@
+{
+ "room": "2a_lvl_6",
+ "frames": 222,
+ "proven": false,
+ "from_frame": 0,
+ "history": [
+  {
+   "kind": "beam",
+   "frames": 222
+  }
+ ]
+}

@@ -1,0 +1,101 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_11 W=12 K=60..89: 30 windows, 30 at a time, timeout 3600s, lrdn0343.leonardo.local ===
+route leaves 1a_lvl_11 on frame 161; 30 windows of 12 free frames (K = 60..89), 30 at a time
+  frames  87.. 99 in 12: no (585s)
+  frames  70.. 82 in 12: no (614s)
+  frames  63.. 75 in 12: no (693s)
+  frames  62.. 74 in 12: no (736s)
+  frames  68.. 80 in 12: no (764s)
+  frames  61.. 73 in 12: no (817s)
+  frames  71.. 83 in 12: no (830s)
+  frames  66.. 78 in 12: no (843s)
+  frames  69.. 81 in 12: no (870s)
+  frames  65.. 77 in 12: no (887s)
+  frames  73.. 85 in 12: no (899s)
+  frames  67.. 79 in 12: no (920s)
+  frames  74.. 86 in 12: no (1016s)
+  frames  77.. 89 in 12: no (1023s)
+  frames  75.. 87 in 12: no (1027s)
+  frames  88..100 in 12: no (1036s)
+  frames  64.. 76 in 12: no (1048s)
+  frames  76.. 88 in 12: no (1050s)
+  frames  79.. 91 in 12: no (1062s)
+  frames  78.. 90 in 12: no (1091s)
+  frames  72.. 84 in 12: no (1202s)
+  frames  89..101 in 12: no (1296s)
+  frames  85.. 97 in 12: no (1966s)
+  frames  84.. 96 in 12: no (2182s)
+  frames  83.. 95 in 12: no (2225s)
+could not parse CBMC output:
+o/home/usertrain/a08trb05/celeste-sat/model/state_eq.h line 61 function same_future_mask thread 0",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Unwinding loop same_future_mask.0 iteration 2 file /leonardo/home/usertrain/a08trb05/celeste-sat/model/state_eq.h line 61 function same_future_mask thread 0",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Unwinding loop same_future_mask.1 iteration 1 file /leonardo/home/usertrain/a08trb05/celeste-sat/model/state_eq.h line 70 function same_future_mask thread 0",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Unwinding loop main.0 iteration 12 file /leonardo/home/usertrain/a08trb05/celeste-sat/harness/window.c line 47 function main thread 0",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Runtime Symex: 43.7145s",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "size of program expression: 509268 steps",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "simple slicing removed 5 assignments",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Generated 1 VCC(s), 1 remaining after simplification",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Runtime Postprocess Equation: 0.171546s",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Passing problem to propositional reduction",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "converting SSA",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Runtime Convert SSA: 15.4054s",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Running propositional reduction",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Post-processing",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Runtime Post-process: 4.0534e-05s",
+    "messageType": "STATUS-MESSAGE"
+  },
+  {
+    "messageText": "Solving with MiniSAT 2.2.1 with simplifier",
+    "messageType": "STATUS-MESSAGE"
+  }
+[2026-10-05T23:34:36.487] error: Detected 5 oom_kill events in StepId=59443643.batch. Some of the step tasks have been OOM Killed.

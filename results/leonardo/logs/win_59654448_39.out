@@ -1,0 +1,44 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_10a W=16 K=128..159: 32 windows, 32 at a time, timeout 14400s, lrdn2988.leonardo.local ===
+route leaves 1a_lvl_10a on frame 204; 32 windows of 16 free frames (K = 128..159), 32 at a time
+  frames 140..156 in 16: no (315s)
+  frames 144..160 in 16: no (389s)
+  frames 141..157 in 16: no (432s)
+  frames 145..161 in 16: no (478s)
+  frames 156..172 in 16: no (534s)
+  frames 142..158 in 16: no (555s)
+  frames 146..162 in 16: no (559s)
+  frames 159..175 in 16: no (593s)
+  frames 158..174 in 16: no (596s)
+  frames 157..173 in 16: no (597s)
+  frames 154..170 in 16: no (615s)
+  frames 160..176 in 16: no (618s)
+  frames 155..171 in 16: no (637s)
+  frames 147..163 in 16: no (692s)
+  frames 151..167 in 16: no (732s)
+  frames 150..166 in 16: no (744s)
+  frames 148..164 in 16: no (754s)
+  frames 152..168 in 16: no (827s)
+  frames 143..159 in 16: no (855s)
+  frames 153..169 in 16: no (858s)
+  frames 149..165 in 16: no (978s)
+  frames 139..155 in 16: no (1332s)
+  frames 136..152 in 16: no (1411s)
+  frames 137..153 in 16: no (1435s)
+  frames 138..154 in 16: no (1483s)
+  frames 132..148 in 16: no (1493s)
+  frames 131..147 in 16: no (1547s)
+  frames 135..151 in 16: no (1688s)
+  frames 129..145 in 16: no (1697s)
+  frames 130..146 in 16: no (1890s)
+  frames 133..149 in 16: no (1897s)
+  frames 134..150 in 16: no (1945s)
+32 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w16/lvl_10a_k128-159/windows.json)

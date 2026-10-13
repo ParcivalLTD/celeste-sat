@@ -1,0 +1,44 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_12a W=12 K=0..31: 32 windows, 32 at a time, timeout 3600s, lrdn3368.leonardo.local ===
+route leaves 1a_lvl_12a on frame 141; 32 windows of 12 free frames (K = 0..31), 32 at a time
+  frames   1.. 13 in 12: no (37s)
+  frames   2.. 14 in 12: no (52s)
+  frames   3.. 15 in 12: no (101s)
+  frames   4.. 16 in 12: no (169s)
+  frames   5.. 17 in 12: no (334s)
+  frames   6.. 18 in 12: no (607s)
+  frames   7.. 19 in 12: no (861s)
+  frames   8.. 20 in 12: no (1275s)
+  frames  30.. 42 in 12: no (1814s)
+  frames   9.. 21 in 12: no (1862s)
+  frames  32.. 44 in 12: no (1908s)
+  frames  20.. 32 in 12: no (1919s)
+  frames  31.. 43 in 12: no (2009s)
+  frames  29.. 41 in 12: no (2016s)
+  frames  14.. 26 in 12: no (2022s)
+  frames  17.. 29 in 12: no (2065s)
+  frames  18.. 30 in 12: no (2124s)
+  frames  13.. 25 in 12: no (2165s)
+  frames  19.. 31 in 12: no (2167s)
+  frames  21.. 33 in 12: no (2223s)
+  frames  15.. 27 in 12: no (2274s)
+  frames  24.. 36 in 12: no (2296s)
+  frames  16.. 28 in 12: no (2340s)
+  frames  27.. 39 in 12: no (2367s)
+  frames  25.. 37 in 12: no (2456s)
+  frames  11.. 23 in 12: no (2469s)
+  frames  22.. 34 in 12: no (2546s)
+  frames  12.. 24 in 12: no (2556s)
+  frames  28.. 40 in 12: no (2575s)
+  frames  26.. 38 in 12: no (2644s)
+  frames  23.. 35 in 12: no (2688s)
+  frames  10.. 22 in 12: no (2711s)
+32 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w12/lvl_12a_k0-31/windows.json)

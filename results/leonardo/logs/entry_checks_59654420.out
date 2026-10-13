@@ -1,0 +1,145 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+================================================================================
+=== Running 1a_lvl_6b with start entry_lvl_6b_after_6a_118 (Beam width: 500000) ===
+=== Target threshold: < 153 frames to beat the community TAS ===
+================================================================================
+beam: exit on frame 138 -> /leonardo/home/usertrain/a08trb05/celeste-sat/build/checks/out_entry_lvl_6b_after_6a_118_w500000/beam.tas (158.6s)
+upper bound: 138 frames (beam search)
+polish: beam restarted after frame 123: 138 frames (0s)
+polish: beam restarted after frame 113: 138 frames (0s)
+polish: beam restarted after frame 103: 138 frames (2s)
+polish: beam restarted after frame 93: 138 frames (7s)
+polish: beam restarted after frame 83: 137 frames (19s)
+polish: beam restarted after frame 122: 137 frames (0s)
+polish: beam restarted after frame 112: 137 frames (0s)
+polish: beam restarted after frame 102: 137 frames (2s)
+polish: beam restarted after frame 92: 137 frames (7s)
+polish: beam restarted after frame 82: 137 frames (20s)
+polish: beam restarted after frame 72: 138 frames (30s)
+polish: beam restarted after frame 62: 138 frames (40s)
+polish: beam restarted after frame 52: 137 frames (54s)
+polish: beam restarted after frame 42: 138 frames (61s)
+polish: beam restarted after frame 32: 139 frames (78s)
+polish: beam restarted after frame 22: 138 frames (134s)
+polish: beam restarted after frame 12: 138 frames (153s)
+
+no SAT run
+route: /leonardo/home/usertrain/a08trb05/celeste-sat/build/checks/out_entry_lvl_6b_after_6a_118_w500000/best.tas
+# room 1a_lvl_6b: exits on frame 137
+# no SAT run
+  19,R,J
+   4,X
+   4,R,D
+   1,J
+  18,R,J
+   2,R
+  15
+   5,L
+   3,D
+   1,L
+   2,D
+   1,L
+   1
+   1,L
+   1,D
+   1
+   1,L
+   2
+   1,D
+   1
+   2,L
+   1,R,J
+   4,J
+   1,L,J
+   2,J
+   1
+   1,L,J
+  10,J
+   2,R
+   1
+   4,R
+  13,J,X
+   1
+   1,J
+   5,R
+   1
+   2,R
+   1
+
+RESULT 1a_lvl_6b entry_lvl_6b_after_6a_118 frames=137 threshold=153
+>>> CANDIDATE FRAME SAVE! (137 < 153) <<<
+================================================================================
+=== Running 1a_lvl_12a with start entry_lvl_12a_after_12_143 (Beam width: 500000) ===
+=== Target threshold: < 145 frames to beat the community TAS ===
+================================================================================
+beam: exit on frame 207 -> /leonardo/home/usertrain/a08trb05/celeste-sat/build/checks/out_entry_lvl_12a_after_12_143_w500000/beam.tas (550.5s)
+upper bound: 207 frames (beam search)
+polish: beam restarted after frame 192: 207 frames (0s)
+polish: beam restarted after frame 182: 209 frames (1s)
+polish: beam restarted after frame 172: 207 frames (1s)
+polish: beam restarted after frame 162: 208 frames (1s)
+polish: beam restarted after frame 152: 208 frames (1s)
+polish: beam restarted after frame 142: 209 frames (12s)
+polish: beam restarted after frame 132: 209 frames (40s)
+polish: beam restarted after frame 122: 209 frames (70s)
+polish: beam restarted after frame 112: 210 frames (116s)
+polish: beam restarted after frame 102: 208 frames (129s)
+polish: beam restarted after frame 92: 205 frames (153s)
+polish: beam restarted after frame 190: 205 frames (0s)
+polish: beam restarted after frame 180: 207 frames (1s)
+polish: beam restarted after frame 170: 205 frames (1s)
+polish: beam restarted after frame 160: 205 frames (1s)
+polish: beam restarted after frame 150: 205 frames (3s)
+polish: beam restarted after frame 140: 207 frames (14s)
+polish: beam restarted after frame 130: 207 frames (36s)
+polish: beam restarted after frame 120: 204 frames (60s)
+polish: beam restarted after frame 189: 204 frames (0s)
+polish: beam restarted after frame 179: 206 frames (1s)
+polish: beam restarted after frame 169: 204 frames (1s)
+polish: beam restarted after frame 159: 205 frames (1s)
+polish: beam restarted after frame 149: 205 frames (1s)
+polish: beam restarted after frame 139: 206 frames (12s)
+polish: beam restarted after frame 129: 204 frames (36s)
+polish: beam restarted after frame 119: 207 frames (79s)
+polish: beam restarted after frame 109: 207 frames (109s)
+polish: beam restarted after frame 99: 209 frames (147s)
+polish: beam restarted after frame 89: 207 frames (168s)
+polish: beam restarted after frame 79: 206 frames (197s)
+polish: beam restarted after frame 69: 211 frames (233s)
+polish: beam restarted after frame 59: 211 frames (405s)
+polish: beam restarted after frame 49: 197 frames (319s)
+polish: beam restarted after frame 182: 197 frames (0s)
+polish: beam restarted after frame 172: 197 frames (0s)
+polish: beam restarted after frame 162: 195 frames (1s)
+polish: beam restarted after frame 180: 195 frames (0s)
+polish: beam restarted after frame 170: 195 frames (1s)
+polish: beam restarted after frame 160: 195 frames (1s)
+polish: beam restarted after frame 150: 195 frames (1s)
+polish: beam restarted after frame 140: 195 frames (1s)
+polish: beam restarted after frame 130: 197 frames (10s)
+polish: beam restarted after frame 120: 197 frames (43s)
+polish: beam restarted after frame 110: 195 frames (55s)
+polish: beam restarted after frame 100: 202 frames (97s)
+polish: beam restarted after frame 90: 194 frames (115s)
+polish: beam restarted after frame 179: 194 frames (0s)
+polish: beam restarted after frame 169: 194 frames (0s)
+polish: beam restarted after frame 159: 191 frames (1s)
+polish: beam restarted after frame 176: 191 frames (0s)
+polish: beam restarted after frame 166: 191 frames (1s)
+polish: beam restarted after frame 156: 191 frames (1s)
+polish: beam restarted after frame 146: 191 frames (1s)
+polish: beam restarted after frame 136: 191 frames (3s)
+polish: beam restarted after frame 126: 193 frames (13s)
+polish: beam restarted after frame 116: 195 frames (32s)
+polish: beam restarted after frame 106: 194 frames (61s)
+polish: beam restarted after frame 96: 524 frames (1251s)
+polish: beam restarted after frame 86: 192 frames (126s)
+[2026-10-08T06:07:58.063] error: *** JOB 59654420 ON lrdn2567 CANCELLED AT 2026-10-08T06:07:58 DUE TO TIME LIMIT ***

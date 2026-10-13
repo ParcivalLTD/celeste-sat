@@ -1,0 +1,22 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_6 -> lvl_6a: last 6 frames of lvl_6 free, target lvl_6a frame 3, lrdn2829.leonardo.local ===
+known route: leaves 1a_lvl_6 on frame 117, 1a_lvl_6a on frame 278 (161 frames there); transition right, entry checked (C = Python)
+free: frames 112..117 of 1a_lvl_6 and the first frames of 1a_lvl_6a; target: the known state after 3 frames in 1a_lvl_6a, 1 frame(s) sooner (8 free frames in all)
+  8 CBMC queries (one per frame she could leave 1a_lvl_6 on), 16 at a time
+  leave 1a_lvl_6 on frame 119, reach the target within 0 frames of 1a_lvl_6a: no (14s)
+  leave 1a_lvl_6 on frame 113, reach the target within 6 frames of 1a_lvl_6a: no (40s)
+  leave 1a_lvl_6 on frame 112, reach the target within 7 frames of 1a_lvl_6a: no (41s)
+  leave 1a_lvl_6 on frame 114, reach the target within 5 frames of 1a_lvl_6a: no (57s)
+  leave 1a_lvl_6 on frame 115, reach the target within 4 frames of 1a_lvl_6a: no (76s)
+  leave 1a_lvl_6 on frame 116, reach the target within 3 frames of 1a_lvl_6a: no (142s)
+  leave 1a_lvl_6 on frame 117, reach the target within 2 frames of 1a_lvl_6a: no (147s)
+  leave 1a_lvl_6 on frame 118, reach the target within 1 frames of 1a_lvl_6a: no (162s)
+proven: no route through frames 112.. of 1a_lvl_6 and the first 3 frames of 1a_lvl_6a saves 1 frame(s)
