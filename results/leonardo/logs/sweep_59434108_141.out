@@ -1,0 +1,82 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_10a rollout 12 width 100000, lrdn2414.leonardo.local ===
+upper bound: 204 frames (build/chain_tas/lvl_10a/route.tas)
+polish: beam restarted after frame 189: 204 frames (0s)
+polish: beam restarted after frame 179: 204 frames (0s)
+polish: beam restarted after frame 169: 204 frames (2s)
+polish: beam restarted after frame 159: 208 frames (3s)
+polish: beam restarted after frame 149: 205 frames (3s)
+polish: beam restarted after frame 139: 214 frames (7s)
+polish: beam restarted after frame 129: 206 frames (22s)
+polish: beam restarted after frame 119: 217 frames (36s)
+polish: beam restarted after frame 109: 210 frames (42s)
+polish: beam restarted after frame 99: 210 frames (46s)
+polish: beam restarted after frame 89: 211 frames (62s)
+polish: beam restarted after frame 79: 220 frames (69s)
+polish: beam restarted after frame 69: 216 frames (73s)
+polish: beam restarted after frame 59: 223 frames (84s)
+polish: beam restarted after frame 49: 218 frames (84s)
+polish: beam restarted after frame 39: 231 frames (100s)
+polish: beam restarted after frame 29: 220 frames (100s)
+polish: beam restarted after frame 19: 220 frames (106s)
+polish: beam restarted after frame 9: 216 frames (105s)
+
+no SAT run
+route: /leonardo/home/usertrain/a08trb05/celeste-sat/build/sweep/lvl_10a_r12_w100000/best.tas
+# room 1a_lvl_10a: exits on frame 204
+# no SAT run
+   1,J
+   3,R
+   1,R,J,G
+   9,R
+   6,R,J
+   1,J
+   3,R,J
+   5,R
+   4,Z
+  10,U
+   1,J
+   9,R,J
+   3
+   5,R,J
+   6,R
+  10,Z
+   3,L,J
+   2,J
+   1,L,J
+   1,L
+   4,L,J
+   1,L
+   1,L,J,G
+   9,L,J
+   4,L,X
+  11,L,D
+   1,D
+  14,L,D
+   2
+   5,L
+   1
+   1,L
+   4,Z
+  10,U
+   1,J
+   2,L,J
+   1,J
+   3,L,J
+   2,J
+   1,K
+   7
+   3,J
+   4,X
+  12,U
+  16,J
+
+RESULT lvl_10a 12 100000 204 204

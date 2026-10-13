@@ -1,0 +1,51 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_9 rollout 9 width 100000, lrdn1589.leonardo.local ===
+upper bound: 97 frames (build/chain_tas/lvl_9/route.tas)
+polish: beam restarted after frame 82: 97 frames (0s)
+polish: beam restarted after frame 72: no route (0s)
+polish: beam restarted after frame 62: no route (0s)
+polish: beam restarted after frame 52: no route (0s)
+polish: beam restarted after frame 42: no route (1s)
+polish: beam restarted after frame 32: no route (2s)
+polish: beam restarted after frame 22: no route (10s)
+polish: beam restarted after frame 12: no route (8s)
+
+no SAT run
+route: /leonardo/home/usertrain/a08trb05/celeste-sat/build/sweep/lvl_9_r9_w100000/best.tas
+# room 1a_lvl_9: exits on frame 97
+# no SAT run
+   7
+   1,J,G
+   1
+   1,R
+   1
+   4,R,X
+   7,R,U
+   1,R,J,G
+   6
+   3,R
+   1
+   1,D,J
+   2,J
+   7
+   1,L,J,G
+  17,L,J
+   5
+   1,G
+   4,Z
+   9,U
+   1,J
+   2,R
+   2,R,J,G
+   1
+  11,R
+
+RESULT lvl_9 9 100000 97 97

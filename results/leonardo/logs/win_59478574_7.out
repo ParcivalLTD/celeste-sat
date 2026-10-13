@@ -1,0 +1,42 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_3 W=16 K=0..29: 30 windows, 30 at a time, timeout 5400s, lrdn2516.leonardo.local ===
+route leaves 1a_lvl_3 on frame 107; 30 windows of 16 free frames (K = 0..29), 30 at a time
+  frames  24.. 40 in 16: no (153s)
+  frames  25.. 41 in 16: no (184s)
+  frames  26.. 42 in 16: no (228s)
+  frames  20.. 36 in 16: no (251s)
+  frames  21.. 37 in 16: no (292s)
+  frames  27.. 43 in 16: no (343s)
+  frames  28.. 44 in 16: no (381s)
+  frames  22.. 38 in 16: no (411s)
+  frames  29.. 45 in 16: no (495s)
+  frames   6.. 22 in 16: no (508s)
+  frames   1.. 17 in 16: no (545s)
+  frames   3.. 19 in 16: no (614s)
+  frames   8.. 24 in 16: no (623s)
+  frames   5.. 21 in 16: no (626s)
+  frames   7.. 23 in 16: no (667s)
+  frames  23.. 39 in 16: no (682s)
+  frames   4.. 20 in 16: no (694s)
+  frames  30.. 46 in 16: no (706s)
+  frames   9.. 25 in 16: no (737s)
+  frames  10.. 26 in 16: no (756s)
+  frames  11.. 27 in 16: no (853s)
+  frames  13.. 29 in 16: no (898s)
+  frames  15.. 31 in 16: no (1010s)
+  frames   2.. 18 in 16: no (1073s)
+  frames  16.. 32 in 16: no (1113s)
+  frames  18.. 34 in 16: no (1151s)
+  frames  12.. 28 in 16: no (1162s)
+  frames  17.. 33 in 16: no (1167s)
+  frames  14.. 30 in 16: no (1191s)
+  frames  19.. 35 in 16: no (1291s)
+30 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w16/lvl_3_k0-29/windows.json)

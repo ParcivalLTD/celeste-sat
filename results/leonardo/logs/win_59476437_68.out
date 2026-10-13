@@ -1,0 +1,44 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_12a W=12 K=32..63: 32 windows, 32 at a time, timeout 3600s, lrdn2906.leonardo.local ===
+route leaves 1a_lvl_12a on frame 141; 32 windows of 12 free frames (K = 32..63), 32 at a time
+  frames  53.. 65 in 12: no (2154s)
+  frames  51.. 63 in 12: no (2358s)
+  frames  48.. 60 in 12: no (2435s)
+  frames  50.. 62 in 12: no (2448s)
+  frames  38.. 50 in 12: no (2456s)
+  frames  52.. 64 in 12: no (2477s)
+  frames  56.. 68 in 12: no (2501s)
+  frames  46.. 58 in 12: no (2504s)
+  frames  43.. 55 in 12: no (2519s)
+  frames  62.. 74 in 12: no (2521s)
+  frames  55.. 67 in 12: no (2534s)
+  frames  58.. 70 in 12: no (2536s)
+  frames  44.. 56 in 12: no (2539s)
+  frames  49.. 61 in 12: no (2550s)
+  frames  60.. 72 in 12: no (2618s)
+  frames  39.. 51 in 12: no (2635s)
+  frames  59.. 71 in 12: no (2689s)
+  frames  45.. 57 in 12: no (2702s)
+  frames  47.. 59 in 12: no (2708s)
+  frames  41.. 53 in 12: no (2720s)
+  frames  35.. 47 in 12: no (2761s)
+  frames  63.. 75 in 12: no (2765s)
+  frames  61.. 73 in 12: no (2822s)
+  frames  42.. 54 in 12: no (2853s)
+  frames  36.. 48 in 12: no (2861s)
+  frames  57.. 69 in 12: no (2885s)
+  frames  54.. 66 in 12: no (2888s)
+  frames  37.. 49 in 12: no (2896s)
+  frames  34.. 46 in 12: no (2927s)
+  frames  64.. 76 in 12: no (2963s)
+  frames  33.. 45 in 12: no (3006s)
+  frames  40.. 52 in 12: no (3036s)
+32 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w12/lvl_12a_k32-63/windows.json)

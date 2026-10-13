@@ -1,0 +1,76 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_5 rollout 6 width 100000, lrdn2725.leonardo.local ===
+upper bound: 139 frames (build/chain_tas/lvl_5/route.tas)
+polish: beam restarted after frame 124: 139 frames (0s)
+polish: beam restarted after frame 114: 136 frames (0s)
+polish: beam restarted after frame 121: 136 frames (0s)
+polish: beam restarted after frame 111: 134 frames (0s)
+polish: beam restarted after frame 119: 134 frames (0s)
+polish: beam restarted after frame 109: 134 frames (1s)
+polish: beam restarted after frame 99: 133 frames (1s)
+polish: beam restarted after frame 118: 133 frames (0s)
+polish: beam restarted after frame 108: 133 frames (0s)
+polish: beam restarted after frame 98: 132 frames (1s)
+polish: beam restarted after frame 117: 132 frames (0s)
+polish: beam restarted after frame 107: 132 frames (0s)
+polish: beam restarted after frame 97: 133 frames (2s)
+polish: beam restarted after frame 87: 134 frames (6s)
+polish: beam restarted after frame 77: 134 frames (17s)
+polish: beam restarted after frame 67: 135 frames (26s)
+polish: beam restarted after frame 57: 139 frames (33s)
+polish: beam restarted after frame 47: 140 frames (44s)
+polish: beam restarted after frame 37: 144 frames (53s)
+polish: beam restarted after frame 27: 143 frames (58s)
+polish: beam restarted after frame 17: 141 frames (60s)
+polish: beam restarted after frame 7: 146 frames (67s)
+
+no SAT run
+route: /leonardo/home/usertrain/a08trb05/celeste-sat/build/sweep/lvl_5_r6_w100000/best.tas
+# room 1a_lvl_5: exits on frame 132
+# no SAT run
+   1,L
+   1,R
+   1
+   1,R,J,G
+   1,R,K,G
+   4,R,K
+   2,R
+  13,X
+   1,L,J
+   1
+   4,X
+   9,R
+   6,L,J
+   1,J
+   1,L,J
+   1,L
+   4,Z
+   1,R
+   1,J
+   1
+   3,R
+   1,R,D,J
+   1,R,K,G
+   7,R,K
+   1,K
+   1,R,J,G
+   2,R,J
+   2,R
+   1,R,J,G
+   8,R
+   1
+   5,R,J
+  15,R
+   4,X
+  10,U
+  15,J
+
+RESULT lvl_5 6 100000 139 132
