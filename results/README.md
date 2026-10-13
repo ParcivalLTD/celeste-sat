@@ -20,6 +20,7 @@ added in. After a model change, check that it still replays
 | `celestetas/2a_chase.tas` | the same, to play in the game (loads 2A room 3, skips the cutscene, records every frame) | not recorded |
 | `celestetas/2a_chase_rooms_3_to_7.tas` | rooms 3-7 in 833 frames (a different `lvl_5` and `lvl_7`) | not recorded |
 
-**Not here yet:** the Leonardo campaign's output (window certificates, the
-faster windows, crossings, the beam sweep). It belongs in `leonardo/`; see
-ROADMAP.md, step 1.
+`leonardo/` holds the Leonardo campaign's output: window certificates,
+crossings, the beam sweep, logs and provenance (its own README;
+`python3 hpc/summary.py` reads it). What it shows is in
+[docs/results.md](../docs/results.md#the-leonardo-campaign-october-2026).

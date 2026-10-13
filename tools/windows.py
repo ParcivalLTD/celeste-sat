@@ -18,6 +18,12 @@ route's state at K to a state that agrees with its state at K + W + 1 on the
 compared fields any faster; it does not rule out a faster route through the
 window that ends in a different state (other subpixels, say).
 
+Leaving the room also counts as reaching the target, so a window that ends
+near the exit can find a faster *ending* that leaves in a different state.
+That is a faster room, not a faster chapter: the next room's inputs may no
+longer work (experiments/next_room.py checks). Each YES says which it is:
+"[same exit state]" or "[different exit state]".
+
 The windows stop short of the exit: the route's ending is what
 tools/solve.py --from-frame checks.
 """
@@ -30,7 +36,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from celeste_sat import cbmc  # noqa: E402
 from celeste_sat.build import build, dump_state, replay, sh  # noqa: E402
-from celeste_sat.paths import BUILD, ROOT, exe  # noqa: E402
+from celeste_sat.paths import BUILD, ROOT, exe, read_text  # noqa: E402
 from celeste_sat.tas import read_tas, write_tas  # noqa: E402
 
 
@@ -43,6 +49,11 @@ def dump(bdir, route, k, path, name):
     text = open(tmp).read().replace("START_STATE", name).replace("START_FRAMES", name + "_FRAMES")
     os.remove(tmp)
     open(path, "w").write(text)
+
+
+def exit_fields(path):
+    """a state header without the lines that only say when it was taken"""
+    return [l for l in read_text(path).splitlines() if not l.startswith("/*") and "START_FRAMES" not in l]
 
 
 # the fields sim/live.c can find dead, in the order of the SF_* bits of model/state_eq.h
@@ -104,6 +115,8 @@ def main():
         masks[k] = 0 if a.exact else int(sh([exe(bdir, "live"), str(k + w + 1), route]).stdout.strip())
 
     results = {}
+    dump_state(bdir, route, n, os.path.join(bdir, "exit_route.h"))
+    route_exit = exit_fields(os.path.join(bdir, "exit_route.h"))
 
     def splice(k, got, tag):
         """the shortest prefix of the counterexample that, spliced in, leaves the room sooner"""
@@ -113,7 +126,8 @@ def main():
             write_tas(p, cand, [f"{name}: frames {k + 1}..{k + w + 1} done in {j}"])
             e = replay(bdir, p)
             if e and e < n:
-                return e, p
+                dump_state(bdir, p, e, p + ".exit.h")
+                return e, p, exit_fields(p + ".exit.h") == route_exit
         return None
 
     def run(k):
@@ -131,10 +145,11 @@ def main():
         elif not found:
             line += f"no ({dt:.0f}s)"
         else:
-            line += (f"YES ({dt:.0f}s): leaves on frame {best[0]} instead of {n} -> {best[1]}" if best
+            line += (f"YES ({dt:.0f}s): leaves on frame {best[0]} instead of {n} "
+                     f"[{'same' if best[2] else 'different'} exit state] -> {best[1]}" if best
                      else f"yes ({dt:.0f}s), but the spliced route does not replay faster (check)")
             if best:
-                results.setdefault("better", []).append(dict(k=k, exit=best[0], route=best[1]))
+                results.setdefault("better", []).append(dict(k=k, exit=best[0], route=best[1], same_exit=best[2]))
         results[k] = dict(found=found, seconds=round(dt), ignored=ignored(mask))
         print(line, flush=True)
 

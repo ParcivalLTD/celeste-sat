@@ -2222,10 +2222,15 @@ static void chaser_update(State *s)
  * Not yet checked against a recording (docs/verification.md). */
 static void touch_update(State *s)
 {
-    int top = s->y - (s->ducking ? 6 : 11), bot = s->y - 2;
+#ifdef TOUCH_ENTITY_COLLIDER   /* the reading of 1d3e148, for experiments: 16 x 16 against her collider */
+    const int R = 8, bot = s->y;
+#else
+    const int R = 15, bot = s->y - 2;
+#endif
+    int top = s->y - (s->ducking ? 6 : 11);
     for (int j = 0; j < NTOUCH; j++)
-        if (s->x - 4 < TOUCHSWITCHES[j][0] + 15 && s->x + 4 > TOUCHSWITCHES[j][0] - 15
-            && top < TOUCHSWITCHES[j][1] + 15 && bot > TOUCHSWITCHES[j][1] - 15) {
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + R && s->x + 4 > TOUCHSWITCHES[j][0] - R
+            && top < TOUCHSWITCHES[j][1] + R && bot > TOUCHSWITCHES[j][1] - R) {
             if (!(s->tsOn & (1u << j))) COV(C_TOUCHSWITCH);
             s->tsOn |= (unsigned char)(1u << j);
         }
