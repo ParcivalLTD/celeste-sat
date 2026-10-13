@@ -253,10 +253,16 @@ recording; its recording (`dump_6a_6b.txt`) answers that.
 
 The chase (rooms 3 to 12 of 2A) is in the model: dream blocks, Badeline
 chasers, switch gates, touch switches and invisible barriers. It is in the
-differential fuzzer too, but **nothing of Chapter 2 has been recorded in the
-game**, so these routes are model-only. Each room starts from the state the
-previous one leaves her in (`tools/chain_chapter2.py`), the chasers' history
-included.
+differential fuzzer too. Each room starts from the state the previous one
+leaves her in (`tools/chain_chapter2.py`), the chasers' history included.
+
+**Everything in this section predates the dream-block fix of 2026-10-13**
+([history.md](history.md#2026-10-13-the-first-chapter-2-recording-and-ilspy)).
+The first recording of the chase found that the model moved her on the
+frame a dash enters a dream block and saw her leave a frame late. The routes
+below were found with that timing, and in the fixed model
+`results/routes/2a_chase.tas` dies in `2a_lvl_4`. They are kept as the
+record of what was found and are being solved again.
 
 | room | `results/routes/2a_chase.tas` | community TAS |
 |---|---|---|
@@ -275,16 +281,15 @@ included.
 | rooms 4-12 | 2,429 | 2,221 |
 
 - `results/routes/2a_chase.tas` (and `results/celestetas/2a_chase.tas` to
-  play it): 12 rooms, 2,531 frames of control, found on 2026-10-01. It still
-  replays exactly in the current model, invisible barriers and narrowed
-  exits included. The one room where it beats the community TAS,
-  `2a_lvl_10`, is the one to look at first when it is recorded.
+  play it): 12 rooms, 2,531 frames of control, found on 2026-10-01. It
+  replayed exactly in the model until the dream-block fix. Its recording in
+  the game (2026-10-13) is what found the bug.
 - `results/celestetas/2a_chase_rooms_3_to_7.tas`: rooms 3-7 in 833 frames
-  (`2a_lvl_5` 141, `2a_lvl_7` 251). It replays too, but its `2a_lvl_7` exit
+  (`2a_lvl_5` 141, `2a_lvl_7` 251), with the old timing too. Its `2a_lvl_7` exit
   doesn't lead into the 12-room route's `2a_lvl_8` (the chasers are
   elsewhere).
 - Between commit 1d3e148 and 2026-10-12 the model had a different
-  touch-switch hitbox ([verification.md](verification.md#chapter-2-nothing-recorded-yet)),
+  touch-switch hitbox ([verification.md](verification.md#chapter-2-one-recording-so-far)),
   under which neither route replayed. The Leonardo chase run (beam width
   500,000; rooms 3-9 in 105, 117, 141, 222, 245, 207 and 102 frames, then a
   failure in `2a_lvl_10` that led to the exit fix of 588c008) used that
