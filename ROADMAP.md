@@ -16,11 +16,11 @@ is one sequence, and every step says which goal it serves.
 
 | | status | evidence |
 |---|---|---|
-| Chapter 1 model | **verified**: the community TAS (19 rooms, 2,275 frames of control) plays exactly; 15 recordings from Celeste 1.4 match on every frame, subpixels included | `tests/chain_tas.py`, `tests/recordings.py data/recordings` |
+| Chapter 1 model | **verified**: the community TAS (19 rooms, 2,275 frames of control) plays exactly; 16 recordings from Celeste 1.4 match on every frame, subpixels included (the longest 880 frames, 8 rooms, to a death); the map's tiles outside the rooms are in the model | `tests/chain_tas.py`, `tests/recordings.py data/recordings` |
 | Model self-consistency | **verified**: 2.95 M fuzzed frames bit-identical between the literal and the solver build; the SAT harnesses' input rules (2.0 M checks) and state comparison (6.8 M) fuzzed too | `tests/diff.sh` |
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
 | Local optimality (Tier B) | **W = 12 and 16 over all of Chapter 1** (3,826 windows proven, 6 timeouts), W = 18 over room 1; all 18 room transitions proven at two window sizes | `results/leonardo/`, `hpc/summary.py` |
-| Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The `lvl_6a` lead (118 frames instead of 161, over the top of the room) **fails in the game**: there are solid tiles above the room that the model does not have | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
+| Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The `lvl_6a` lead (118 frames instead of 161, over the top of the room) **fails in the game**: there is wall above the room, now in the model too | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
 | Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed. **The first recording found a bug**: the dream-dash entry and exit frames, fixed 2026-10-13 (the rest of the recording still to compare). The touch-switch hitbox is confirmed with ILSpy | [docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far) |
 | Chapter 2 routes | made with the dream-block bug, so **all to be re-solved**: `results/routes/2a_chase.tas` dies in `2a_lvl_4` in the fixed model. Before the fix the project's own search was ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames) | `tools/chain_chapter2.py` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
@@ -46,21 +46,15 @@ SAT solver can still find is a different *ending* of a room, which then has
 to be paid back in the next room. So the frames are in the seams. Two
 things to do, in order:
 
-1. **The tiles outside the rooms.** The `lvl_6a` lead (118 frames, TAS 161)
-   ran along above the room's top edge, where the model had nothing. Played
-   in the game (2026-10-13), it matches the model for 760 frames up to
-   `lvl_6a` frame 30. There a wall she climbs goes on above the room in the
-   game and ends in the model
-   ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
-   So the 118 is void. Celeste's `LevelLoader` fills the tile grid between
-   rooms, apparently by extending the rooms' edge tiles. Read the rule with
-   ILSpy (`Celeste.LevelLoader`, the loading thread, where it builds the
-   solid tile map) and put it into the room export
-   (`celeste_sat/celeste_map.py`): the room file needs the tiles a few
-   cells beyond its edges, at least up to the 24 px the game lets her rise
-   above the top. Then re-run the `lvl_6a` sweep. A route over the top may
-   still exist where the extended tiles leave a gap. The recording is a
-   ready-made test.
+1. **The tiles outside the rooms (done 2026-10-13).** The `lvl_6a` lead
+   (118 frames, TAS 161) ran along above the room's top edge, where the
+   model had nothing. In the game there is wall there: `LevelLoader` copies
+   a room's solid top-row tiles 3 tiles up, as high as she can go. The
+   model now has the map's tiles around every room, and the recording of
+   the attempt matches it to the frame she dies. The lead is void. Re-run
+   the Chapter 1 beam sweeps with the new rooms: other "faster" routes that
+   leave a room's area are void too, and the search may find different
+   ones.
 2. **The faster endings.** `lvl_6a` −5, `lvl_12` −4, `lvl_9b` −3, `lvl_3b`
    −2, each in a different exit state. Each is worth something only if the
    next room can be done from the new entry within (TAS frames + saving − 1).
@@ -93,18 +87,19 @@ model before spending more compute on it.
    leave on frame 222
    ([docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far)).
    The third is open: on `lvl_6` frame 227 the switch gate, near the end of
-   its travel, carries her 1 px down in the model and not in the game, where
-   she is still standing on it on frame 228 (`Coyote(5)`). Neither a
-   one-update shift of the gate nor updating it before her explains it. Two
-   things settle it. In ILSpy, read `Celeste.SwitchGate` (`Depth`, the
-   constructor, `Sequence`) and `Celeste.Switch` (`Check`, `Activate`,
-   `FinishedCheck`). And record `2a_lvl_6` with the gate's position:
-   `ExportGameInfo, celeste-sat-2a-gate.txt, SwitchGate`, then teach
-   `celeste_sat/recording.py` to read the column. Then re-solve the chase
+   its travel, carries her 1 px down in the model and not in the game,
+   where she is still standing on it on frame 228 (`Coyote(5)`). So the
+   game's gate is at least two updates behind the model's. The code read
+   with ILSpy (`SwitchGate`, `Switch`) agrees with the model, so the
+   recorded gate position has to show where. **Play
+   `results/celestetas/2a_chase_recorded.tas`**: it is the first run's file,
+   rebuilt from its recording, and it records the gate
+   (`celeste-sat-2a-gate.txt`). The committed `2a_chase.tas` is a different
+   route, which dies in `lvl_6` before the switch. Then re-export the
+   Chapter 2 rooms with the tiles outside them (`tools/import_chapter2.py`,
+   which needs `2-OldSite.bin` in `game/`), re-solve the chase
    (`tools/chain_chapter2.py --polish`), write a new
-   `results/celestetas/2a_chase.tas`, and record that too. The touch-switch
-   hitbox is settled: ILSpy shows `TouchSwitch` adding a `PlayerCollider`
-   with `Hitbox(30f, 30f, -15f, -15f)`, which the model uses.
+   `results/celestetas/2a_chase.tas`, and record that too.
 2. **The community 2A TAS through the model.** This is the cheapest strong
    check there is, the same one that made Chapter 1 believable. A first try
    (2026-10-13, before the dream-block fix) failed in `2a_lvl_4`. `2a_lvl_3`
@@ -180,9 +175,14 @@ game files can't be included. Say so and document `game/README.md`.
 - **Game content in the git history.** This cleanup removed
   `1-ForsakenCity.bin` (the game's map file) and the community TAS copies
   from the tree, but they are still in the history of a public repository.
-  If that matters to you, rewrite the history (`git filter-repo --path
-  1-ForsakenCity.bin --invert-paths`, likewise `recordings/1A*.tas` and
-  `results/celestetas/celeste-sat-community-1a.tas`) and force-push. It is destructive and changes every commit hash, so decide
+  So are the ILSpy outputs committed on 2026-10-13 (`LevelLoader.cs`,
+  `Switch.cs`, `SwitchGate.cs`, decompiled game code, the most clearly not
+  ours) and `data/recordings/log.txt` (an Everest log with local paths).
+  Rewrite the history (`git filter-repo --invert-paths --path
+  1-ForsakenCity.bin --path LevelLoader.cs --path Switch.cs --path
+  SwitchGate.cs --path data/recordings/log.txt`, likewise
+  `recordings/1A*.tas` and `results/celestetas/celeste-sat-community-1a.tas`)
+  and force-push. It is destructive and changes every commit hash, so decide
   deliberately and do it before anyone forks. The Chapter 2 room exports
   (`rooms/vanilla/2a_*.txt`) are game-derived too. Consider keeping only
   `tools/import_chapter2.py` and its `EXIT_FIXES`.

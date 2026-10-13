@@ -71,7 +71,7 @@ enum { C_JUMP, C_SUPER, C_HYPER, C_WALLJUMP, C_SUPERWALLJUMP, C_DASH, C_DASHSLID
        C_JTLAND, C_JTASSIST, C_JTNUDGE, C_JTSNAP, C_SPRING, C_LEAVE,
        C_DASHCLIMBJUMP, C_CROUCHDASH, C_ZIPSTART, C_ZIPRIDE, C_ZIPPUSH, C_ZIPNUDGE, C_SQUISH, C_ZIPHOP, C_REFILL, C_FBSTART, C_FBWAIT, C_FBMOVE, C_CRSTART, C_CRGONE, C_CRBACK, C_REBOUND,
        C_DREAMENTER, C_DREAMEXIT, C_DREAMJUMP, C_DREAMCLIMB, C_DREAMWIGGLE, C_DREAMDEATH,
-       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_BARRIER, C_DREAMPUSHBACK, C_NCOV };
+       C_TOUCHSWITCH, C_GATEOPEN, C_CHASERKILL, C_BARRIER, C_DREAMPUSHBACK, C_OUTSIDE, C_NCOV };
 static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", "super wall jump",
        "dash", "dash slide", "landing slide", "dash corner corr. (h)", "dash corner corr. (v)",
        "upward corner corr.", "ceiling var-jump cut", "wall speed retention", "duck correction",
@@ -90,7 +90,8 @@ static const char *COV_NAMES[C_NCOV] = { "jump", "super", "hyper", "wall jump", 
        "dream block left into a climb", "dream block left into a solid (wiggled out)",
        "dream block left into a solid (death)",
        "touch switch hit", "switch gate opens", "caught by a chaser (death)",
-       "blocked by an invisible barrier", "dream block left: moved back towards a solid (1.4)" };
+       "blocked by an invisible barrier", "dream block left: moved back towards a solid (1.4)",
+       "blocked by a tile outside the room" };
 static long COVC[C_NCOV];
 #define COV(k) (COVC[k]++)
 #else
@@ -242,16 +243,45 @@ static int round_even(float x)
 
 /* ------------------------------------------------------------------------ */
 /* Collision against the room's SolidTiles grid (Monocle Grid.Collide)       */
-/* ROOM_COLS[c] has bit r set when tile (c, r) is solid; outside the grid is */
-/* air (Grid.CheckRect clamps to the grid). room_col_t is 32 bits, or 64 for */
-/* rooms taller than 32 tiles.                                               */
+/* ROOM_COLS[c] has bit r set when tile (c, r) is solid. room_col_t is 32   */
+/* bits, or 64 for rooms taller than 32 tiles. The game's SolidTiles grid    */
+/* covers the whole map, and LevelLoader extends each room's edge tiles out  */
+/* into it, so outside the room is not simply air: room.h has the map's      */
+/* tiles 4 columns either side and 8 rows above and below (HAS_OUTSIDE;      */
+/* celeste_sat/celeste_map.py, solid_grid). She can be at most 24 px above   */
+/* the room (enforce_bounds) and 11 px below it before she dies, so that is  */
+/* all she can touch. Beyond it, and without HAS_OUTSIDE, it is air.         */
 /* ------------------------------------------------------------------------ */
 static int floor8(int v) { return v >> 3; } /* arithmetic shift == floor division by 8 */
 
+/* column c, rows 0..ROOM_H-1 */
 static room_col_t col_bits(int c)
 {
+#ifdef HAS_OUTSIDE
+    if (c >= -4 && c < 0) return OUT_SIDE[c + 4];
+    if (c >= ROOM_W && c < ROOM_W + 4) return OUT_SIDE[c - ROOM_W + 4];
+#endif
     if (c < 0 || c >= ROOM_W) return 0;
     return ROOM_COLS[c];
+}
+/* column c, rows -8..-1 (bit j: row j - 8) and ROOM_H..ROOM_H+7 (bit j: row ROOM_H + j) */
+static unsigned above_bits(int c)
+{
+#ifdef HAS_OUTSIDE
+    if (c >= -4 && c < ROOM_W + 4) return OUT_ABOVE[c + 4];
+#else
+    (void)c;
+#endif
+    return 0;
+}
+static unsigned below_bits(int c)
+{
+#ifdef HAS_OUTSIDE
+    if (c >= -4 && c < ROOM_W + 4) return OUT_BELOW[c + 4];
+#else
+    (void)c;
+#endif
+    return 0;
 }
 
 #ifdef MODEL_THREADS                 /* the beam search steps states on several threads */
@@ -519,11 +549,31 @@ static room_col_t row_span(int r0, int r1)
     return upto & ~below;
 }
 
+/* the room's own column c (no outside tiles) */
+#define ROOM_COL_IN(c) ((c) >= 0 && (c) < ROOM_W ? ROOM_COLS[c] : (room_col_t)0)
+
+/* bitmask of rows r0..r1 (inclusive) within the 8 rows from `base`, bit j = row base + j */
+static unsigned out_span(int r0, int r1, int base)
+{
+    unsigned m = 0;
+    for (int j = 0; j < 8; j++)
+        if (base + j >= r0 && base + j <= r1) m |= 1u << j;
+    return m;
+}
+
 /* hitbox 8 x h with offset (-4, -h), placed at (x, y): the tiles only */
 static bool tiles_collide(int x, int y, int h)
 {
-    room_col_t rows = row_span(floor8(y - h), floor8(y - 1));
-    return ((col_bits(floor8(x - 4)) | col_bits(floor8(x + 3))) & rows) != 0;
+    int r0 = floor8(y - h), r1 = floor8(y - 1), a = floor8(x - 4), b = floor8(x + 3);
+    room_col_t rows = row_span(r0, r1);
+    if (((ROOM_COL_IN(a) | ROOM_COL_IN(b)) & rows) != 0) return true;
+    if (((col_bits(a) | col_bits(b)) & rows) != 0
+        || ((above_bits(a) | above_bits(b)) & out_span(r0, r1, -8)) != 0
+        || ((below_bits(a) | below_bits(b)) & out_span(r0, r1, ROOM_H)) != 0) {
+        COV(C_OUTSIDE);
+        return true;
+    }
+    return false;
 }
 /* ... and any solid */
 static bool collide_box(int x, int y, int h) { return tiles_collide(x, y, h) || any_ms_overlap(x, y, h); }
@@ -543,14 +593,19 @@ static void load_window(const State *s)
     WY0 = floor8(s->y - 32);
     for (int i = 0; i < 8; i++) {
 #if ROOM_H <= 32
-        unsigned long long c = (unsigned long long)col_bits(WX0 + i) << 8;  /* 8 rows of padding above */
+        /* rows -8..ROOM_H+7 of the column in one word: the 8 above, the room, the 8 below */
+        unsigned long long c = above_bits(WX0 + i) | (unsigned long long)col_bits(WX0 + i) << 8
+                              | (unsigned long long)below_bits(WX0 + i) << (8 + ROOM_H);
         int sh = WY0 + 8;
         MODEL_ASSUME(sh >= 0 && sh < 56);
         WCOL[i] = (unsigned char)(c >> sh);
 #else
         room_col_t c = col_bits(WX0 + i);
         MODEL_ASSUME(WY0 >= -8 && WY0 < ROOM_H);
-        WCOL[i] = (unsigned char)(WY0 < 0 ? c << (-WY0) : c >> WY0);
+        unsigned w = (unsigned char)(WY0 < 0 ? c << (-WY0) : c >> WY0);
+        if (WY0 < 0) w |= above_bits(WX0 + i) >> (WY0 + 8);                   /* window bit k: row WY0 + k */
+        if (WY0 > ROOM_H - 8) w |= below_bits(WX0 + i) << (ROOM_H - WY0);
+        WCOL[i] = (unsigned char)w;
 #endif
     }
     load_ms_boxes(s);
@@ -592,8 +647,10 @@ static bool solid_point(int px, int py)
     }
 #endif
 #ifdef REFERENCE
-    if (py < 0 || py >= ROOM_PX_H) return false;
-    return (col_bits(floor8(px)) >> (py >> 3)) & 1ULL;
+    int r = floor8(py), c = floor8(px);
+    if (r < 0) return r >= -8 && ((above_bits(c) >> (r + 8)) & 1u);
+    if (r >= ROOM_H) return r < ROOM_H + 8 && ((below_bits(c) >> (r - ROOM_H)) & 1u);
+    return (col_bits(c) >> r) & 1ULL;
 #else
     int r = floor8(py) - WY0;
     MODEL_ASSUME(r >= 0 && r < 8);
