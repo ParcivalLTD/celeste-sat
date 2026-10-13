@@ -218,7 +218,14 @@ a recording. In order of how much a route depends on it:
   With the revert, the 12-room chase route of 2026-10-01 replays again
   (under the 16 × 16 box it died in `2a_lvl_6`). Chapter 2 results computed
   between the two (the Leonardo chase run) have to be redone. A recording of
-  a switch room (`2a_lvl_6`) would settle it for good.
+  a switch room (`2a_lvl_6`) would settle it for good, and so would two
+  minutes in ILSpy: open `Celeste.exe`, go to `Celeste.TouchSwitch`'s
+  constructor and read the `PlayerCollider` it adds. Until then the other
+  reading is one flag away: `-DTOUCH_ENTITY_COLLIDER` (in Python,
+  `build(room, bdir, start, defines=["TOUCH_ENTITY_COLLIDER"])`).
+  Replaying the community 2A TAS through the model doesn't decide it yet. The
+  TAS's inputs stop working in `2a_lvl_4` with either hitbox, before any
+  switch room. That finding matters by itself (ROADMAP, step 3).
 - **The chaser.** Its delay (1.55 s plus 0.4 s per chaser, read three frames
   wide because of `Scene.TimeActive` rounding), its 6 × 6 hitbox at (−3, −7),
   the wake-up delay after a respawn (`CHASER_WAKE`, 6 frames in the model,

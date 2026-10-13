@@ -108,8 +108,8 @@ def sections(text, rooms=None):
 
     -> ({label: [input lines]}, [labels in order]). With `rooms`, only labels
     in that set start a section; others (like #1SH0G) stay inside the room
-    they are in. Each section's trailing bare frame counts ("  40": waiting
-    out the room transition) are dropped."""
+    they are in. Each section's last line is dropped if it is a bare frame
+    count ("  40": waiting out the room transition)."""
     out, order, cur = {}, [], None
     for line in text.splitlines():
         s = line.strip()
@@ -121,6 +121,6 @@ def sections(text, rooms=None):
         elif cur and re.match(r"\d+", s):
             out[cur].append(s)
     for lines in out.values():
-        while lines and re.fullmatch(r"\d+", lines[-1]):
-            lines.pop()
+        if lines and re.fullmatch(r"\d+", lines[-1]):
+            lines.pop()          # one: a route may itself end with idle frames before the wait
     return out, order

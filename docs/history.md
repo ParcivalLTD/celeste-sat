@@ -21,11 +21,14 @@ the recordings and the CBMC checks giving the same answers.
 
 What the audit found, beyond the code:
 
-- **`recordings/1A_improved.tas` was the community TAS.** Its `lvl_6a` had
-  been spliced from a route that started at the room's spawn (x = 200) instead
-  of the TAS's entry (x = 4); the fix of 588c008 restored the community
-  `lvl_6a`/`lvl_6b`, which made the file byte-for-byte VampireFlower's `1A.tas`
-  at the pinned commit. Its in-game time, 0:49.079 (2,887 frames), is the
+- **`recordings/1A_improved.tas` was the community TAS.** The fix of 588c008
+  restored the community `lvl_6a`/`lvl_6b`, which made the file
+  byte-for-byte VampireFlower's `1A.tas` at the pinned commit. (The replaced
+  `lvl_6a` was the 118-frame sweep route. It does replay from the TAS's entry
+  into the room, x = 4, contrary to the diagnosis at the time. The in-game
+  test file `test_6a_6b_improved.tas` started it with `console load 1
+  lvl_6a`, which puts her at the room's spawn, so that test could not have
+  worked; see results.md.) Its in-game time, 0:49.079 (2,887 frames), is the
   community TAS's own `ChapterTime`. No improved Chapter 1 route has been
   played in the game yet; the Leonardo campaign's 15 model-only frames are
   still to be assembled into one and recorded.
@@ -69,7 +72,9 @@ reported when access ended on 2026-10-12:
   because the `2a_lvl_9` exit let her leave at x = 257 into rock (fixed in
   588c008 by narrowing the exits).
 
-The raw output (`build/leonardo/`) is not in the repository yet.
+The output was committed on 2026-10-13 (`results/leonardo/`). Read with
+`hpc/summary.py`, all 15 "faster" windows turned out to be faster room
+*endings* in a different exit state, none of them a chapter saving (results.md).
 
 
 

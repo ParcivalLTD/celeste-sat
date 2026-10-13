@@ -30,10 +30,11 @@ def carries_lift(state_file):
     return bool(m and int(m.group(1)) > 0)
 
 
-def build(room_path, bdir, start=None):
+def build(room_path, bdir, start=None, defines=()):
     """room.h, timer tables, sim and beam for a room in bdir; `start` is an
     optional state header (START_STATE) to begin from instead of the spawn
-    (copied to bdir/entry.h)."""
+    (copied to bdir/entry.h); `defines`: extra -D flags for the model (for
+    experiments, e.g. "TOUCH_ENTITY_COLLIDER")."""
     os.makedirs(bdir, exist_ok=True)
     try:
         room_header.write(room_path, f"{bdir}/room.h")
@@ -47,11 +48,11 @@ def build(room_path, bdir, start=None):
     if r.returncode:
         sys.exit(r.stderr)
     write_text(f"{bdir}/tables.h", sh([gen]).stdout)
-    flags = []
+    flags = [f"-D{d}" for d in defines]
     if start:
         if os.path.abspath(start) != os.path.abspath(f"{bdir}/entry.h"):
             shutil.copy(start, f"{bdir}/entry.h")
-        flags = ['-DSTART_STATE_FILE="entry.h"']
+        flags.append('-DSTART_STATE_FILE="entry.h"')
     for name, src, extra in (("sim", "sim/sim.c", []), ("beam", "search/beam.c", ["-fopenmp"])):
         r = sh(["gcc", "-O2", *extra, *flags, "-I", bdir, "-I", f"{ROOT}/model", "-o", exe(bdir, name), f"{ROOT}/{src}"])
         if r.returncode:

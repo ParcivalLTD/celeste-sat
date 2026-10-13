@@ -37,12 +37,12 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   frames of 13 of the 19 rooms saves a frame, and neither does any change
   around the first three room transitions (within the frames tested).
 - **Certificates at scale.** A campaign on the EuroHPC supercomputer
-  Leonardo (~2,300 core-hours) ran ~4,300 window proofs over the whole
-  community TAS of Chapter 1. Each one shows that no 12- or 16-frame stretch
-  of the route can be shortened to reach the same state. The campaign
-  reported 15 frames that *can* be saved in the model. Those results are
-  being committed, and none of the savings has been played in the game yet
-  ([ROADMAP.md](ROADMAP.md), steps 1-2).
+  Leonardo (~2,300 core-hours) proved 3,826 windows over the whole community
+  TAS of Chapter 1: no 12- or 16-frame stretch of the route can be shortened
+  to reach the same state. The same goes for all 18 room transitions. What
+  the solver can still find are faster room *endings* that leave in a
+  different state and break the next room. The frames left are in the seams
+  between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
   chasers, switch gates and invisible barriers, all in the fuzzer. A 12-room
   chase route (2,531 frames) plays in the model. None of it has been checked
