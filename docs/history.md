@@ -5,6 +5,45 @@ README and the other docs describe the project as it is; this is how it got
 there. Entries before 2026-10-12 come from `brain.md`, the working notes of
 the time, and describe the code as it was then (file names included).
 
+## 2026-10-13 (afternoon): the tiles outside the rooms
+
+ILSpy on `LevelLoader` gave the rule for the tiles between rooms. The game's
+solid tile grid covers the whole map. Fillers are solid. A room's top-row
+tile is copied up to 3 tiles up, unless it is air, which keeps the 7 cells
+above it as they were. The same goes downwards, and the edge columns are
+copied 3 tiles sideways. The model had all of this as air. Now
+`celeste_map.solid_grid` builds the grid the same way. Every exported room
+carries the map's tiles 4 columns either side and 8 rows above and below
+(`; outside`), and both builds read them (`col_bits`, `above_bits`,
+`below_bits`). Rooms without `; outside` lines get the same `room.h` as
+before and behave identically: the community TAS and every recording gave
+the same answers before the rooms were exported again. The fuzzer covers
+the new code with rooms that have an opening in the top wall and random
+outside tiles (26,010 collisions with them, all 40 rooms identical). All 19
+Chapter 1 rooms were exported again; the only change in each is the new
+lines.
+
+The `lvl_6a` recording now matches on every frame, 880 frames from the
+chapter start to her death on `lvl_6a` frame 136. Above `lvl_6a` the top
+row's solid block (columns 4-14) continues 24 px up, exactly as high as
+the game lets her go, so there is no route over it. The 118-frame lead is
+dead for good.
+
+The second chase recording, made to watch the switch gate, was played from
+the committed `results/celestetas/2a_chase.tas`. That is not the file
+behind the first recording, so the run took another path and died in
+`2a_lvl_6` before reaching the switch. The model follows it on every frame,
+death included. `results/celestetas/2a_chase_recorded.tas` rebuilds the
+first file from its recording (each row has its TAS line and that line's
+text) so it can be played again with the gate tracked. `SwitchGate` and
+`Switch`, read with ILSpy, agree with the model's gate. The difference on
+frame 227 (the game's gate at least two updates behind) is still open.
+
+The decompiled files had been committed to the public repository; they
+are the game's code, so they were removed, and `.gitignore` now keeps
+`*.cs` out. They remain in the history until it is rewritten (ROADMAP,
+step 5).
+
 ## 2026-10-13: the first Chapter 2 recording, and ILSpy
 
 **The touch-switch hitbox is confirmed.** ILSpy on the game's `Celeste.dll`

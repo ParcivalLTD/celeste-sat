@@ -239,17 +239,16 @@ narrow shaft at the left and runs along *above* the room's top edge (y ≈ −2
 to −6) before dropping into the open area. The model treated the space
 outside the room as empty, and the game does not. Played from the chapter
 start (`results/celestetas/1a_6a118_check.tas`, recorded in
-`data/recordings/celeste-sat-1a-6a118.txt`), the game matches the model
-through `lvl_1` to `lvl_6` (760 frames, every room left on its last frame)
-and through the first 29 frames of `lvl_6a`. On frame 30, at y = −0.75, the
-wall she is climbing ends in the model and she hops over it. In the game the
-wall goes on above the room, she stays at x = 28, and later she dies. So
-Celeste has solid tiles outside the room there. Its level loader fills the
-grid between rooms, apparently by extending the rooms' edge tiles. The exact
-rule (`LevelLoader`) is still to be read with ILSpy and put into the model
-(ROADMAP, step 2). Until then, no route that leaves a room's area can be
-trusted, and the 118-frame route, with the 137-frame `lvl_6b` from its exit,
-is void.
+`data/recordings/celeste-sat-1a-6a118.txt`), the game followed the model
+through `lvl_1` to `lvl_6` and 29 frames of `lvl_6a`. Then, above the
+room, the wall she climbs went on in the game and ended in the model.
+Celeste's level loader (read with ILSpy) copies a room's solid top-row
+tiles 3 tiles upwards. Above `lvl_6a`, columns 4 to 14 of the top row are
+solid, so there is wall from y = −24 to 0, exactly as high as the game lets
+her go (24 px above the room). There is no way over the top of that block.
+With the tiles in the model, the recording matches it on every frame, to
+her death on frame 136 of `lvl_6a`. The 118, and the 137-frame `lvl_6b`
+from its exit, are void.
 
 ## Chapter 2: the Badeline chase
 
