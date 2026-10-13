@@ -95,9 +95,8 @@ model before spending more compute on it.
    `results/celestetas/2a_chase_recorded.tas`**: it is the first run's file,
    rebuilt from its recording, and it records the gate
    (`celeste-sat-2a-gate.txt`). The committed `2a_chase.tas` is a different
-   route, which dies in `lvl_6` before the switch. Then re-export the
-   Chapter 2 rooms with the tiles outside them (`tools/import_chapter2.py`,
-   which needs `2-OldSite.bin` in `game/`), re-solve the chase
+   route, which dies in `lvl_6` before the switch. (The Chapter 2 rooms
+   already have the tiles outside them.) Then re-solve the chase
    (`tools/chain_chapter2.py --polish`), write a new
    `results/celestetas/2a_chase.tas`, and record that too.
 2. **The community 2A TAS through the model.** This is the cheapest strong

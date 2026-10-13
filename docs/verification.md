@@ -157,7 +157,8 @@ changelog gives as 0.15 s; the upward room transition):
   every room identical). With it, the `lvl_6a` recording
   (`celeste-sat-1a-6a118.txt`) matches on every frame: 880 frames over 8
   rooms, from the chapter start to her death in `lvl_6a` on frame 136.
-  Chapter 2's rooms still have to be exported again with the tiles.
+  The Chapter 2 rooms have them too (exported again 2026-10-13); on the
+  chase recordings they change nothing.
 - The wallbounce reach: mods confirm a 5 px distance in `WallJumpCheck`
   besides the usual 3; that it applies while dash-attacking after a
   straight-up dash is now confirmed by the 106-frame `lvl_3` ending. That
@@ -250,7 +251,7 @@ bug. In order of how much a route depends on each part:
   update she touches it in, and the waits are as modelled. So either the
   touch frame or one of the waits is off, and only a recording of the
   gate's position can tell. The second chase recording
-  (`celeste-sat-2a-gate.txt`, 2026-10-13) tracks the gate, but was played
+  (`celeste-sat-2a-committed-route.txt`, 2026-10-13) tracks the gate, but was played
   from the committed `results/celestetas/2a_chase.tas`. That file differs
   from the one behind the first recording, so in this run she dies in
   `2a_lvl_6` before reaching the switch. (The model follows it on every
