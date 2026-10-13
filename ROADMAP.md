@@ -19,8 +19,8 @@ is one sequence, and every step says which goal it serves.
 | Chapter 1 model | **verified**: the community TAS (19 rooms, 2,275 frames of control) plays exactly; 15 recordings from Celeste 1.4 match on every frame, subpixels included | `tests/chain_tas.py`, `tests/recordings.py data/recordings` |
 | Model self-consistency | **verified**: 2.95 M fuzzed frames bit-identical between the literal and the solver build; the SAT harnesses' input rules (2.0 M checks) and state comparison (6.8 M) fuzzed too | `tests/diff.sh` |
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
-| Local optimality (Tier B) | W = 8 over Chapter 1 room 1 here; W = 12/16 over all of Chapter 1 on Leonardo | Leonardo output **not committed** |
-| Faster than the community TAS | **15 frames in the model** (`lvl_6a` −5, `lvl_12` −5, `lvl_9b` −3, `lvl_3b` −2, from Leonardo windows that end in the TAS's own state) | not committed, **not played in the game** |
+| Local optimality (Tier B) | **W = 12 and 16 over all of Chapter 1** (3,826 windows proven, 6 timeouts), W = 18 over room 1; all 18 room transitions proven at two window sizes | `results/leonardo/`, `hpc/summary.py` |
+| Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The one big lead: `lvl_6a` in 118 frames instead of 161 (over the top of the room), not yet a chapter saving and not yet played in the game | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
 | Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed; **nothing recorded in the game**; the touch-switch hitbox change of 1d3e148 reverted to the game's | [docs/verification.md](docs/verification.md#chapter-2-nothing-recorded-yet) |
 | Chapter 2 routes | the project's own search is ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames; e.g. `lvl_6` 222 vs 198, `lvl_7` 252 vs 221). `results/routes/2a_chase.tas` replays in the current model; it beats the community only in `lvl_10` (628 vs 633) | `results/routes/2a_chase.tas` |
 | Own search vs humans | beam + polish from the spawns: 100 / 114 / 127 frames on Chapter 1 rooms 1-3, where the TAS (entering from the room before) takes 92 / 118 / 107 (room 2 is faster only by giving up the TAS's speed into room 3) | `tools/run_tests.sh --vanilla` |
@@ -33,66 +33,56 @@ changing how any room is entered or left takes one frame (17 ms) off it.
 
 ---
 
-## Step 1 -- secure the Leonardo results (days; all three goals)
+## Step 1 -- the Leonardo results (done 2026-10-13)
 
-The campaign's output exists only on your machine (`build/leonardo/`), and it
-is the evidence for everything that follows.
+`results/leonardo/`, read with `hpc/summary.py`. What it changed: the
+certificate (Tier B) is real and covers all of Chapter 1, and the "15 frames"
+are not a saving (step 2).
 
-- Copy into the repository, under `results/leonardo/`: every `windows.json`
-  (`cert/w12`, `w16`, `w18`), every `win_*_better*.tas` they point to, the
-  crossing `result.json` files and `better.tas`, the beam-sweep `RESULT`
-  lines, the Chapter 2 routes, and `hpc/summary.py`'s table. They are small
-  text files.
-- Record next to them the commit they were computed at (check the job logs)
-  and the CBMC version. A proof is about one model; without the commit it
-  cannot be cited. The model's behaviour in Chapter 1 has not changed since
-  commit becbd34 (2026-10-04). Everything after it touched only Chapter 2
-  (touch switches, room files) or, in this cleanup, nothing the model
-  computes. So Chapter 1 results from the campaign still hold at HEAD.
-- Re-run `python3 hpc/summary.py` on the copied files and put its table in
-  `docs/results.md`, replacing the "as reported" numbers there.
+## Step 2 -- the Chapter 1 record attempt (weeks; goal 1, the paper's headline)
 
-## Step 2 -- the Chapter 1 record attempt (1-2 weeks; goal 1, the paper's headline)
+The window proofs say the community TAS has no local slack: everything the
+SAT solver can still find is a different *ending* of a room, which then has
+to be paid back in the next room. So the frames are in the seams. Two
+concrete leads, best first:
 
-1. For each room with faster windows, combine them and check the result in
-   the model -- it must leave the room on its new last frame in exactly the
-   state the TAS leaves it in:
+1. **`lvl_6a` in 118 frames (TAS: 161).** Found by the beam sweep from the
+   TAS's own entry. It runs along above the room's top edge (see
+   [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
+   - **Play it in the game first.** `test_through_6b_logged.tas` (in git
+     history, commit 2af9286: `git show 2af9286:recordings/test_through_6b_logged.tas`)
+     plays the chapter from the start with this `lvl_6a` and records
+     everything to `dump_6a_6b.txt`. If you played it, rename the dump to
+     `celeste-sat-1a-6a118.txt` and run `python3 tests/recordings.py <folder>`.
+     If you didn't, play it. Don't use `console load 1 lvl_6a`: that starts
+     her at the room's spawn, not where the TAS enters.
+   - If the game agrees, 43 frames are on the table, and the job is to
+     re-route `lvl_6b` and `lvl_6c` from the new entry so the chain closes
+     with fewer than 381 frames for the three rooms (TAS: 161 + 110 + 110).
+     So far: `lvl_6b` 137 (Leonardo, width 500k), then `lvl_6c` ~154 (here,
+     width 100k), 409 in all. Search `lvl_6b` for exits that suit `lvl_6c`
+     (`--exit-x`, or a two-room beam), and use `tools/cross.py` on the seam.
+     Check the whole chapter with `tools/splice_tas.py chapter` and
+     `tests/chain_tas.py --tas`.
+   - If the game disagrees, that is a model bug worth a paragraph in the
+     paper: find the first frame that differs (`tests/recordings.py`), fix
+     it, add the recording to `data/recordings/`.
+2. **The faster endings.** `lvl_6a` −5, `lvl_12` −4, `lvl_9b` −3, `lvl_3b`
+   −2, each in a different exit state. Each is worth something only if the
+   next room can be done from the new entry within (TAS frames + saving − 1).
+   That is one beam search per candidate, e.g. `lvl_12a` from the
+   145-frame `lvl_12` ending in < 143 frames. `hpc/candidate_checks.sbatch`
+   is the template.
 
-   ```
-   python3 tools/splice_tas.py combine rooms/vanilla/1a_lvl_6a.txt build/chain_tas/lvl_6a/route.tas \
-       'results/leonardo/cert/w1*/lvl_6a_*/windows.json' --start build/chain_tas/entry_lvl_6a.h \
-       -o build/splice/lvl_6a.tas
-   ```
+When a candidate checks out in the model, play it in the game. Then:
 
-2. Put the rooms into the community TAS and check the whole chapter in the
-   model (every room must still leave on its last frame):
-
-   ```
-   python3 tools/splice_tas.py chapter --room lvl_6a=build/splice/lvl_6a.tas --room lvl_12=build/splice/lvl_12.tas \
-       --room lvl_9b=build/splice/lvl_9b.tas --room lvl_3b=build/splice/lvl_3b.tas -o build/splice/1A_candidate.tas
-   python3 tests/chain_tas.py --tas build/splice/1A_candidate.tas
-   ```
-
-3. **Play it in the game** (Celeste 1.4, Everest, CelesteTAS, Celeste
-   Studio). CelesteTAS writes the new `ChapterTime` at the end. To see
-   where a room diverges, record it: `tools/celestetas.py community lvl_6a
-   lvl_6b --tas build/splice/1A_candidate.tas -o check.tas`, then
-   `tests/recordings.py`.
-4. If a room desyncs in the game, that is a model bug. Record it, find the
-   first frame that differs (`tests/recordings.py` prints it), fix the model,
-   and add the recording to `data/recordings/`. These bugs are results too:
-   the paper's fidelity section is built from them.
-5. If the time is lower: open a pull request against VampireFlower/CelesteTAS
-   with the new `1A.tas`, credit the method, and link the repository. In
-   Celeste the TAS record is the community file, and TASers verify it by
-   playing it. Ask in the Celeste TAS community before you call it a record
-   publicly. They will check it, and they may already know a faster route
-   than the pinned commit's.
-
-What could go wrong: the windows were computed with fields left out of the
-comparison (`sim/live.c`); `combine` checks the full exit state, and the
-game is the final check. Each frame the game accepts is a record frame. A
-3-frame record is still a record.
+- If the time is lower, open a pull request against VampireFlower/CelesteTAS
+  with the new `1A.tas`. Credit the method and link the repository. In
+  Celeste the TAS record is the community file, and TASers verify it by
+  playing it. Ask in the Celeste TAS community before you call it a record
+  publicly.
+- If a room desyncs in the game, that is a model bug: record it, fix it, add
+  the recording.
 
 ## Step 3 -- make Chapter 2 trustworthy (2-4 weeks; the paper's second chapter)
 
@@ -108,7 +98,11 @@ spending more compute on it.
    other hitbox. If `2a_lvl_7` is hard for the beam search again, that is a
    search problem (step 6), not a model one.
 2. **The community 2A TAS through the model.** This is the cheapest strong
-   check there is, the same one that made Chapter 1 believable. Generalise
+   check there is, the same one that made Chapter 1 believable. A first try
+   (2026-10-13) failed in `2a_lvl_4` with either touch-switch hitbox. Its
+   `lvl_3` starting state was reconstructed by scanning start positions,
+   because the TAS plays part of `lvl_3` before the intro cutscene. So
+   either that reconstruction or the model is off before any switch room. Generalise
    `tests/chain_tas.py` to a chapter argument: the rooms and goals come from
    `tools/import_chapter2.py`, the chase starts in `lvl_3` after the cutscene
    skip (the TAS's `1,S` lines), and the chaser history runs on across rooms.
@@ -133,8 +127,10 @@ human world-record TAS and (b) find the places where one does, verified in
 the game.*
 
 **What it may claim** (see [docs/methods.md](docs/methods.md#what-proven-means)):
-Tier A (fidelity) for Chapter 1, Tier B (local optimality, W = 12/16) for the
-whole chapter, and N frames saved in the game. **What it must not claim**:
+Tier A (fidelity) for Chapter 1, and Tier B (local optimality, W = 12/16,
+all room transitions) for the whole chapter. That is already a result: the
+human world record has no local slack the solver can find. Add N frames
+saved in the game once step 2 delivers them. **What it must not claim**:
 optimality of a room or a run (Tier C/D), or any number that has not been
 reproduced from committed data.
 
@@ -261,6 +257,9 @@ They would not survive a reviewer or a TASer:
   The project's own search is several frames per room behind it.
 - *"The human WR is 0:37.9 (2,275 frames)."* 2,275 is the TAS's frames of
   control; its chapter time is 0:49.079. The two numbers can't be compared.
+- *"15 frames shaved off Chapter 1."* The 15 frames are faster room endings
+  in a different state, and the next room's TAS inputs fail after every one
+  of them. They are leads, not savings.
 - *"4,338 windows mathematically proven optimal."* Each proves that one
   stretch of the route can't be shortened to the same state, within the
   model. That is local optimality (Tier B), not optimality.

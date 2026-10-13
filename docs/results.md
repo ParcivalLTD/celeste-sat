@@ -139,8 +139,11 @@ next: can she be in the TAS's exact state a few frames into the next room,
 one frame sooner? With the room's last 6 frames and the next room's first 3
 free (one query per frame she could leave on, 15–40 min per room change),
 so far: `lvl_1` → `lvl_2`, `lvl_2` → `lvl_3` and `lvl_3` → `lvl_4`: no
-(proven). The Leonardo campaign ran the other room changes
-(`hpc/crossings.sbatch`); their results are not in the repository yet.
+(proven). The Leonardo campaign ran all 18 room changes
+(`hpc/crossings.sbatch`, `results/leonardo/cross/`), with the last 6 frames
+of the first room and 3 of the next free, and again with 10 and 8: **all 36
+proven**. No change around any room transition of the TAS gets into the
+next room's TAS state sooner.
 
 Frames of control per room, each room entered the way the community TAS
 enters it (room 1 from the spawn):
@@ -193,34 +196,58 @@ game.
 
 ## The Leonardo campaign (October 2026)
 
-About 2,300 core-hours on CINECA's Leonardo Booster (`hpc/`) went into window
-proofs over the chained community TAS (`tools/windows.py`, W = 12 over all
-19 rooms, W = 16 over all 19, W = 18 over `lvl_1`), the room-change queries,
-a beam-search rollout sweep and the Chapter 2 chase. As reported at the end
-of the campaign: 4,371 window queries, 4,338 of them "no" (no stretch of W+1
-frames of the TAS can be done in W and end in the same state), the rest
-timeouts, and **"faster" windows in four rooms totalling 15 frames**:
-`lvl_6a` 161 → 156, `lvl_12` 147 → 142, `lvl_9b` 73 → 70, `lvl_3b` 98 → 96.
+About 2,300 core-hours on CINECA's Leonardo Booster (`hpc/`). The output is
+in `results/leonardo/` (provenance: commit 9e3dd4f, CBMC 5.80.0; Chapter 1's
+model is unchanged from it to now). `python3 hpc/summary.py` tallies it:
 
-Status of those numbers, honestly:
+| window proofs over the chained community TAS | windows | proven ("no") | timeouts | "faster" |
+|---|---|---|---|---|
+| W = 12, all 19 rooms | 2,028 | 2,022 | 2 | 4 |
+| W = 16, all 19 rooms | 1,819 | 1,804 | 4 | 11 |
+| W = 18, `lvl_1` | 73 | 73 | 0 | 0 |
 
-- **None of the campaign's output is in the repository** (`build/` is not
-  in git): the `windows.json` certificates, the spliced faster routes, the
-  crossing results and the sweep logs need to be committed under
-  `results/leonardo/` before any of it can be cited. This is step 1 of
-  [the roadmap](../ROADMAP.md).
-- **The faster windows exist only in the model so far.** A window "YES" is
-  a route that reaches the TAS's own state one frame sooner, so the rest of
-  the chapter plays unchanged and the saving is a whole-chapter saving --
-  *if* the model is right about those frames. Each has to be played in the
-  game (`tools/celestetas.py community ... --replace`) before it counts.
-- **`recordings/1A_improved.tas` was not an improved TAS.** It was committed
-  on 2026-10-08 with a `lvl_6a` that started from the room's spawn instead of
-  from the TAS's entry; the "fix" on 2026-10-12 put the community `lvl_6a`
-  and `lvl_6b` back, which made the file byte-for-byte the community TAS.
-  Playing it in the game therefore showed the community TAS's own time,
-  0:49.079. It has been removed. No improved Chapter 1 TAS has been played
-  in the game yet.
+**What the proofs say.** For 3,899 windows: no input sequence gets from the
+TAS's state at frame K to its state at frame K + W + 1 (on the compared
+fields) in W frames or fewer, within the model. That is the local-optimality
+certificate (Tier B).
+
+**What the "faster" windows are not.** All 15 sit at the end of a room
+(`lvl_6a` K = 139-143, `lvl_12` K = 126-133, `lvl_3b` K = 80/84, `lvl_9b`
+K = 53). The window harness counts leaving the room as success, so each one
+is a faster *ending*: the room is left 2-5 frames sooner **in a different
+state**. They are the same kind of result as the TAS endings above. None
+of them is a chapter saving. `tools/splice_tas.py combine` finds none that
+keeps the exit state, and with every one of them the next room's TAS inputs
+fail (`experiments/next_room.py`):
+
+| faster ending | leaves on | next room with the TAS's inputs |
+|---|---|---|
+| `lvl_6a` (5 windows) | 156-159 instead of 161 | `lvl_6b` dies (frame 35-97) or never leaves |
+| `lvl_12` (W = 12, 3 windows) | 143-145 instead of 147 | `lvl_12a` dies (frame 60-61) |
+| `lvl_3b` (2 windows) | 96 instead of 98 | `lvl_5` never leaves |
+| `lvl_9b` (1 window) | 70 instead of 73 | `lvl_10a` never leaves |
+
+Each could still pay off if the next room can be re-routed from the new
+entry to make the frames back. That is the seam problem ([ROADMAP.md](../ROADMAP.md), step 6),
+not a result yet. `tools/windows.py` now marks each YES as "same exit state"
+or "different exit state".
+
+**The real lead: `lvl_6a` in 118 frames.** The beam-search sweep, polishing
+the TAS's own route from the TAS's entry into the room, found a 118-frame
+`lvl_6a` (the TAS takes 161). It climbs the narrow shaft at the left and
+runs along *above* the room's top edge (y ≈ −2 to −6; with no room above, the
+game only stops her 24 px above it, and the model treats the space outside
+the room as empty) before dropping into the open area. It replays from the
+TAS's entry, not from the room's spawn. From the new exit,
+`hpc/candidate_checks.sbatch` found a 137-frame `lvl_6b` (TAS 110): 255
+frames for the two rooms against 271. But the TAS's `lvl_6c` inputs fail
+after that `lvl_6b`, and the best `lvl_6c` found from there so far is ~154
+frames (TAS 110). So the route is not yet faster over the chapter, and the
+`lvl_6a` route itself has not been played in the game. A 43-frame shortcut
+in a room humans have optimised for years means either the game stops her
+somewhere the model doesn't, or the shortcut is real. `test_through_6b_logged.tas`
+(commit 2af9286) plays the chapter from the start with this `lvl_6a` while
+recording; its recording (`dump_6a_6b.txt`) answers that.
 
 ## Chapter 2: the Badeline chase
 
