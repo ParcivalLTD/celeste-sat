@@ -18,21 +18,32 @@ route's state at K to a state that agrees with its state at K + W + 1 on the
 compared fields any faster; it does not rule out a faster route through the
 window that ends in a different state (other subpixels, say).
 
+Leaving the room also counts as reaching the target, so a window that ends
+near the exit can find a faster *ending* that leaves in a different state.
+That is a faster room, not a faster chapter: the next room's inputs may no
+longer work (experiments/next_room.py checks). Each YES says which it is:
+"[same exit state]" or "[different exit state]".
+
 The windows stop short of the exit: the route's ending is what
 tools/solve.py --from-frame checks.
 """
-import argparse, json, os, re, subprocess, sys, time
+import argparse
+import json
+import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from solve import build, read_tas, replay, sh, write_tas  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat import cbmc  # noqa: E402
+from celeste_sat.build import build, dump_state, replay, sh  # noqa: E402
+from celeste_sat.paths import BUILD, ROOT, exe, read_text  # noqa: E402
+from celeste_sat.tas import read_tas, write_tas  # noqa: E402
 
 
 def dump(bdir, route, k, path, name):
     """the route's state after k frames as a C header defining `name`"""
     tmp = path + ".tmp"
-    r = sh([f"{bdir}/sim", "-s", str(k), tmp, route])
+    r = dump_state(bdir, route, k, tmp)
     if not os.path.exists(tmp):
         sys.exit(f"sim -s {k} failed: {r.stdout}{r.stderr}")
     text = open(tmp).read().replace("START_STATE", name).replace("START_FRAMES", name + "_FRAMES")
@@ -40,6 +51,12 @@ def dump(bdir, route, k, path, name):
     open(path, "w").write(text)
 
 
+def exit_fields(path):
+    """a state header without the lines that only say when it was taken"""
+    return [l for l in read_text(path).splitlines() if not l.startswith("/*") and "START_FRAMES" not in l]
+
+
+# the fields sim/live.c can find dead, in the order of the SF_* bits of model/state_eq.h
 SF_NAMES = ("onGround wallSlideTimer stamina jumpGraceTimer varJump dashCooldown dashRefillCooldown dashAttack "
             "wallSpeedRetention forceMoveX wallBoost maxFall autoJump moveX facing hopWaitX dashDir").split()
 
@@ -49,39 +66,12 @@ def ignored(mask):
 
 
 def query(bdir, k, w, timeout, mask=0):
-    """(True, frames) / (False, None) / (None, None) on timeout, and seconds"""
-    cmd = ["cbmc"] + (["--gcc"] if sys.platform == "win32" else []) + [
-        f"{ROOT}/harness/window.c", "-I", bdir, "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness",
-        f"-DW={w}", f'-DSTART_STATE_FILE="win_{k}_start.h"', f'-DTARGET_STATE_FILE="win_{k}_target.h"',
-        f"-DSF_IGNORE={mask}u", "--trace", "--json-ui"]
-    t0 = time.time()
-    try:
-        r = subprocess.run(cmd, cwd=bdir, capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return None, None, time.time() - t0
-    dt = time.time() - t0
-    try:
-        data = json.loads(r.stdout)
-    except json.JSONDecodeError:
-        sys.exit("could not parse CBMC output:\n" + r.stdout[-2000:] + r.stderr[-2000:])
-    for msg in data:
-        for res in msg.get("result", []):
-            if res["status"] == "SUCCESS":
-                return False, None, dt
-            if res["status"] == "FAILURE":
-                vals = {}
-                for st in res.get("trace", []):
-                    if st.get("stepType") != "assignment":
-                        continue
-                    m = re.fullmatch(r"inputs\[(\d+)l?\]\.(mx|my|jump|dash|grab|cdash)", st.get("lhs", ""))
-                    if m:
-                        d = st["value"]["data"]
-                        vals[(int(m.group(1)), m.group(2))] = (d == "TRUE") if d in ("TRUE", "FALSE") else int(d)
-                frames = [(vals.get((i, "mx"), 0), vals.get((i, "my"), 0), vals.get((i, "jump"), 0),
-                           vals.get((i, "dash"), 0), vals.get((i, "grab"), False), vals.get((i, "cdash"), 0))
-                          for i in range(w)]
-                return True, frames, dt
-    sys.exit("unexpected CBMC output:\n" + r.stdout[-2000:] + r.stderr[-2000:])
+    """harness/window.c for the window after frame k -> (True, frames) / (False, None) /
+    (None, None) on timeout, and seconds"""
+    cmd = cbmc.command(f"{ROOT}/harness/window.c", "-I", bdir, "-I", f"{ROOT}/model", "-I", f"{ROOT}/harness",
+                       f"-DW={w}", f'-DSTART_STATE_FILE="win_{k}_start.h"', f'-DTARGET_STATE_FILE="win_{k}_target.h"',
+                       f"-DSF_IGNORE={mask}u")
+    return cbmc.run(cmd, bdir, timeout, n=w)
 
 
 def main():
@@ -100,10 +90,10 @@ def main():
     a = ap.parse_args()
 
     name = os.path.splitext(os.path.basename(a.room))[0]
-    bdir = os.path.abspath(a.out or os.path.join(ROOT, "build", f"windows_{name}"))
+    bdir = os.path.abspath(a.out or os.path.join(BUILD, f"windows_{name}"))
     build(a.room, bdir, a.start)
     flags = ['-DSTART_STATE_FILE="entry.h"'] if a.start else []
-    r = sh(["gcc", "-O2", *flags, "-I", bdir, "-I", f"{ROOT}/model", "-o", f"{bdir}/live", f"{ROOT}/sim/live.c"])
+    r = sh(["gcc", "-O2", *flags, "-I", bdir, "-I", f"{ROOT}/model", "-o", exe(bdir, "live"), f"{ROOT}/sim/live.c"])
     if r.returncode:
         sys.exit(r.stderr)
     route = os.path.join(bdir, "route.tas")
@@ -122,9 +112,11 @@ def main():
     for k in ks:
         dump(bdir, route, k, f"{bdir}/win_{k}_start.h", "START_STATE")
         dump(bdir, route, k + w + 1, f"{bdir}/win_{k}_target.h", "TARGET_STATE")
-        masks[k] = 0 if a.exact else int(sh([f"{bdir}/live", str(k + w + 1), route]).stdout.strip())
+        masks[k] = 0 if a.exact else int(sh([exe(bdir, "live"), str(k + w + 1), route]).stdout.strip())
 
-    results, better = {}, None
+    results = {}
+    dump_state(bdir, route, n, os.path.join(bdir, "exit_route.h"))
+    route_exit = exit_fields(os.path.join(bdir, "exit_route.h"))
 
     def splice(k, got, tag):
         """the shortest prefix of the counterexample that, spliced in, leaves the room sooner"""
@@ -134,7 +126,8 @@ def main():
             write_tas(p, cand, [f"{name}: frames {k + 1}..{k + w + 1} done in {j}"])
             e = replay(bdir, p)
             if e and e < n:
-                return e, p
+                dump_state(bdir, p, e, p + ".exit.h")
+                return e, p, exit_fields(p + ".exit.h") == route_exit
         return None
 
     def run(k):
@@ -152,10 +145,11 @@ def main():
         elif not found:
             line += f"no ({dt:.0f}s)"
         else:
-            line += (f"YES ({dt:.0f}s): leaves on frame {best[0]} instead of {n} -> {best[1]}" if best
+            line += (f"YES ({dt:.0f}s): leaves on frame {best[0]} instead of {n} "
+                     f"[{'same' if best[2] else 'different'} exit state] -> {best[1]}" if best
                      else f"yes ({dt:.0f}s), but the spliced route does not replay faster (check)")
             if best:
-                results.setdefault("better", []).append(dict(k=k, exit=best[0], route=best[1]))
+                results.setdefault("better", []).append(dict(k=k, exit=best[0], route=best[1], same_exit=best[2]))
         results[k] = dict(found=found, seconds=round(dt), ignored=ignored(mask))
         print(line, flush=True)
 

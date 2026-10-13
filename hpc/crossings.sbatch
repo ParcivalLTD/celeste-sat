@@ -1,6 +1,6 @@
 #!/bin/bash
 # tools/cross.py on every room change of the chained Chapter 1 TAS (what
-# tests/tas_crossings.py does one seam after another), one array task per seam.
+# experiments/tas_crossings.py does one seam after another), one array task per seam.
 # A seam is only ~BEFORE+1 queries, so each task takes 16 cores and Slurm packs
 # several onto a node.
 #
@@ -30,7 +30,7 @@ A=${ORDER[$SLURM_ARRAY_TASK_ID]}
 B=${ORDER[$((SLURM_ARRAY_TASK_ID + 1))]}
 RA=build/chain_tas/${A}/route.tas
 RB=build/chain_tas/${B}/route.tas
-N=$(python3 -c "import sys; sys.path.insert(0, 'tools'); from solve import read_tas; print(len(read_tas('$RA')))")
+N=$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.tas import read_tas; print(len(read_tas('$RA')))")
 ENTRY=build/chain_tas/entry_${A}.h
 START=()
 [ -f "$ENTRY" ] && START=(--start "$ENTRY")

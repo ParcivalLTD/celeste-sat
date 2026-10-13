@@ -15,31 +15,26 @@ test_chapter2.py -- the Chapter 2 mechanics on two demo rooms:
   5. running away from it, it does not reach her
 
 These are behaviour checks on the simulator, not a comparison with the real
-game: nothing in Chapter 2 has been recorded with CelesteTAS yet (see the
-README's "Things to check").  usage: python3 tests/test_chapter2.py
+game: nothing in Chapter 2 has been recorded with CelesteTAS yet (see
+docs/verification.md).  usage: python3 tests/test_chapter2.py
 """
-import json, os, subprocess, sys
+import json
+import os
+import subprocess
+import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXE = ".exe" if sys.platform == "win32" else ""
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat.build import build as build_room  # noqa: E402
+from celeste_sat.paths import BUILD, ROOMS, exe  # noqa: E402
+
 ST_NORMAL, ST_DREAM_DASH = 0, 3      # model/celeste.h
 
 
 def build(room):
-    """room.h, timer tables and the simulator for one demo room -> (bdir, sim)"""
-    bdir = os.path.join(ROOT, "build", f"test_{room}")
-    os.makedirs(bdir, exist_ok=True)
-    gen = os.path.join(bdir, "gen_tables" + EXE)
-    sim = os.path.join(bdir, "sim" + EXE)
-    subprocess.check_call([sys.executable, os.path.join(ROOT, "tools", "make_room.py"),
-                           os.path.join(ROOT, "rooms", f"{room}.txt"), os.path.join(bdir, "room.h")])
-    subprocess.check_call(["gcc", "-O0", "-I", os.path.join(ROOT, "model"), "-o", gen,
-                           os.path.join(ROOT, "tools", "gen_tables.c")])
-    with open(os.path.join(bdir, "tables.h"), "w") as f:
-        f.write(subprocess.check_output([gen]).decode())
-    subprocess.check_call(["gcc", "-O2", "-I", bdir, "-I", os.path.join(ROOT, "model"), "-o", sim,
-                           os.path.join(ROOT, "sim", "sim.c")])
-    return bdir, sim
+    """the simulator for one demo room -> (bdir, sim)"""
+    bdir = os.path.join(BUILD, f"test_{room}")
+    build_room(os.path.join(ROOMS, f"{room}.txt"), bdir)
+    return bdir, exe(bdir, "sim")
 
 
 def run(bdir, sim, name, tas):

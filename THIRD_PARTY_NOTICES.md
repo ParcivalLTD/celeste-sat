@@ -65,5 +65,14 @@ The MIT licence covers that source code only, not the commercial Celeste game or
   current game's `Player` methods show the shape of those changes (wall
   bounce reach, corner correction reach, spike checks on dash corrections).
 - VampireFlower/CelesteTAS (community TAS inputs) and celeste-rl (a recording
-  from the real game) are downloaded by `tests/community_tas.py` and
-  `tests/real_game.py` when the checks run; neither is included here.
+  from the real game) are downloaded when the checks run
+  (`celeste_sat/community.py`, used by `tests/chain_tas.py`; `tests/real_game.py`)
+  and cached in `build/`; neither is included here.
+
+## Not included: the game
+
+Celeste's map files (`Content/Maps/*.bin`) and anything else from the game are
+not in this repository; the tools read them from your own copy (`game/README.md`).
+`rooms/vanilla/2a_*.txt` are exports of Chapter 2's rooms (tile layout and entity
+positions) from that map file, kept so the Chapter 2 work can be reproduced; see
+ROADMAP.md about removing them before the project is published widely.

@@ -16,6 +16,29 @@
  *     the float operations are identical but CBMC can fold them.
  *   - Direction vectors (lastAim, DashDir) are stored as integer signs;
  *     diagonals are normalised, so float components come from constants.
+ *
+ * The file is one translation unit (sim.c, beam.c and the harnesses #include
+ * it, after defining MODEL_ASSUME etc.), in this order:
+ *   Timers ............................ TSET/TPOS/TDEC: float or frame-counter timers
+ *   small helpers ..................... Calc.Approach, Math.Round to even
+ *   Collision ......................... tiles (ROOM_COLS / the 8x8 window), moving solids,
+ *                                       spikes, jump-throughs
+ *   Actor movement .................... MoveH/MoveV(Exact), NaiveMove
+ *   Player helpers .................... wall checks, input presses, CanDash
+ *   Lift speed ........................ Actor.LiftSpeed, Player.LiftBoost
+ *   Jumps ............................. Jump, SuperJump, WallJump, SuperWallJump, ClimbJump
+ *   Collision callbacks ............... OnCollideH/V (corner corrections, dash/dream blocks)
+ *   State machine ..................... Normal, Climb, Dash, DreamDash updates; the dash coroutine
+ *   Player colliders and room bounds .. spikes, springs, refills; Level.EnforceBounds
+ *   Badeline chaser, touch switches ... Chapter 2
+ *   Player.Update ..................... one frame of the player
+ *   Moving solids ..................... zip movers / switch gates, falling blocks, crumble blocks
+ *   Public API ........................ celeste_init, celeste_step (MInput, freeze frames, entity order)
+ *
+ * Changing the model: every new state field needs model/state_eq.h, tests/fuzz.c
+ * (scramble), sim/sim.c (dump_state) and, if the transition clears it,
+ * celeste_sat/transition.py and model/transition.h; every new mechanic needs a
+ * generator in tests/random_room.py. docs/developing.md has the checklist.
  */
 #include "celeste.h"
 #ifdef ROOM_HEADER
@@ -2156,7 +2179,7 @@ static void enforce_bounds(State *s)
  * Which recorded frame "1.55 s ago" is depends on the float rounding of
  * Scene.TimeActive, so the frames CHASER_DELAY - 2 .. CHASER_DELAY back are
  * all checked (a conservative model). The history runs on across rooms:
- * tools/chapter.py carries it into the next room, with the transition's
+ * celeste_sat/transition.py carries it into the next room, with the transition's
  * frames (no player updates) as her entry position. */
 static void chaser_update(State *s)
 {
@@ -2186,15 +2209,28 @@ static void chaser_update(State *s)
 #endif
 
 #if NTOUCH > 0
-/* TouchSwitch: a PlayerCollider against her collider (Entity.Collider is Hitbox(16, 16, -8, -8));
- * Switch.Activate -> when every switch in the room is on, all finish at once
- * and the switch gates' Sequence() sees it in their update this frame */
+/* TouchSwitch: its PlayerCollider has a box of its own, 30 x 30 around the
+ * switch (Hitbox(30, 30, -15, -15); the entity's 16 x 16 Collider is not the
+ * one that touches her), and Player.Update checks every PlayerCollider against
+ * her hurtbox (8 x 9 at (-4, -11), ducking 8 x 4 at (-4, -6): its bottom is
+ * 2 px above her feet), as player_colliders() does. Switch.Activate -> when
+ * every switch in the room is on, all finish at once and the switch gates'
+ * Sequence() sees it in their update this frame.
+ * Commit 1d3e148 had changed this to the 16 x 16 box against her collider; the
+ * hurtbox swap is in the published Player.cs, and the 30 x 30 box is what
+ * mods that mirror the vanilla switch build (MaxHelpingHand's FlagTouchSwitch).
+ * Not yet checked against a recording (docs/verification.md). */
 static void touch_update(State *s)
 {
-    int top = s->y - (s->ducking ? 6 : 11), bot = s->y;
+#ifdef TOUCH_ENTITY_COLLIDER   /* the reading of 1d3e148, for experiments: 16 x 16 against her collider */
+    const int R = 8, bot = s->y;
+#else
+    const int R = 15, bot = s->y - 2;
+#endif
+    int top = s->y - (s->ducking ? 6 : 11);
     for (int j = 0; j < NTOUCH; j++)
-        if (s->x - 4 < TOUCHSWITCHES[j][0] + 8 && s->x + 4 > TOUCHSWITCHES[j][0] - 8
-            && top < TOUCHSWITCHES[j][1] + 8 && bot > TOUCHSWITCHES[j][1] - 8) {
+        if (s->x - 4 < TOUCHSWITCHES[j][0] + R && s->x + 4 > TOUCHSWITCHES[j][0] - R
+            && top < TOUCHSWITCHES[j][1] + R && bot > TOUCHSWITCHES[j][1] - R) {
             if (!(s->tsOn & (1u << j))) COV(C_TOUCHSWITCH);
             s->tsOn |= (unsigned char)(1u << j);
         }
@@ -2355,7 +2391,7 @@ static void player_update(State *s, Input in)
 
         /* Falling unducking -- not during coyote time (jumpGraceTimer > 0): the
          * published Player.cs has no such condition, but the game (1.4) keeps her
-         * ducked there (recordings/celeste-sat-community-lvl4.txt, lvl_4: she walks
+         * ducked there (data/recordings/celeste-sat-community-lvl4.txt, lvl_4: she walks
          * off a ledge ducked, jumps in coyote time and goes on ducked under a wall) */
         if (s->spdY > 0 && can_unduck(s) && !s->onGround && !TPOS(s->jumpGraceTimer)) s->ducking = false;
 

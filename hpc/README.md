@@ -1,4 +1,27 @@
-# Leonardo runbook (2 days, account EUHPC_D30_031)
+# hpc/ -- running the proofs on a Slurm cluster
+
+These scripts ran the October 2026 campaign on CINECA's Leonardo (EuroHPC
+account `EUHPC_D30_031`, Booster partition; that training account expired on
+2026-10-12). They are written for Leonardo but are plain Slurm: on another
+cluster change `hpc/env.sh` (modules, where `cbmc` is) and pass your own
+account and partition on the command line (`sbatch -A ACCOUNT -p PARTITION ...`
+overrides the `#SBATCH` lines).
+
+| script | what one array task does |
+|---|---|
+| `make_tasks.py` + `windows.sbatch` | window proofs (`tools/windows.py`) over a chunk of one Chapter 1 room, W = 8..18 |
+| `crossings.sbatch` | `tools/cross.py` on one room change of the chained community TAS |
+| `beam_sweep.sbatch` | beam search + polish of one room at one rollout length |
+| `ch2_chase.sbatch` | the Chapter 2 chase, room after room (`tools/chain_chapter2.py`) |
+| `candidate_checks.sbatch` | the room after a faster-but-different ending (`entry_states/`): can it make the frames back? |
+| `summary.py` | tallies the window proofs: proven / timeout / faster |
+
+**Keep the results.** `build/` is not in git. Everything a paper or a record
+claim rests on -- `build/cert/**/windows.json`, the faster routes they point
+to, `build/cross_*/result.json`, the sweep logs -- belongs in
+`results/leonardo/` (small JSON and TAS files; see ROADMAP.md, step 1).
+
+## The runbook as used (2 days, account EUHPC_D30_031)
 
 The account's hours are on the **Booster** partition (`boost_usr_prod`) only;
 `saldo -b --dcgp` shows no DCGP budget for it. A Booster node is 32 Ice Lake
@@ -21,7 +44,7 @@ Every command runs from the repo root on a login node.
 ## Tonight
 
 ```bash
-# 0. setup
+# 0. setup (copy game/1-ForsakenCity.bin over first: see game/README.md)
 module avail gcc python                  # fix the names in hpc/env.sh if needed
 source hpc/env.sh && cbmc --version
 mkdir -p build/logs                      # Slurm opens the log files before the job starts
@@ -40,8 +63,8 @@ sbatch --array=0-8 hpc/beam_sweep.sbatch
 ```
 
 Watch the per-query seconds in `build/logs/win_*.out` (`python3 hpc/summary.py`).
-They calibrate the rest. The ROADMAP's laptop figures are ~8 min per query at
-W=12 and ~65 min at W=16.
+They calibrate the rest. The laptop figures were ~8 min per query at W=12 and
+~65 min at W=16.
 
 ```bash
 # 4. before bed: W=16 over Chapter 1 (timeout 4 h per query; raise it if W=12 was slow)
@@ -77,7 +100,8 @@ for f in build/logs/cross_*.out; do head -1 "$f"; tail -1 "$f"; done   # crossin
 ## Before access ends
 
 Copy the results home: `build/cert`, `build/cross_*`, `build/sweep`,
-`build/logs`, `build/hpc`, `build/chapter2_chase_*`, e.g.
+`build/logs`, `build/hpc`, `build/chapter2_chase_*`, and then commit the
+small files (`*.json`, `*.tas`) under `results/leonardo/`, e.g.
 
 ```bash
 rsync -avm --include='*/' --include='*.json' --include='*.tas' --include='*.out' --exclude='*' \

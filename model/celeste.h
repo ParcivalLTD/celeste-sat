@@ -10,7 +10,7 @@
  *     SAT solver searches for the fastest input sequence.
  *
  * Every float operation mirrors the order of operations in the C# source so
- * that IEEE single-precision rounding matches the game. See README for the
+ * that IEEE single-precision rounding matches the game. See docs/model.md for the
  * list of things that are deliberately not modelled yet.
  */
 #ifndef CELESTE_H

@@ -1,10 +1,13 @@
+# celeste-sat: the community 1A.tas from the start, with the 118-frame lvl_6a (beam sweep) and the 137-frame lvl_6b,
+# recording every frame to celeste-sat-1a-6a118.txt; check it with python3 tests/recordings.py <Celeste folder>.
+# lvl_6a is the question: does the route along the top of the room exist in the game? (lvl_6c will not work after this lvl_6b)
 console load 1
    1
 
 #Start
   88
 
-ExportGameInfo, dump_6a_6b.txt
+ExportGameInfo, celeste-sat-1a-6a118.txt
 
 #lvl_1
    5,R,X

@@ -13,13 +13,15 @@ windows at once, so its wall time is its slowest query; small tasks (one
 at about 0.3 GB per free frame + 0.5 GB per query (tools/cross.py's estimate)
 plus 15 %. Prints the sbatch command.
 """
-import argparse, math, os, sys
+import argparse
+import math
+import os
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-sys.path.insert(0, os.path.join(ROOT, "tests"))
-from solve import read_tas  # noqa: E402
-from tas_endings import ORDER  # noqa: E402
+sys.path.insert(0, ROOT)
+from celeste_sat.community import CH1_ORDER as ORDER  # noqa: E402
+from celeste_sat.tas import read_tas  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 ap.add_argument("--width", type=int, required=True)

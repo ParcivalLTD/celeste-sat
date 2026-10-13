@@ -6,7 +6,7 @@ CelesteTAS's ExportGameInfo writes, for every frame it plays, the input of
 that frame and Madeline's exact position (pixel + subpixel), speed and
 state. This replays each recording's own inputs through the model and
 compares every frame, room after room: when she leaves a room, the next one
-starts from the state the model gives her on entering it (tools/chapter.py),
+starts from the state the model gives her on entering it (celeste_sat/transition.py),
 at the first frame the game gives control back.
 
     python3 tests/recordings.py DIR [rooms/vanilla]
@@ -18,18 +18,46 @@ against the Chapter 2 rooms, the others against Chapter 1). The files in
 results/celestetas/ record to such names. A recording that starts in the
 middle of the chapter (the community TAS from its #lvl_3, say: name it
 community-*.txt) starts from the state the community TAS enters that room
-with, which tests/community_tas.py computes; run that first.
+with, which tests/chain_tas.py computes; run that first.
+
+The recordings made so far are in data/recordings/:
+
+    python3 tests/recordings.py data/recordings
 """
-import glob, os, re, subprocess, sys, tempfile
+import glob
+import os
+import re
+import sys
+import tempfile
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
-from celestetas import model_trace, parse_dump, room_origin, row_keys, same  # noqa: E402
-from chapter import enter_room, exit_side, origin_of, read_state, tables, write_state  # noqa: E402
-from make_room import parse  # noqa: E402
-from solve import build  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from celeste_sat.build import replay  # noqa: E402
+from celeste_sat.paths import BUILD, VANILLA, read_text, write_text  # noqa: E402
+from celeste_sat.recording import (model_bdir, model_trace, parse_dump, room_origin, row_keys,  # noqa: E402
+                                   same, same_position)
+from celeste_sat.transition import next_entry  # noqa: E402
 
-TOL = 2e-3
+
+# The recordings named *-edit* play the community TAS with the 106-frame ending of
+# #lvl_3 that SAT found: its last line "16,U,X" replaced (docs/results.md).
+EDIT_ROOM, EDIT_NEXT = "lvl_3", "lvl_4"
+EDIT_OLD, EDIT_NEW = "16,U,X", ["4,U,X", "1,U", "9", "1,J"]
+
+
+def edited_entry(room, work):
+    """the state she enters `room` with after the edited ending (None if room does not follow it)"""
+    if room != EDIT_NEXT:
+        return None
+    src = os.path.join(BUILD, "chain_tas", EDIT_ROOM)
+    lines = read_text(os.path.join(src, "route.tas")).split("\n")
+    k = max(i for i, l in enumerate(lines) if l.strip() == EDIT_OLD)
+    route = os.path.join(work, "edited.tas")
+    write_text(route, "\n".join(lines[:k] + EDIT_NEW + lines[k + 1:]))
+    n = replay(src, route)
+    entry = os.path.join(work, f"entry_{room}_edit.h")
+    next_entry(src, route, n, os.path.join(VANILLA, f"1a_{EDIT_ROOM}.txt"), os.path.join(VANILLA, f"1a_{room}.txt"),
+               entry, f"entering {room} after the edited {EDIT_ROOM}", exit_h=os.path.join(work, "edited_exit.h"))
+    return entry
 
 
 def chapter_of(name):
@@ -45,6 +73,7 @@ def room_file(rdir, tag, chapter="1a"):
 
 
 def check(path, rdir, work):
+    """compare one recording with the model, room after room -> (report line, True / False / None = skipped)"""
     name = os.path.basename(path)
     raw = parse_dump(path)                      # world coordinates
     if not raw:
@@ -62,13 +91,15 @@ def check(path, rdir, work):
     if name.startswith("community") or name.startswith("celeste-sat-community"):
         m = re.fullmatch(r"\[(\w+)\]", first)
         if m and m.group(1) != "1":
-            start = os.path.join(ROOT, "build", "community_tas", f"entry_lvl_{m.group(1)}"
-                                 + ("_edit" if "-edit" in name else "") + ".h")
-            chained = os.path.join(ROOT, "build", "chain_tas", f"entry_lvl_{m.group(1)}.h")
-            if not os.path.exists(start) and "-edit" not in name and os.path.exists(chained):
-                start = chained                  # entered as tests/chain_tas.py plays the TAS up to there
+            # entered as tests/chain_tas.py plays the TAS up to there (after the edit, for a
+            # recording of the edited TAS that starts in the room after it)
+            start = os.path.join(BUILD, "chain_tas", f"entry_lvl_{m.group(1)}.h")
             if not os.path.exists(start):
-                return f"{name}: needs {start} (run tests/community_tas.py first)", None
+                return f"{name}: needs {start} (run tests/chain_tas.py first)", None
+            if "-edit" in name and f"lvl_{m.group(1)}" != EDIT_ROOM:
+                start = edited_entry(f"lvl_{m.group(1)}", work)
+                if not start:
+                    return f"{name}: starts in lvl_{m.group(1)}, not after the edited {EDIT_ROOM}", None
     prev = None                                  # (room file, build dir, route file, exit frame)
     for k, (tag, a, b) in enumerate(segs):
         room = room_file(rdir, tag, chapter_of(name))
@@ -90,14 +121,9 @@ def check(path, rdir, work):
                 c += 1
             rows = rows[c + 1:]
             proom, pbdir, proute, pexit = prev
-            exit_h = os.path.join(work, f"exit_{k}.h")
-            subprocess.run([os.path.join(pbdir, "sim"), "-s", str(pexit), exit_h, proute], capture_output=True)
-            st = read_state(exit_h)
-            r0, r1 = parse(proom)[0], parse(room)[0]
-            e = enter_room(st, exit_side(st, len(r0[0]) * 8, len(r0) * 8), origin_of(proom), origin_of(room),
-                           len(r1[0]) * 8, len(r1) * 8, tables(pbdir))
             start = os.path.join(work, f"entry_{k}.h")
-            write_state(e, start, f"entering {os.path.basename(room)}")
+            next_entry(pbdir, proute, pexit, proom, room, start, f"entering {os.path.basename(room)}",
+                       exit_h=os.path.join(work, f"exit_{k}.h"))
         if not rows:
             break
         ox, oy = room_origin(room)
@@ -112,13 +138,13 @@ def check(path, rdir, work):
             m = model[f]
             if "Dead" in g["statuses"] or m.get("dead"):
                 # the game zeroes her speed when she dies; the model stops where she died
-                if "Dead" in g["statuses"] and m.get("dead") and abs(m["x"] - g["x"]) <= TOL and abs(m["y"] - g["y"]) <= TOL:
+                if "Dead" in g["statuses"] and m.get("dead") and same_position(m, g):
                     died = f + 1
                 else:
                     bad = (f, m, g)
                 break
             if exit_frame and f + 1 == exit_frame:
-                if not (abs(m["x"] - g["x"]) <= TOL and abs(m["y"] - g["y"]) <= TOL and "NoControl" in g["statuses"]):
+                if not (same_position(m, g) and "NoControl" in g["statuses"]):
                     bad = (f, m, g)
                 break
             if not same(m, g):
@@ -145,8 +171,7 @@ def check(path, rdir, work):
             break
         if exit_frame:
             report.append(f"{where}: {n} frames identical, leaves on frame {exit_frame} in both")
-            bdir = os.path.join(ROOT, "build", f"check_{os.path.basename(room)[:-4]}" + ("_entry" if start else ""))
-            prev = (room, bdir, route, exit_frame)
+            prev = (room, model_bdir(room, start), route, exit_frame)
         else:
             report.append(f"{where}: {n} frames identical")
             break
@@ -157,7 +182,7 @@ def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     ddir = sys.argv[1]
-    rdir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "rooms", "vanilla")
+    rdir = sys.argv[2] if len(sys.argv) > 2 else VANILLA
     files = sorted(glob.glob(os.path.join(ddir, "celeste-sat-*.txt")) + glob.glob(os.path.join(ddir, "community-*.txt")))
     if not files:
         print(f"no recordings (celeste-sat-*.txt, community-*.txt) in {ddir}")

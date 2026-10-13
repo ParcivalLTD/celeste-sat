@@ -65,5 +65,7 @@ for (room, w), ks in sorted(res.items(), key=lambda x: (x[0][1], x[0][0])):
         c[v] += 1
     print(f"{room:8s} {w:3d} {len(ks):8d} {c['proven']:7d} {c['timeout']:8d} {c['faster']:7d} {c['check']:6d}")
 if faster:
-    print("\nfaster routes (model only, check in the game):")
+    print("\nfaster routes (model only). A window that reaches the room's exit counts too, so most of these\n"
+          "are faster *endings* that leave in a different state: check the next room with\n"
+          "experiments/next_room.py, and splice same-state ones with tools/splice_tas.py combine:")
     print("\n".join(faster))
