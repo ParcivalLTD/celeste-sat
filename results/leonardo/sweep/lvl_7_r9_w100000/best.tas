@@ -1,0 +1,29 @@
+# room 1a_lvl_7: exits on frame 103
+# no SAT run
+   1,J
+   1,R,J
+   1,J
+   2,R,J
+   1,R
+   1,R,J,G
+   1,R,J
+   3,R
+   1,R,J,G
+  11,R,J
+  11,X
+   1,J
+   1,R,J
+   1,J
+   9,R,J
+   1,R
+   4,Z
+  13,U
+   1,L,J,G
+   1,J
+   1,R
+   1,L,J,G
+   4
+   3,L
+   4,Z
+  12,U
+  12,J

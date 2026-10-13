@@ -1,0 +1,43 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_6c W=16 K=62..92: 31 windows, 31 at a time, timeout 14400s, lrdn3390.leonardo.local ===
+route leaves 1a_lvl_6c on frame 110; 31 windows of 16 free frames (K = 62..92), 31 at a time
+  frames  67.. 83 in 16: no (180s)
+  frames  68.. 84 in 16: no (206s)
+  frames  69.. 85 in 16: no (267s)
+  frames  70.. 86 in 16: no (376s)
+  frames  71.. 87 in 16: no (473s)
+  frames  63.. 79 in 16: no (539s)
+  frames  72.. 88 in 16: no (577s)
+  frames  64.. 80 in 16: no (585s)
+  frames  73.. 89 in 16: no (795s)
+  frames  65.. 81 in 16: no (991s)
+  frames  78.. 94 in 16: no (994s)
+  frames  76.. 92 in 16: no (999s)
+  frames  77.. 93 in 16: no (1017s)
+  frames  74.. 90 in 16: no (1038s)
+  frames  90..106 in 16: no (1126s)
+  frames  91..107 in 16: no (1167s)
+  frames  79.. 95 in 16: no (1198s)
+  frames  87..103 in 16: no (1200s)
+  frames  75.. 91 in 16: no (1202s)
+  frames  66.. 82 in 16: no (1233s)
+  frames  86..102 in 16: no (1244s)
+  frames  88..104 in 16: no (1407s)
+  frames  80.. 96 in 16: no (1472s)
+  frames  92..108 in 16: no (1528s)
+  frames  83.. 99 in 16: no (1579s)
+  frames  82.. 98 in 16: no (1586s)
+  frames  89..105 in 16: no (1604s)
+  frames  84..100 in 16: no (1612s)
+  frames  81.. 97 in 16: no (1628s)
+  frames  85..101 in 16: no (1711s)
+  frames  93..109 in 16: no (2036s)
+31 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w16/lvl_6c_k62-92/windows.json)

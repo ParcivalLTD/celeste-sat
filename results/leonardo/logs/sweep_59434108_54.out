@@ -1,0 +1,57 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_6 rollout 6 width 100000, lrdn1898.leonardo.local ===
+upper bound: 117 frames (build/chain_tas/lvl_6/route.tas)
+polish: beam restarted after frame 102: 117 frames (0s)
+polish: beam restarted after frame 92: 117 frames (0s)
+polish: beam restarted after frame 82: 119 frames (2s)
+polish: beam restarted after frame 72: 152 frames (19s)
+polish: beam restarted after frame 62: 127 frames (6s)
+polish: beam restarted after frame 52: 127 frames (23s)
+polish: beam restarted after frame 42: 127 frames (26s)
+polish: beam restarted after frame 32: 129 frames (39s)
+polish: beam restarted after frame 22: 130 frames (39s)
+polish: beam restarted after frame 12: 150 frames (59s)
+
+no SAT run
+route: /leonardo/home/usertrain/a08trb05/celeste-sat/build/sweep/lvl_6_r6_w100000/best.tas
+# room 1a_lvl_6: exits on frame 117
+# no SAT run
+   1,J
+   8,R,J
+   1,J
+   2,R,J
+   2,R
+   4,Z
+  11,U
+   1,L,J,G
+   3
+   4,L
+   4,L,X
+  10,L,D
+   1,R,J
+   4,R,X
+  10,R,U
+   1,R,J,G
+   3,R,J
+   8,R
+   3,R,J
+   1,R
+   1,R,J,G
+   1,R,J
+   5,R
+   1,R,J,G
+  18,R,J
+   1
+   3,R
+   1
+   4,R
+
+RESULT lvl_6 6 100000 117 117

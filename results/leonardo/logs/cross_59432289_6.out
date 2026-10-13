@@ -1,0 +1,31 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_6 -> lvl_6a: last 10 frames of lvl_6 free, target lvl_6a frame 8, lrdn3276.leonardo.local ===
+known route: leaves 1a_lvl_6 on frame 117, 1a_lvl_6a on frame 278 (161 frames there); transition right, entry checked (C = Python)
+free: frames 108..117 of 1a_lvl_6 and the first frames of 1a_lvl_6a; target: the known state after 8 frames in 1a_lvl_6a, 1 frame(s) sooner (17 free frames in all)
+  17 CBMC queries (one per frame she could leave 1a_lvl_6 on), 16 at a time
+  leave 1a_lvl_6 on frame 124, reach the target within 0 frames of 1a_lvl_6a: no (32s)
+  leave 1a_lvl_6 on frame 109, reach the target within 15 frames of 1a_lvl_6a: no (98s)
+  leave 1a_lvl_6 on frame 110, reach the target within 14 frames of 1a_lvl_6a: no (110s)
+  leave 1a_lvl_6 on frame 108, reach the target within 16 frames of 1a_lvl_6a: no (88s)
+  leave 1a_lvl_6 on frame 111, reach the target within 13 frames of 1a_lvl_6a: no (133s)
+  leave 1a_lvl_6 on frame 113, reach the target within 11 frames of 1a_lvl_6a: no (222s)
+  leave 1a_lvl_6 on frame 112, reach the target within 12 frames of 1a_lvl_6a: no (306s)
+  leave 1a_lvl_6 on frame 121, reach the target within 3 frames of 1a_lvl_6a: no (389s)
+  leave 1a_lvl_6 on frame 116, reach the target within 8 frames of 1a_lvl_6a: no (417s)
+  leave 1a_lvl_6 on frame 123, reach the target within 1 frames of 1a_lvl_6a: no (493s)
+  leave 1a_lvl_6 on frame 122, reach the target within 2 frames of 1a_lvl_6a: no (538s)
+  leave 1a_lvl_6 on frame 120, reach the target within 4 frames of 1a_lvl_6a: no (808s)
+  leave 1a_lvl_6 on frame 118, reach the target within 6 frames of 1a_lvl_6a: no (909s)
+  leave 1a_lvl_6 on frame 114, reach the target within 10 frames of 1a_lvl_6a: no (927s)
+  leave 1a_lvl_6 on frame 115, reach the target within 9 frames of 1a_lvl_6a: no (960s)
+  leave 1a_lvl_6 on frame 119, reach the target within 5 frames of 1a_lvl_6a: no (1388s)
+  leave 1a_lvl_6 on frame 117, reach the target within 7 frames of 1a_lvl_6a: no (1496s)
+proven: no route through frames 108.. of 1a_lvl_6 and the first 8 frames of 1a_lvl_6a saves 1 frame(s)

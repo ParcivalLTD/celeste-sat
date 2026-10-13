@@ -1,0 +1,341 @@
+{
+ "room": "rooms/vanilla/1a_lvl_6.txt",
+ "route": "build/chain_tas/lvl_6/route.tas",
+ "exit": 117,
+ "width": 12,
+ "windows": {
+  "78": {
+   "found": false,
+   "seconds": 746,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "79": {
+   "found": false,
+   "seconds": 834,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "80": {
+   "found": false,
+   "seconds": 976,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "81": {
+   "found": false,
+   "seconds": 1171,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "82": {
+   "found": false,
+   "seconds": 1530,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "83": {
+   "found": false,
+   "seconds": 612,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "84": {
+   "found": false,
+   "seconds": 678,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "85": {
+   "found": false,
+   "seconds": 663,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "86": {
+   "found": false,
+   "seconds": 696,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "87": {
+   "found": false,
+   "seconds": 929,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "88": {
+   "found": false,
+   "seconds": 930,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "maxFall",
+    "moveX",
+    "facing"
+   ]
+  },
+  "89": {
+   "found": false,
+   "seconds": 1340,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "90": {
+   "found": false,
+   "seconds": 562,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "91": {
+   "found": false,
+   "seconds": 695,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "92": {
+   "found": false,
+   "seconds": 437,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "93": {
+   "found": false,
+   "seconds": 420,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "94": {
+   "found": false,
+   "seconds": 779,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "95": {
+   "found": false,
+   "seconds": 596,
+   "ignored": [
+    "onGround",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "96": {
+   "found": false,
+   "seconds": 554,
+   "ignored": [
+    "onGround",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "97": {
+   "found": false,
+   "seconds": 508,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "98": {
+   "found": false,
+   "seconds": 556,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "99": {
+   "found": false,
+   "seconds": 773,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "100": {
+   "found": false,
+   "seconds": 488,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "101": {
+   "found": false,
+   "seconds": 340,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "102": {
+   "found": false,
+   "seconds": 777,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "103": {
+   "found": false,
+   "seconds": 608,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  }
+ },
+ "better": []
+}

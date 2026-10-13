@@ -1,0 +1,44 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_10a W=16 K=64..95: 32 windows, 32 at a time, timeout 14400s, lrdn2988.leonardo.local ===
+route leaves 1a_lvl_10a on frame 204; 32 windows of 16 free frames (K = 64..95), 32 at a time
+  frames  70.. 86 in 16: no (281s)
+  frames  69.. 85 in 16: no (291s)
+  frames  71.. 87 in 16: no (362s)
+  frames  73.. 89 in 16: no (374s)
+  frames  74.. 90 in 16: no (434s)
+  frames  72.. 88 in 16: no (506s)
+  frames  75.. 91 in 16: no (630s)
+  frames  76.. 92 in 16: no (787s)
+  frames  77.. 93 in 16: no (967s)
+  frames  79.. 95 in 16: no (1047s)
+  frames  80.. 96 in 16: no (1146s)
+  frames  81.. 97 in 16: no (1293s)
+  frames  66.. 82 in 16: no (1462s)
+  frames  78.. 94 in 16: no (1491s)
+  frames  91..107 in 16: no (1512s)
+  frames  83.. 99 in 16: no (1582s)
+  frames  67.. 83 in 16: no (1600s)
+  frames  85..101 in 16: no (1615s)
+  frames  96..112 in 16: no (1617s)
+  frames  82.. 98 in 16: no (1640s)
+  frames  94..110 in 16: no (1659s)
+  frames  65.. 81 in 16: no (1666s)
+  frames  93..109 in 16: no (1694s)
+  frames  86..102 in 16: no (1701s)
+  frames  88..104 in 16: no (1704s)
+  frames  68.. 84 in 16: no (1711s)
+  frames  84..100 in 16: no (1718s)
+  frames  92..108 in 16: no (1728s)
+  frames  95..111 in 16: no (1755s)
+  frames  87..103 in 16: no (1801s)
+  frames  89..105 in 16: no (1971s)
+  frames  90..106 in 16: no (2147s)
+32 windows proven, 0 timed out, 0 faster routes (results in /leonardo/home/usertrain/a08trb05/celeste-sat/build/cert/w16/lvl_10a_k64-95/windows.json)

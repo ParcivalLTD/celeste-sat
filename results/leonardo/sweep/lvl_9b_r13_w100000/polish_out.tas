@@ -1,0 +1,22 @@
+# beam search (width 100000) after the first 14 frames of /leonardo/home/usertrain/a08trb05/celeste-sat/build/sweep/lvl_9b_r13_w100000/polish_in.tas: exits on frame 73
+   2,R
+  12,R,J
+   2,L
+   1,L,X
+   3
+   1,R,U
+  12,L
+   2
+   3,L
+   2
+   1,J
+   1,K
+   3,L,K
+   1,L,D,X
+   3
+   1,U
+  10,L
+   2,R
+   1,L
+   8,L,J
+   2,L

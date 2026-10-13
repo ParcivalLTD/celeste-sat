@@ -1,0 +1,28 @@
+Loading gcc/12.2.0
+  Loading requirement: zlib-ng/2.1.6-jkgunjc zstd/1.5.6-uq5yyux binutils/2.42
+Loading python/3.11.7
+  Loading requirement: bzip2/1.0.8-ib3znej libmd/1.0.4-2km2lxx
+    libbsd/0.12.1-oocs6an expat/2.6.2-p2t4wry ncurses/6.5-svfl57u
+    readline/8.2-zeda6mx gdbm/1.23-wiol7vk libiconv/1.17-nhc3mhm
+    xz/5.4.6-xxxg42c libxml2/2.10.3-zbbe7lm pigz/2.8-5bwzpml tar/1.34-jgektnv
+    gettext/0.22.5-hsxgafg libffi/3.4.6-4vs4jpp libxcrypt/4.4.35-7om46b5
+    sqlite/3.43.2-4kl5mnp util-linux-uuid/2.38.1-5achpds
+=== lvl_8b W=16 K=56..81: 26 windows, 26 at a time, timeout 14400s, lrdn3243.leonardo.local ===
+route leaves 1a_lvl_8b on frame 99; 26 windows of 16 free frames (K = 56..81), 26 at a time
+  frames  81.. 97 in 16: no (670s)
+  frames  80.. 96 in 16: no (731s)
+  frames  82.. 98 in 16: no (829s)
+  frames  76.. 92 in 16: no (2111s)
+  frames  77.. 93 in 16: no (2502s)
+  frames  78.. 94 in 16: no (3230s)
+  frames  79.. 95 in 16: no (3977s)
+  frames  60.. 76 in 16: no (5581s)
+  frames  57.. 73 in 16: no (5721s)
+  frames  59.. 75 in 16: no (5956s)
+  frames  64.. 80 in 16: no (6005s)
+  frames  75.. 91 in 16: no (6021s)
+  frames  61.. 77 in 16: no (6195s)
+  frames  62.. 78 in 16: no (6649s)
+  frames  63.. 79 in 16: no (6657s)
+  frames  58.. 74 in 16: no (6889s)
+[2026-10-11T04:08:56.146] error: *** JOB 59940258 ON lrdn3243 CANCELLED AT 2026-10-11T04:08:56 DUE TO TIME LIMIT ***

@@ -1,0 +1,46 @@
+{
+ "total": 210,
+ "results": [
+  {
+   "exit_a": 105,
+   "answer": "no",
+   "secs": 12
+  },
+  {
+   "exit_a": 104,
+   "answer": "no",
+   "secs": 39
+  },
+  {
+   "exit_a": 100,
+   "answer": "no",
+   "secs": 56
+  },
+  {
+   "exit_a": 99,
+   "answer": "no",
+   "secs": 59
+  },
+  {
+   "exit_a": 98,
+   "answer": "no",
+   "secs": 65
+  },
+  {
+   "exit_a": 102,
+   "answer": "no",
+   "secs": 66
+  },
+  {
+   "exit_a": 103,
+   "answer": "no",
+   "secs": 67
+  },
+  {
+   "exit_a": 101,
+   "answer": "no",
+   "secs": 266
+  }
+ ],
+ "proven": true
+}
