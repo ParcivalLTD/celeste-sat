@@ -289,12 +289,13 @@ record of what was found and are being solved again.
   (`2a_lvl_5` 141, `2a_lvl_7` 251), with the old timing too. Its `2a_lvl_7` exit
   doesn't lead into the 12-room route's `2a_lvl_8` (the chasers are
   elsewhere).
-- Between commit 1d3e148 and 2026-10-12 the model had a different
-  touch-switch hitbox ([verification.md](verification.md#chapter-2-one-recording-so-far)),
-  under which neither route replayed. The Leonardo chase run (beam width
-  500,000; rooms 3-9 in 105, 117, 141, 222, 245, 207 and 102 frames, then a
-  failure in `2a_lvl_10` that led to the exit fix of 588c008) used that
-  hitbox, so its routes need re-solving. They are not in the repository.
+- The Leonardo chase run (beam width 500,000; rooms 3-9 in 105, 117, 141,
+  222, 245, 207 and 102 frames, then a failure in `2a_lvl_10` that led to
+  the exit fix of 588c008) used commit 1d3e148's touch-switch box, which
+  turned out to be the game's
+  ([verification.md](verification.md#chapter-2-one-recording-so-far)), but
+  it also had the dream-block bugs. Its routes need re-solving like all the
+  others. They are not in the repository.
 
 ## Chapter 1, room 1 (`lvl_1`) in the community TAS
 
