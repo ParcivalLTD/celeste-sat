@@ -20,8 +20,8 @@ Last updated: 2026-10-18.
 - **The certificate holds for the model of 9e3dd4f** (Leonardo, Oct 2026): no 12- or 16-frame window
   of the community 1A TAS can be shortened to the same state, and the same
   holds across all 18 room transitions (3,826 windows proven, 6 timeouts).
-  It was computed before the model had the tiles outside the rooms; a sound
-  check says 1,721 of the 2,028 W = 12 windows could be affected (step 2 below).
+  It was computed before the model had the tiles outside the rooms; the
+  re-check is under way (step 2 below: 81 of the first 356 windows flagged).
 - **Nothing is faster than the community TAS yet.** The record is
   **0:49.079** (2,887 frames, VampireFlower/CelesteTAS `1A.tas`). The
   118-frame `lvl_6a` lead is void: the game has wall above the room. The
@@ -76,6 +76,13 @@ bash tools/run_tests.sh --vanilla --sat        # everything; takes a while
 
 ### 1. Solve the Chapter 2 chase again (hours; on the PC)
 
+**In progress (paused 2026-10-18, 23:30).** Rooms 1-5 are solved and cached
+(`build/2a_lvl_*/solved_from.h`): `2a_lvl_3` 104, `2a_lvl_4` 115,
+`2a_lvl_5` 139, `2a_lvl_6` 222, `2a_lvl_7` 244 frames (3-50 min each at
+beam width 100,000). `2a_lvl_8` was running when it was stopped. Restart the
+same command: it skips the cached rooms. Run it in the background with a log
+(`nohup ... > build/chain_chapter2.log 2>&1 &`); about 5 h for the 7 left.
+
 Every Chapter 2 route was made with at least one of the four bugs the
 recordings found. With the model now matching the game:
 
@@ -99,27 +106,51 @@ Then turn on the run_tests step again: it is skipped until the route is
 re-solved (`CHASE_ROUTE_FIXED=1 bash tools/run_tests.sh`, then remove the
 skip in `tools/run_tests.sh`).
 
-### 2. Re-check the Chapter 1 certificate near room edges (not an evening)
+### 2. Re-check the Chapter 1 certificate near room edges (in progress)
 
 The Leonardo windows were proven with everything outside a room as air.
 For Chapter 1 that is the only model change since (commit 9e3dd4f; the
 dream-block, chaser and touch-switch changes compile out). The old plan,
 "86 frames near an edge, re-run those windows", is not sound: it looked at
-where the *route* goes, not where the 12 free frames can go.
-`experiments/edge_windows.py` does the sound version: it floods the old
-model's free space with per-direction speed bounds and flags a window if a
-tile check there can answer differently (a box covering a solid outside tile
-and no room tile). Result: **1,721 of 2,028 W = 12 windows flagged**
-(`build/edge_windows_w12.json`); only 307 keep their proof for free.
+where the *route* goes, not where the 12 free frames can go. A plain
+distance bound flags 1,721 of the 2,028 W = 12 windows.
 
-Re-running them is the real cost: one W = 12 query took over 6 GB within
-90 s on the PC (more than `hpc/make_tasks.py`'s 4 GB estimate), so the PC
-runs one at a time and nothing else. 1,721 x ~12 min (Leonardo's median)
-is ~2-3 weeks of the PC. Options: cluster time again; a tighter bound
-(gravity, one dash: most windows mid-room should drop out); or a cheaper
-CBMC question per window ("can a tile check differ within W frames?",
-untested). Until then the certificate stands for the model of 9e3dd4f,
-not for the current one: say it that way.
+`experiments/edge_windows.py --exact 4` is the tight version (its docstring
+has the argument):
+
+1. `experiments/edge_reach.c` steps two solver builds of the room, with and
+   without its `; outside` lines, side by side on every input (486 per
+   frame) for the first 4 frames, duplicate states merged. While the two
+   states are identical, the window is the old model's.
+2. From the exact positions after 4 frames, a flood of the old model's free
+   space bounds where she can be for the other 8 frames (input_rules.h's
+   speed bounds, raised to what the states carry; move_h then move_v with
+   one corner correction; pushes only next to moving solids; positions past
+   the bounds within a frame). A window is flagged if a probe the outside
+   tiles decide is reachable on the way to its end state or the goal exit.
+
+Checked: for 22 windows in 8 rooms, every position the exact model reaches
+in frames 1-4 lies inside the flood. Two traps found on the way: the
+reference build (-DREFERENCE) reads `sim -s` state headers wrongly (its
+timers are seconds, the headers' are frames), so the explorer must use the
+solver build; and the flood must cover positions past the room bounds
+within a frame (the model clamps only at the end of it).
+
+**Results so far** (the full run was stopped at `lvl_3b`):
+`lvl_1` 17 of 79 flagged, `lvl_2` 21 of 105, `lvl_3` 21 of 94, `lvl_4` 22
+of 78; 81 of 356 windows. Resume with the other 15 rooms:
+
+```bash
+python3 experiments/edge_windows.py --exact 4 --jobs 6 \
+    --rooms lvl_3b,lvl_5,lvl_6,lvl_6a,lvl_6b,lvl_6c,lvl_7,lvl_8,lvl_8b,lvl_9,lvl_9b,lvl_10a,lvl_11,lvl_12,lvl_12a \
+    --json build/edge_windows_w12_rest.json      # ~1 h; not while the chase runs, if possible
+```
+
+Then, for what stays flagged, `--exact 5` (8x the states) may clear more.
+What is left needs `tools/windows.py` again: one W = 12 query took over 6 GB
+within 90 s on the PC (more than `hpc/make_tasks.py`'s 4 GB estimate), so
+one at a time, ~12 min each. Until then the certificate stands for the model
+of 9e3dd4f, not for the current one: say it that way.
 
 ### 3. The faster endings (the record attempt; weeks)
 
