@@ -1,0 +1,6 @@
+# LF line endings in every checkout, Windows included: the tools run under
+# Linux or WSL, and bash scripts with CRLF endings fail there
+* text=auto eol=lf
+*.bin binary
+# recordings stay byte for byte as CelesteTAS wrote them
+data/recordings/*.txt -text
