@@ -182,7 +182,7 @@ g = [[ch if ch not in 'dm' else '.' for ch in r] for r in g]
 # that sits still until every switch in the room has been touched, then moves
 # once; it shares the zip movers' slots (MAX_ZIP_MOVERS), so at most one here.
 # The switches go on open tiles just above a floor, where random play walks
-# over them (their collider is 30 x 30, so about two tiles across).
+# over them (their 16 x 16 box).
 gates, touches = [], []
 if seed % 7 == 2 and len(zips) < 3:
     for _try in range(60):

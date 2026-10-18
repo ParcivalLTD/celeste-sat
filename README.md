@@ -45,12 +45,13 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   different state and break the next room. The frames left are in the seams
   between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
-  chasers, switch gates and invisible barriers, all in the fuzzer. The first
-  recording of it in the game found three differences in how a dash enters
-  and leaves a dream block, all now fixed. The model then follows the game
-  for 590 frames, into a switch room, where the gate's timing is still
-  open. The Chapter 2 routes were made before these fixes and are to be
-  solved again.
+  chasers, switch gates and invisible barriers, all in the fuzzer. Its first
+  recordings in the game found four model bugs: three in how a dash enters
+  and leaves a dream block, and the touch switch's hitbox. With them fixed,
+  three recordings match on every frame. The longest is 851 frames over
+  five rooms, ending in a death on the same frame in both, with the switch
+  gate where the game has it. The Chapter 2 routes were made before these
+  fixes and are to be solved again.
 
 "Proven" here always means *within the model*, and usually *given the frames
 before the window*. What can and can't be claimed is in
@@ -79,6 +80,7 @@ bash tools/run_tests.sh --vanilla --sat            # + recordings from the game 
 
 | | |
 |---|---|
+| [brain.md](brain.md) | the working state: where things are, the next steps with commands, setup, lessons learnt |
 | [ROADMAP.md](ROADMAP.md) | where the project stands, and the plan towards a record, a paper and a release |
 | [docs/model.md](docs/model.md) | what is ported, how floats stay bit-exact, every entity |
 | [docs/verification.md](docs/verification.md) | the checks against the real game, how to record a route, what is still unverified |
