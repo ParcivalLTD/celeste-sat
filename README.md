@@ -80,6 +80,7 @@ bash tools/run_tests.sh --vanilla --sat            # + recordings from the game 
 
 | | |
 |---|---|
+| [brain.md](brain.md) | the working state: where things are, the next steps with commands, setup, lessons learnt |
 | [ROADMAP.md](ROADMAP.md) | where the project stands, and the plan towards a record, a paper and a release |
 | [docs/model.md](docs/model.md) | what is ported, how floats stay bit-exact, every entity |
 | [docs/verification.md](docs/verification.md) | the checks against the real game, how to record a route, what is still unverified |
