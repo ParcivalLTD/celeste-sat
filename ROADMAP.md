@@ -1,5 +1,8 @@
 # Roadmap
 
+The plan. For the current state and the next concrete steps, with commands,
+see [brain.md](brain.md).
+
 Three goals, in the order the work can deliver them:
 
 1. **A new TAS record** for a Celeste chapter, played in the real game.
