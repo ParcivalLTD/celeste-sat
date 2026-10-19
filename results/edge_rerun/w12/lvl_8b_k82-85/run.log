@@ -1,0 +1,29 @@
+route leaves 1a_lvl_8b on frame 99; 4 windows of 12 free frames (K = 82..85), 2 at a time
+  frames  83.. 95 in 12: no (343s)
+  frames  84.. 96 in 12: no (461s)
+  frames  85.. 97 in 12: no (540s)
+  frames  86.. 98 in 12: no (511s)
+4 windows proven, 0 timed out, 0 faster routes (results in /home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_8b_k82-85/windows.json)
+	Command being timed: "python3 tools/windows.py rooms/vanilla/1a_lvl_8b.txt build/chain_tas/lvl_8b/route.tas --start build/chain_tas/entry_lvl_8b.h --width 12 --from 82 --to 85 --jobs 2 --timeout 5400 --out build/cert/w12/lvl_8b_k82-85"
+	User time (seconds): 1849.55
+	System time (seconds): 7.51
+	Percent of CPU this job got: 189%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 16:17.89
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5927988
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 410
+	Minor (reclaiming a frame) page faults: 2670680
+	Voluntary context switches: 25045
+	Involuntary context switches: 8633
+	Swaps: 0
+	File system inputs: 66096
+	File system outputs: 2696
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

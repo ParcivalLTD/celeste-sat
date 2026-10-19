@@ -1,0 +1,53 @@
+{
+ "room": "rooms/vanilla/1a_lvl_9.txt",
+ "route": "build/chain_tas/lvl_9/route.tas",
+ "exit": 97,
+ "width": 12,
+ "windows": {
+  "80": {
+   "found": false,
+   "seconds": 2252,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "81": {
+   "found": false,
+   "seconds": 1143,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "82": {
+   "found": false,
+   "seconds": 1067,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "83": {
+   "found": false,
+   "seconds": 1128,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  }
+ },
+ "better": []
+}

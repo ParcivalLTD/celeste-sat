@@ -1,0 +1,41 @@
+{
+ "room": "rooms/vanilla/1a_lvl_8b.txt",
+ "route": "build/chain_tas/lvl_8b/route.tas",
+ "exit": 99,
+ "width": 12,
+ "windows": {
+  "82": {
+   "found": false,
+   "seconds": 343,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  },
+  "83": {
+   "found": false,
+   "seconds": 461,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  },
+  "84": {
+   "found": false,
+   "seconds": 540,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  },
+  "85": {
+   "found": false,
+   "seconds": 511,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  }
+ },
+ "better": []
+}
