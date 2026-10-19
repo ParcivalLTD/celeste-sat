@@ -1,0 +1,31 @@
+route leaves 1a_lvl_5 on frame 139; 6 windows of 12 free frames (K = 109..114), 2 at a time
+  frames 111..123 in 12: no (1978s)
+  frames 110..122 in 12: no (2733s)
+  frames 112..124 in 12: no (2205s)
+  frames 113..125 in 12: no (1799s)
+  frames 114..126 in 12: no (1906s)
+  frames 115..127 in 12: no (2014s)
+6 windows proven, 0 timed out, 0 faster routes (results in /home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_5_k109-114/windows.json)
+	Command being timed: "python3 tools/windows.py rooms/vanilla/1a_lvl_5.txt build/chain_tas/lvl_5/route.tas --start build/chain_tas/entry_lvl_5.h --width 12 --from 109 --to 114 --jobs 2 --timeout 5400 --out build/cert/w12/lvl_5_k109-114"
+	User time (seconds): 12621.18
+	System time (seconds): 16.69
+	Percent of CPU this job got: 192%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:49:08
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 7532972
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 426
+	Minor (reclaiming a frame) page faults: 5421010
+	Voluntary context switches: 58046
+	Involuntary context switches: 49660
+	Swaps: 0
+	File system inputs: 67192
+	File system outputs: 2856
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

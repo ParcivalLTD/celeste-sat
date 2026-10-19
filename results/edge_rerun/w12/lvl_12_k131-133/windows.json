@@ -1,0 +1,60 @@
+{
+ "room": "rooms/vanilla/1a_lvl_12.txt",
+ "route": "build/chain_tas/lvl_12/route.tas",
+ "exit": 147,
+ "width": 12,
+ "windows": {
+  "131": {
+   "found": true,
+   "seconds": 1231,
+   "ignored": [
+    "onGround",
+    "wallSpeedRetention",
+    "moveX",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "132": {
+   "found": true,
+   "seconds": 1428,
+   "ignored": [
+    "onGround",
+    "wallSpeedRetention",
+    "moveX",
+    "facing",
+    "hopWaitX",
+    "dashDir"
+   ]
+  },
+  "133": {
+   "found": true,
+   "seconds": 919,
+   "ignored": [
+    "onGround",
+    "moveX",
+    "facing"
+   ]
+  }
+ },
+ "better": [
+  {
+   "k": 131,
+   "exit": 143,
+   "route": "/home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_12_k131-133/win_131_better.tas",
+   "same_exit": false
+  },
+  {
+   "k": 132,
+   "exit": 144,
+   "route": "/home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_12_k131-133/win_132_better.tas",
+   "same_exit": false
+  },
+  {
+   "k": 133,
+   "exit": 144,
+   "route": "/home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_12_k131-133/win_133_better.tas",
+   "same_exit": false
+  }
+ ]
+}
