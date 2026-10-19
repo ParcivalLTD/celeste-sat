@@ -1,0 +1,109 @@
+{
+ "room": "rooms/vanilla/1a_lvl_6c.txt",
+ "route": "build/chain_tas/lvl_6c/route.tas",
+ "exit": 110,
+ "width": 12,
+ "windows": {
+  "70": {
+   "found": false,
+   "seconds": 160,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "71": {
+   "found": false,
+   "seconds": 183,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "72": {
+   "found": false,
+   "seconds": 266,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "73": {
+   "found": false,
+   "seconds": 340,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "74": {
+   "found": false,
+   "seconds": 430,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "wallBoost",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  },
+  "75": {
+   "found": false,
+   "seconds": 337,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "dashAttack",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  }
+ },
+ "better": []
+}

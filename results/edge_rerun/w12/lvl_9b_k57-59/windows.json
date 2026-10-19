@@ -1,0 +1,33 @@
+{
+ "room": "rooms/vanilla/1a_lvl_9b.txt",
+ "route": "build/chain_tas/lvl_9b/route.tas",
+ "exit": 73,
+ "width": 12,
+ "windows": {
+  "57": {
+   "found": false,
+   "seconds": 950,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  },
+  "58": {
+   "found": false,
+   "seconds": 1490,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  },
+  "59": {
+   "found": false,
+   "seconds": 1584,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  }
+ },
+ "better": []
+}

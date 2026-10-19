@@ -8,8 +8,8 @@
 # ROOMS_B64_FILE: Chapter 1's rooms, packed on the machine that has the game:
 #   tar -czf - -C rooms/vanilla $(ls rooms/vanilla | grep '^1a_lvl_') | base64 -w0 > ch1_rooms.b64
 # (they come from the game's map and are never committed.)
-# QUERIES_AT_ONCE: default MemAvailable / 7 GB (a CBMC query took up to ~6.5 GB
-# on the PC; see the pilot numbers in brain.md for the real peak).
+# QUERIES_AT_ONCE: default MemAvailable / 8 GB (a CBMC query took up to 7.2 GB
+# on GitHub runners, the largest of 620).
 #
 # Environment: TIMEOUT (seconds per query, default 5400), LIMIT (only the first N
 # windows, for a test), ROOMS (space separated rooms, default all).
@@ -30,7 +30,7 @@ mkdir -p rooms/vanilla
 base64 -d "$B64" | tar -xzf - -C rooms/vanilla
 
 MEM_GB=$(awk '/MemAvailable/ {printf "%d", $2 / 1048576}' /proc/meminfo)
-N=${2:-$(( MEM_GB / 7 > 0 ? MEM_GB / 7 : 1 ))}
+N=${2:-$(( MEM_GB / 8 > 0 ? MEM_GB / 8 : 1 ))}
 CORES=$(nproc)
 [ "$N" -le "$CORES" ] || N=$CORES
 

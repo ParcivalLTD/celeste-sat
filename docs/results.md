@@ -250,6 +250,43 @@ With the tiles in the model, the recording matches it on every frame, to
 her death on frame 136 of `lvl_6a`. The 118, and the 137-frame `lvl_6b`
 from its exit, are void.
 
+### The W = 12 certificate against the tiles outside the rooms (2026-10-19)
+
+The Leonardo proofs were made when everything outside a room's grid was air.
+Since then the model has the map's tiles around each room (`; outside`); for
+Chapter 1 that is the only model change (the others compile out). So a "no"
+can only be affected where some input sequence in the window makes a tile
+check answer differently.
+
+1. `experiments/edge_windows.py --exact 4` bounds that: the model with and
+   without the outside tiles run side by side on every input for the first
+   4 frames of each window, then a flood of the free space over the other 8
+   (speed bounds of `harness/input_rules.h`, the model's move order, pushes
+   near moving solids only). It clears **1,408** of the 2,028 windows
+   (**1,407** of them proven, one a Leonardo timeout); **620** could not be
+   ruled out. Its flood was checked against the exact model on 22 windows
+   in 8 rooms (no position outside it); it is an over-approximation by
+   construction, not a proof of the bounds themselves.
+2. The 620 were proven again with CBMC 5.95.1 on the current model (GitHub
+   Actions, `.github/workflows/edge-windows.yml`, run 39244071132; per-window
+   results in `results/edge_rerun/`; 180 core-hours, median 14.5 min per
+   window, at most 7.2 GB per query, no timeouts at 5,400 s):
+   **616 no, 4 yes.** The four are Leonardo's "faster endings"
+   (`lvl_3b` K = 84, `lvl_12` K = 131-133: leaves on frame 143-144 of 147,
+   a different exit state), now confirmed on the current model. One window
+   that timed out on Leonardo (`lvl_12a` K = 121) is now proven.
+
+| W = 12, 2,028 windows | Leonardo (model of 9e3dd4f) | current model |
+|---|---|---|
+| proven ("no") | 2,022 | **2,023** |
+| faster ending ("yes") | 4 | 4 |
+| timeout | 2 | 1 |
+
+So the local-optimality certificate at W = 12 holds for the current model,
+bar one window that timed out. **W = 16 (1,819 windows) and the 18 room
+transitions have not been re-checked** against the outside tiles; they
+stand for the model of 9e3dd4f.
+
 ## Chapter 2: the Badeline chase
 
 The chase (rooms 3 to 12 of 2A) is in the model: dream blocks, Badeline

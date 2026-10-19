@@ -1,0 +1,98 @@
+{
+ "room": "rooms/vanilla/1a_lvl_10a.txt",
+ "route": "build/chain_tas/lvl_10a/route.tas",
+ "exit": 204,
+ "width": 12,
+ "windows": {
+  "177": {
+   "found": false,
+   "seconds": 28,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "178": {
+   "found": false,
+   "seconds": 40,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "autoJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "179": {
+   "found": false,
+   "seconds": 48,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "180": {
+   "found": false,
+   "seconds": 68,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "181": {
+   "found": false,
+   "seconds": 100,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  },
+  "182": {
+   "found": false,
+   "seconds": 115,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "autoJump",
+    "moveX",
+    "facing"
+   ]
+  }
+ },
+ "better": []
+}
