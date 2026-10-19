@@ -21,7 +21,8 @@ Last updated: 2026-10-18.
   of the community 1A TAS can be shortened to the same state, and the same
   holds across all 18 room transitions (3,826 windows proven, 6 timeouts).
   It was computed before the model had the tiles outside the rooms; the
-  re-check is under way (step 2 below: 81 of the first 356 windows flagged).
+  re-check (step 2 below) clears 1,408 of the 2,028 W = 12 windows; 620 need
+  another look.
 - **Nothing is faster than the community TAS yet.** The record is
   **0:49.079** (2,887 frames, VampireFlower/CelesteTAS `1A.tas`). The
   118-frame `lvl_6a` lead is void: the game has wall above the room. The
@@ -136,15 +137,14 @@ timers are seconds, the headers' are frames), so the explorer must use the
 solver build; and the flood must cover positions past the room bounds
 within a frame (the model clamps only at the end of it).
 
-**Results so far** (the full run was stopped at `lvl_3b`):
-`lvl_1` 17 of 79 flagged, `lvl_2` 21 of 105, `lvl_3` 21 of 94, `lvl_4` 22
-of 78; 81 of 356 windows. Resume with the other 15 rooms:
-
-```bash
-python3 experiments/edge_windows.py --exact 4 --jobs 6 \
-    --rooms lvl_3b,lvl_5,lvl_6,lvl_6a,lvl_6b,lvl_6c,lvl_7,lvl_8,lvl_8b,lvl_9,lvl_9b,lvl_10a,lvl_11,lvl_12,lvl_12a \
-    --json build/edge_windows_w12_rest.json      # ~1 h; not while the chase runs, if possible
-```
+**Result (2026-10-19): 620 of the 2,028 W = 12 windows flagged; 1,408 keep
+their Leonardo proof for the current model.** The list is
+`build/edge_windows_w12_all.json` (not in git; re-run to get it). Per room
+(flagged / windows): lvl_1 17/79, lvl_2 21/105, lvl_3 21/94, lvl_4 22/78,
+lvl_3b 38/85, lvl_5 43/126, lvl_6 46/104, lvl_6a 45/148, lvl_6b 58/97,
+lvl_6c 34/97, lvl_7 15/90, lvl_8 36/94, lvl_8b 39/86, lvl_9 16/84,
+lvl_9b 28/60, lvl_10a 18/191, lvl_11 24/148, lvl_12 37/134, lvl_12a 62/128.
+About 2.5 h on the PC (10 jobs).
 
 Then, for what stays flagged, `--exact 5` (8x the states) may clear more.
 What is left needs `tools/windows.py` again: one W = 12 query took over 6 GB
