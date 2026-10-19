@@ -1,0 +1,95 @@
+# Re-proves the W = 12 window proofs of the Chapter 1 certificate that the
+# tiles outside the rooms could affect (hpc/edge_flagged_w12.json, found by
+# experiments/edge_windows.py), on the current model, in parallel.
+#
+# Edit hpc/edge_run.json (which rooms, how many jobs, how many queries at once)
+# and push this branch to start a run. The results go to a branch named
+# edge-results-<run id>. Needs no game files: the rooms and routes are in the
+# repository (rooms/vanilla, results/leonardo/chain_tas, hpc/entry_states/ch1).
+name: edge-windows
+
+on:
+  push:
+    branches: [edge-windows-run]
+  workflow_dispatch:
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.chunks.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: chunks
+        shell: bash
+        run: |
+          echo "matrix=$(python3 hpc/edge_chunks.py hpc/edge_run.json)" >> "$GITHUB_OUTPUT"
+          python3 hpc/edge_chunks.py hpc/edge_run.json > /dev/null
+
+  prove:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CBMC
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq cbmc && cbmc --version
+      - name: Prove the windows
+        shell: bash
+        run: |
+          R=${{ matrix.room }}
+          mkdir -p "build/chain_tas/$R"
+          cp "results/leonardo/chain_tas/$R/route.tas" "build/chain_tas/$R/route.tas"
+          START=()
+          if [ -f "hpc/entry_states/ch1/entry_$R.h" ]; then
+            cp "hpc/entry_states/ch1/entry_$R.h" "build/chain_tas/entry_$R.h"
+            START=(--start "build/chain_tas/entry_$R.h")
+          fi
+          free -g | sed -n 2p
+          /usr/bin/time -v python3 tools/windows.py "rooms/vanilla/1a_$R.txt" "build/chain_tas/$R/route.tas" \
+            "${START[@]}" --width 12 --from ${{ matrix.k0 }} --to ${{ matrix.k1 }} \
+            --jobs ${{ matrix.parallel }} --timeout ${{ matrix.timeout }} \
+            --out "build/cert/w12/${{ matrix.name }}" 2>&1 | tee run.log
+      - name: Collect
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p out
+          cp run.log out/ 2>/dev/null || true
+          D="build/cert/w12/${{ matrix.name }}"
+          cp "$D/windows.json" out/ 2>/dev/null || true
+          cp "$D"/win_*_better*.tas out/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-${{ matrix.name }}
+          path: out/
+          retention-days: 14
+
+  collect:
+    needs: prove
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: edge-*
+      - name: Summarise and push the results
+        shell: bash
+        run: |
+          python3 hpc/edge_collect.py artifacts results/edge_rerun | tee summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "edge-windows"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "edge-results-${{ github.run_id }}"
+          git add results/edge_rerun
+          git commit -q -m "Edge re-run of the flagged W=12 windows (run ${{ github.run_id }})"
+          git push origin "edge-results-${{ github.run_id }}"
