@@ -4,8 +4,11 @@
 #
 # Edit hpc/edge_run.json (which rooms, how many jobs, how many queries at once)
 # and push this branch to start a run. The results go to a branch named
-# edge-results-<run id>. Needs no game files: the rooms and routes are in the
-# repository (rooms/vanilla, results/leonardo/chain_tas, hpc/entry_states/ch1).
+# edge-results-<run id>. The routes and entry states are in the repository
+# (results/leonardo/chain_tas, hpc/entry_states/ch1). Chapter 1's rooms are
+# exported from the game's map and never committed: they come from the
+# repository secret CH1_ROOMS_B64, made with
+#   tar -czf - -C rooms/vanilla $(ls rooms/vanilla | grep '^1a_lvl_') | base64 -w0
 name: edge-windows
 
 on:
@@ -40,7 +43,11 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq cbmc && cbmc --version
       - name: Prove the windows
         shell: bash
+        env:
+          CH1_ROOMS_B64: ${{ secrets.CH1_ROOMS_B64 }}
         run: |
+          [ -n "$CH1_ROOMS_B64" ] || { echo "the secret CH1_ROOMS_B64 is not set"; exit 1; }
+          echo "$CH1_ROOMS_B64" | base64 -d | tar -xzf - -C rooms/vanilla
           R=${{ matrix.room }}
           mkdir -p "build/chain_tas/$R"
           cp "results/leonardo/chain_tas/$R/route.tas" "build/chain_tas/$R/route.tas"
