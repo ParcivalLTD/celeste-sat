@@ -1,0 +1,9 @@
+# Tool versions for results/certificates/ (certify.py also stores cbmc, cadical and drat-trim in every results file)
+machine: Linux x86_64, 4 cores, 15 GB, Ubuntu 24.04 (a cloud container)
+cbmc: 5.95.1 (cbmc-5.95.1) (Ubuntu package cbmc 5.95.1-4ubuntu1; Leonardo used 5.80.0)
+cadical: 1.7.3 (Ubuntu package cadical 1.7.4-1)
+drat-trim: github.com/marijnheule/drat-trim master, drat-trim.c 'Last edit: April 21, 2024', source sha256 d834b649f437e091597f5347f259b9f681087f89ca0844d0cee250a1a1a0c2ee, built with: gcc -O2 -o drat-trim drat-trim.c
+  binary sha256 fcc6f026604615b98830dc70e62dcea2518a0437c6df3673ffa0d41e473cd9d7
+minisat: 1:2.2.1-8build1 (Ubuntu package; benchmark calibration only)
+gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+python: Python 3.13.18
