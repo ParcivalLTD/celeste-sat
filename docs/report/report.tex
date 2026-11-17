@@ -10,8 +10,8 @@
 \newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 \newcommand{\code}[1]{\texttt{#1}}
 % filled in from results/certificates/ledge_w8.json
-\newcommand{\LEDGEROWS}{\TODO{ledge results}}
-\newcommand{\LEDGECHECK}{\TODO{time}}
+\newcommand{\LEDGEROWS}{all 9 windows ($K = 0$ to 8) are \emph{no} for CBMC, UNSAT for CaDiCaL and verified by drat-trim}
+\newcommand{\LEDGECHECK}{4 to 19 minutes}
 
 \begin{document}
 
@@ -144,9 +144,13 @@ come back SAT; the next window, which must certify; and that window's proof
 with its last tenth cut off, which drat-trim must reject. It does all three.
 
 On the demo room \code{ledge} (an 18-frame route), every window of
-$W{=}8$ certifies: \LEDGEROWS. A window's CNF has about 3.6 million
-variables and 11 million clauses; CaDiCaL takes about 9 minutes and writes a
-proof of about 1.1\,GB, which drat-trim checks in \LEDGECHECK.
+$W{=}8$ certifies: \LEDGEROWS. A window's CNF has 2.1 to 3.6 million
+variables and 6.5 to 11.1 million clauses; CaDiCaL takes 3 to 9 minutes and
+writes a binary DRAT proof of 0.56 to 1.2\,GB, which drat-trim checks in
+\LEDGECHECK, about twice the solving time (CBMC~5.95.1, CaDiCaL~1.7.3, one
+4-core machine, 8.5\,GB of proofs in all). The CNF that CBMC writes is
+deterministic: a window solved by hand and again by the script gives the
+same SHA-256.
 For Chapter~1's room~1 at $W{=}8$: \TODO{the 83 windows of \code{lvl\_1}: number certified, total time, proof sizes, from results/certificates/lvl\_1\_w8.json}.
 
 \section{What ``Proven'' Means, and What Is Open}
