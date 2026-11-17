@@ -141,7 +141,11 @@ def certify_window(bdir, k, w, mask, timeout, keep, cbmc_verdict=True):
         found, _, dt = query(bdir, k, w, timeout, mask)
         row["cbmc"] = {None: "timeout", False: "no", True: "yes"}[found]
         row["cbmc_seconds"] = round(dt, 1)
-    v, c, dt = export_cnf(bdir, k, w, mask, cnf, timeout)
+    try:
+        v, c, dt = export_cnf(bdir, k, w, mask, cnf, timeout)
+    except subprocess.TimeoutExpired:
+        row.update(solver="cnf export timeout", certified=False)
+        return row
     row.update(variables=v, clauses=c, cnf_seconds=round(dt, 1), cnf_bytes=os.path.getsize(cnf),
                cnf_sha256=sha256(cnf))
     answer, dt = solve(cnf, proof, timeout)
