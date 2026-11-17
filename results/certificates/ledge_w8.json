@@ -1,0 +1,273 @@
+{
+ "room": "rooms/ledge.txt",
+ "route": "results/routes/ledge.tas",
+ "start": null,
+ "exit": 18,
+ "width": 8,
+ "exact": false,
+ "versions": {
+  "cbmc": "5.95.1 (cbmc-5.95.1)",
+  "cadical": "1.7.3",
+  "drat-trim": "binary sha256 fcc6f026604615b98830dc70e62dcea2518a0437c6df3673ffa0d41e473cd9d7"
+ },
+ "started": "2026-11-17T19:37:21+0000",
+ "windows": [
+  {
+   "k": 0,
+   "frames": [
+    1,
+    9
+   ],
+   "mask": 24777,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 480.8,
+   "variables": 3628991,
+   "clauses": 11105266,
+   "cnf_seconds": 14.6,
+   "cnf_bytes": 289854027,
+   "cnf_sha256": "767c7385b1d4e1b6ae9759e892c5c44e441a2e80b314b1f7d0e0ba3baae5e07c",
+   "solver": "unsat",
+   "solver_seconds": 557.8,
+   "proof_bytes": 1107123812,
+   "proof_sha256": "5464dc449e6698b9ba93bc0aa92a159f833ca39f9cae08f4466b2eeed3e7eb88",
+   "checker": "verified",
+   "checker_seconds": 1152.7,
+   "certified": true
+  },
+  {
+   "k": 1,
+   "frames": [
+    2,
+    10
+   ],
+   "mask": 24777,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 58.2,
+   "variables": 2132779,
+   "clauses": 6490247,
+   "cnf_seconds": 9.7,
+   "cnf_bytes": 164294152,
+   "cnf_sha256": "d4a779219dbd027fcfd4016f8eca748404952967a94b32fc2323b889d43f8b3e",
+   "solver": "unsat",
+   "solver_seconds": 190.4,
+   "proof_bytes": 562831693,
+   "proof_sha256": "bea6596e0806f491e965a32d73a4efec03f609ae5fcc833412a66596e2ca6ae8",
+   "checker": "verified",
+   "checker_seconds": 249.8,
+   "certified": true
+  },
+  {
+   "k": 2,
+   "frames": [
+    3,
+    11
+   ],
+   "mask": 24777,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "dashAttack",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 137.1,
+   "variables": 2625978,
+   "clauses": 8028169,
+   "cnf_seconds": 14.2,
+   "cnf_bytes": 206085327,
+   "cnf_sha256": "61e80a808a2d4b5f815047421e5bde4ed03d49cf6a496bf2e8b8fcaec1696782",
+   "solver": "unsat",
+   "solver_seconds": 269.2,
+   "proof_bytes": 725720178,
+   "proof_sha256": "451e4a01238f307bfc9c029705fe66c9c1e201d37888ff09ea3d82abdf2aaa2c",
+   "checker": "verified",
+   "checker_seconds": 454.7,
+   "certified": true
+  },
+  {
+   "k": 3,
+   "frames": [
+    4,
+    12
+   ],
+   "mask": 24649,
+   "ignored": [
+    "onGround",
+    "jumpGraceTimer",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 173.1,
+   "variables": 3119688,
+   "clauses": 9568246,
+   "cnf_seconds": 11.4,
+   "cnf_bytes": 247924236,
+   "cnf_sha256": "7cd43e0cfc1a4605ae9edc91dd806bcb6e38245dd600667fe63151284892a182",
+   "solver": "unsat",
+   "solver_seconds": 383.7,
+   "proof_bytes": 923993594,
+   "proof_sha256": "f518d0672c778921512d55d29841f7a38c173b90386d85f36edc0170339e2794",
+   "checker": "verified",
+   "checker_seconds": 691.5,
+   "certified": true
+  },
+  {
+   "k": 4,
+   "frames": [
+    5,
+    13
+   ],
+   "mask": 24577,
+   "ignored": [
+    "onGround",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 241.9,
+   "variables": 3614013,
+   "clauses": 11110675,
+   "cnf_seconds": 14.1,
+   "cnf_bytes": 289820514,
+   "cnf_sha256": "f25f94e3771976191633a5f4905d19398cc728d95ed96fb8bf74596aa64e76e1",
+   "solver": "unsat",
+   "solver_seconds": 513.1,
+   "proof_bytes": 1199136464,
+   "proof_sha256": "81c13f428178d1b24365e6e9162bc5993ab1664dda558b3e2046093215b6ee1b",
+   "checker": "verified",
+   "checker_seconds": 1150.8,
+   "certified": true
+  },
+  {
+   "k": 5,
+   "frames": [
+    6,
+    14
+   ],
+   "mask": 24577,
+   "ignored": [
+    "onGround",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 122.1,
+   "variables": 3361482,
+   "clauses": 10329572,
+   "cnf_seconds": 13.7,
+   "cnf_bytes": 268548598,
+   "cnf_sha256": "18f1cbea1752823a18296a97f73bd22e096c26e7bac97f7a3c866173f73bca22",
+   "solver": "unsat",
+   "solver_seconds": 278.3,
+   "proof_bytes": 1126462338,
+   "proof_sha256": "0cba4cffc3384312a3d4be02466d902533dfaf8fbe3c631a0ea45cd27699fbc5",
+   "checker": "verified",
+   "checker_seconds": 539.0,
+   "certified": true
+  },
+  {
+   "k": 6,
+   "frames": [
+    7,
+    15
+   ],
+   "mask": 24705,
+   "ignored": [
+    "onGround",
+    "dashAttack",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 83.4,
+   "variables": 3356305,
+   "clauses": 10311355,
+   "cnf_seconds": 11.4,
+   "cnf_bytes": 268084952,
+   "cnf_sha256": "e94607e6b71431cefe67e5a0cd4f8ad7c1932b3be71605afc0fe7ed0b35bcfc0",
+   "solver": "unsat",
+   "solver_seconds": 242.4,
+   "proof_bytes": 936884775,
+   "proof_sha256": "a00fa39b4ce4a3ae5431bdc1289215f2f5df8f1b0edeea36d095ff110492bbeb",
+   "checker": "verified",
+   "checker_seconds": 443.1,
+   "certified": true
+  },
+  {
+   "k": 7,
+   "frames": [
+    8,
+    16
+   ],
+   "mask": 24705,
+   "ignored": [
+    "onGround",
+    "dashAttack",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 134.6,
+   "variables": 3356288,
+   "clauses": 10311303,
+   "cnf_seconds": 14.2,
+   "cnf_bytes": 268083662,
+   "cnf_sha256": "29eb5e0b5c0ca6e2e5e27a4d575aca1e6f99f711485201facb5003eabcc02a47",
+   "solver": "unsat",
+   "solver_seconds": 172.8,
+   "proof_bytes": 884196531,
+   "proof_sha256": "693f6fa2c21915a363f784cddb64a28741fc73af144a8120e2744d42d376e19f",
+   "checker": "verified",
+   "checker_seconds": 413.0,
+   "certified": true
+  },
+  {
+   "k": 8,
+   "frames": [
+    9,
+    17
+   ],
+   "mask": 24577,
+   "ignored": [
+    "onGround",
+    "moveX",
+    "facing"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 176.7,
+   "variables": 3360795,
+   "clauses": 10324948,
+   "cnf_seconds": 11.8,
+   "cnf_bytes": 268451351,
+   "cnf_sha256": "c065fc0621ed312df725122a4323a7311c1d8d148c4d33bb8004494fca512f5b",
+   "solver": "unsat",
+   "solver_seconds": 249.0,
+   "proof_bytes": 1079358004,
+   "proof_sha256": "a9811decc97542fe609717532f3c23b3047859818f39d14917b0063bd156f331",
+   "checker": "verified",
+   "checker_seconds": 693.7,
+   "certified": true
+  }
+ ],
+ "finished": "2026-11-17T20:42:54+0000"
+}
