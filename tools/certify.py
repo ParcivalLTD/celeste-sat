@@ -161,6 +161,9 @@ def certify_window(bdir, k, w, mask, timeout, keep, cbmc_verdict=True):
         # There is nothing to solve and no proof to check; the "no" rests on CBMC alone.
         if row.get("cbmc") == "yes":
             raise Disagreement(f"window {k}: CBMC says yes but leaves no condition after simplification")
+        if v or c:
+            raise Disagreement(f"window {k}: CBMC leaves no condition after simplification, "
+                               f"but its CNF has {v} variables and {c} clauses")
         row.update(vccs_remaining=0, solver="not run", settled="by CBMC while simplifying (no formula, no proof)",
                    certified=False)
         if not keep and os.path.exists(cnf):
@@ -251,7 +254,7 @@ def self_check(timeout):
           "an empty CNF: recorded as settled, not as a disagreement)", flush=True)
     try:
         row = certify_window(bdir, 2, 2, headers(bdir, route, 2, 2, False), timeout, keep=False)
-        print(f"   cbmc {row['cbmc']}, {row['variables']} variables, {row.get('settled') or 'cadical ' + row['solver']}")
+        print(f"   cbmc {row['cbmc']}, {row.get('variables')} variables, {row.get('settled') or 'cadical ' + row['solver']}")
         if row["cbmc"] != "no" or not row.get("settled") or row["certified"]:
             failures.append("a window CBMC settles itself was not recorded as settled")
     except Disagreement as e:

@@ -116,7 +116,7 @@ def main():
             sys.exit(f"{name}: {e}")
         if row.get("settled"):
             sys.exit(f"{name}: CBMC settles this window while simplifying; it has no formula to benchmark")
-        expected ={"unsat": "UNSAT", "sat": "SAT"}.get(row["solver"], "UNKNOWN")
+        expected = {"unsat": "UNSAT", "sat": "SAT"}.get(row["solver"], "UNKNOWN")
         cnf = f"{bdir}/win_{k}.cnf"
         out = os.path.join(a.out, name + ".cnf.xz")
         strip_comments(cnf, out, [
