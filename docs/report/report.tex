@@ -1,6 +1,6 @@
 % celeste-sat technical report -- DRAFT.
 % Build: cd docs/report && pdflatex report && bibtex report && pdflatex report && pdflatex report
-% Numbers marked \TODO{} come from runs not yet made (the Chapter 1 certificate run, Step 5 of the plan).
+% \TODO{} marks what is still missing (author details, citations). The Chapter 1 numbers are from results/certificates/lvl_1_w8.json.
 \documentclass[conference]{IEEEtran}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
@@ -151,7 +151,14 @@ writes a binary DRAT proof of 0.56 to 1.2\,GB, which drat-trim checks in
 4-core machine, 8.5\,GB of proofs in all). The CNF that CBMC writes is
 deterministic: a window solved by hand and again by the script gives the
 same SHA-256.
-For Chapter~1's room~1 at $W{=}8$: \TODO{the 83 windows of \code{lvl\_1}: number certified, total time, proof sizes, from results/certificates/lvl\_1\_w8.json}.
+For Chapter~1's room~1 (\code{lvl\_1}, a 92-frame route) at $W{=}8$, 81 of
+the 83 windows certify: 0.3 to 3.9 million variables and up to 11.8 million
+clauses per window, proofs of up to 1.5\,GB (76\,GB in all, checked, then
+deleted), and 16.6~hours for CBMC, CaDiCaL and drat-trim summed over the
+windows. The other two ($K = 31, 32$) start in a dash that lasts the whole
+window, so no input matters: CBMC settles them while simplifying,
+its DIMACS output is the empty formula, and there is no proof to check. These
+two rest on CBMC alone.
 
 \section{What ``Proven'' Means, and What Is Open}
 Every claim is about the model and is usually conditional on the frames
