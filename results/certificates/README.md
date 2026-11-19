@@ -41,13 +41,18 @@ window. CBMC settles them while simplifying ("0 remaining after
 simplification", in under a second), and its `--dimacs` output is the empty
 formula `p cnf 0 0`, which CaDiCaL rightly calls satisfiable. There is no
 proof to check, so these two "no" answers rest on CBMC alone. `certify.py`
-reports such a window as a disagreement and stops; the run went on with
-`--from 33`, and the two windows have no row in `lvl_1_w8.json`. Windows 81
+now records such a window as **settled** (a `"settled"` field in its row, no
+solver run); at first it took the empty formula for a disagreement and
+stopped, so the run went on with `--from 33` and the two rows came last.
+Turning CBMC's simplifier off to get a formula anyway (`--no-simplify`, also
+with `--no-propagation`, or with every loop bounded at 20 and
+`--unwinding-assertions`) does not work: symbolic execution had not finished
+after 4 to 9 minutes, against under a second with it. Windows 81
 and 82 start in a dash with the same 9 and 8 frames left, yet CBMC still
 writes a formula for them (small ones: 0.3 and 0.8 million variables), and
 they certify. Why the two pairs differ has not been looked into.
 
-**rooms/vanilla/1a_lvl_1.txt**, route `build/chain_tas/lvl_1/route.tas` (leaves on frame 92), W = 8: **81 of 81 windows certified**.
+**rooms/vanilla/1a_lvl_1.txt**, route `build/chain_tas/lvl_1/route.tas` (leaves on frame 92), W = 8: **81 of 83 windows certified**, 2 settled by CBMC while simplifying (no formula, no proof).
 
 | K | frames | variables | clauses | CBMC | CaDiCaL | s | proof MB | drat-trim | s |
 |---|---|---|---|---|---|---|---|---|---|
@@ -82,6 +87,8 @@ they certify. Why the two pairs differ has not been looked into.
 | 28 | 29–37 | 2,511,216 | 7,676,151 | no (27 s) | unsat | 183 | 634 | verified | 131 |
 | 29 | 30–38 | 3,029,532 | 9,295,548 | no (41 s) | unsat | 236 | 769 | verified | 168 |
 | 30 | 31–39 | 3,548,012 | 10,915,747 | no (60 s) | unsat | 263 | 1,084 | verified | 332 |
+| 31 | 32–40 | 0 | 0 | no (1 s) | settled by CBMC | 0 | 0 | – | 0 |
+| 32 | 33–41 | 0 | 0 | no (1 s) | settled by CBMC | 0 | 0 | – | 0 |
 | 33 | 34–42 | 299,175 | 557,206 | no (2 s) | unsat | 1 | 3 | verified | 1 |
 | 34 | 35–43 | 801,008 | 2,144,328 | no (6 s) | unsat | 6 | 5 | verified | 4 |
 | 35 | 36–44 | 1,308,880 | 3,757,039 | no (11 s) | unsat | 46 | 246 | verified | 29 |
@@ -189,8 +196,7 @@ Chapter 1, room 1 (needs `game/1-ForsakenCity.bin`, see [game/README.md](../../g
 ```bash
 python3 tests/chain_tas.py                         # writes rooms/vanilla/1a_lvl_1.txt and build/chain_tas/lvl_1/route.tas
 python3 tools/certify.py rooms/vanilla/1a_lvl_1.txt build/chain_tas/lvl_1/route.tas --width 8 --jobs 2
-#   -> results/certificates/lvl_1_w8.json; if it is interrupted, run it again with --resume.
-#   It stops at window 31 (no formula, see above); carry on with --resume --from 33
+#   -> results/certificates/lvl_1_w8.json; if it is interrupted, run it again with --resume
 python3 tools/certificates_table.py results/certificates/lvl_1_w8.json
 ```
 

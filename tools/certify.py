@@ -18,8 +18,11 @@ CNF instead of solving it, then:
 
 A window is "certified" when CBMC says no, CaDiCaL says UNSAT and drat-trim
 says "s VERIFIED". Anything else (a yes, a timeout, a proof that does not
-check) is recorded as such, never dropped. Each window is one row of the JSON
-file, written after every window, so an interrupted run keeps what it did.
+check) is recorded as such, never dropped. A window that CBMC proves while
+simplifying (no condition left, for instance inside a dash where no input
+matters) has an empty CNF: it is recorded as "settled", with no formula to
+solve and no proof to check. Each window is one row of the JSON file, written
+after every window, so an interrupted run keeps what it did.
 
 What stays trusted is CBMC's translation of harness/window.c into the CNF,
 the model, the question, the field mask (sim/live.c) and drat-trim itself:
@@ -29,7 +32,8 @@ results/certificates/README.md.
 `ledge` with a wasted first frame (tests/fixtures/ledge_wasted.tas), whose
 first 4-frame window has a faster route (the CNF must be SAT), and whose
 second is a "no" that must certify; then it cuts the end off that window's
-proof (written as text) and drat-trim must reject it.
+proof (written as text) and drat-trim must reject it; last, a 2-frame window
+that CBMC settles itself must be recorded as settled.
 
 Tools: cbmc, cadical and drat-trim on PATH, or set CBMC, CADICAL, DRAT_TRIM.
 drat-trim has no version flag: the SHA-256 of its binary is recorded instead.
@@ -92,17 +96,20 @@ def window_args(bdir, k, w, mask):
 
 
 def export_cnf(bdir, k, w, mask, cnf, timeout):
-    """CBMC's formula for the window as DIMACS -> (variables, clauses, seconds)"""
+    """CBMC's formula for the window as DIMACS -> (variables, clauses, seconds, remaining): remaining is
+    how many verification conditions CBMC leaves after its own simplification (None if it does not say)"""
     t0 = time.time()
     r = subprocess.run(window_args(bdir, k, w, mask) + ["--dimacs", "--outfile", cnf], cwd=bdir,
                        capture_output=True, text=True, timeout=timeout)
     if r.returncode or not os.path.exists(cnf):
         raise RuntimeError(f"window {k}: cbmc --dimacs failed:\n{r.stdout[-2000:]}{r.stderr[-2000:]}")
+    m = re.search(r"(\d+) remaining after simplification", r.stdout)
+    remaining = int(m.group(1)) if m else None
     with open(cnf) as f:
         for line in f:
             if line.startswith("p cnf"):
                 _, _, v, c = line.split()
-                return int(v), int(c), time.time() - t0
+                return int(v), int(c), time.time() - t0, remaining
     raise RuntimeError(f"window {k}: no 'p cnf' line in {cnf}")
 
 
@@ -142,12 +149,23 @@ def certify_window(bdir, k, w, mask, timeout, keep, cbmc_verdict=True):
         row["cbmc"] = {None: "timeout", False: "no", True: "yes"}[found]
         row["cbmc_seconds"] = round(dt, 1)
     try:
-        v, c, dt = export_cnf(bdir, k, w, mask, cnf, timeout)
+        v, c, dt, remaining = export_cnf(bdir, k, w, mask, cnf, timeout)
     except subprocess.TimeoutExpired:
         row.update(solver="cnf export timeout", certified=False)
         return row
     row.update(variables=v, clauses=c, cnf_seconds=round(dt, 1), cnf_bytes=os.path.getsize(cnf),
                cnf_sha256=sha256(cnf))
+    if remaining == 0:
+        # CBMC proves the window while simplifying (e.g. inside a dash, where no input matters): no
+        # condition is left, so its DIMACS output is the empty formula, which every solver calls SAT.
+        # There is nothing to solve and no proof to check; the "no" rests on CBMC alone.
+        if row.get("cbmc") == "yes":
+            raise Disagreement(f"window {k}: CBMC says yes but leaves no condition after simplification")
+        row.update(vccs_remaining=0, solver="not run", settled="by CBMC while simplifying (no formula, no proof)",
+                   certified=False)
+        if not keep and os.path.exists(cnf):
+            os.remove(cnf)
+        return row
     answer, dt = solve(cnf, proof, timeout)
     row.update(solver=answer, solver_seconds=round(dt, 1))
     expected = {"no": "unsat", "yes": "sat"}.get(row.get("cbmc"))
@@ -229,9 +247,20 @@ def self_check(timeout):
         if os.path.exists(p):
             os.remove(p)
 
+    print("4. a window CBMC settles itself: K = 2, W = 2 (no condition left after its simplification, "
+          "an empty CNF: recorded as settled, not as a disagreement)", flush=True)
+    try:
+        row = certify_window(bdir, 2, 2, headers(bdir, route, 2, 2, False), timeout, keep=False)
+        print(f"   cbmc {row['cbmc']}, {row['variables']} variables, {row.get('settled') or 'cadical ' + row['solver']}")
+        if row["cbmc"] != "no" or not row.get("settled") or row["certified"]:
+            failures.append("a window CBMC settles itself was not recorded as settled")
+    except Disagreement as e:
+        print(f"   {e}")
+        failures.append("a window CBMC settles itself stopped the run as a disagreement")
+
     if failures:
         sys.exit("SELF-CHECK FAILED: " + "; ".join(failures))
-    print("self-check passed: the pipeline says yes, no and 'proof rejected' where it should")
+    print("self-check passed: the pipeline says yes, no, 'proof rejected' and 'no formula' where it should")
 
 
 def main():
@@ -315,7 +344,9 @@ def main():
             doc["windows"].append(row)
             save()
         line = f"  frames {k + 1:3d}..{k + w + 1:3d} in {w}: "
-        if row["certified"]:
+        if row.get("settled"):
+            line += f"settled {row['settled']}"
+        elif row["certified"]:
             line += (f"certified ({row['variables']} vars, {row['clauses']} clauses; cadical {row['solver_seconds']:.0f}s, "
                      f"drat-trim {row['checker_seconds']:.0f}s, proof {row['proof_bytes'] / 1e6:.0f} MB)")
         else:
@@ -329,9 +360,10 @@ def main():
     save()
     rows = [r for r in doc["windows"] if "disagreement" not in r]
     cert = sum(1 for r in rows if r["certified"])
+    settled = sum(1 for r in rows if r.get("settled"))
     total = len(rows) + sum(1 for r in doc["windows"] if "disagreement" in r)
-    print(f"{cert} of {len(rows)} windows certified, {total - len(rows)} disagreeing "
-          f"(results in {out})")
+    print(f"{cert} of {len(rows)} windows certified, {settled} settled by CBMC without a formula, "
+          f"{total - len(rows)} disagreeing (results in {out})")
     if stop.is_set():
         sys.exit(1)
 

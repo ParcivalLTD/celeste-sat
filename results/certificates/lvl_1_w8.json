@@ -1115,6 +1115,73 @@
    "certified": true
   },
   {
+   "k": 31,
+   "frames": [
+    32,
+    40
+   ],
+   "mask": 64991,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "dashAttack",
+    "wallSpeedRetention",
+    "wallBoost",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 0.8,
+   "variables": 0,
+   "clauses": 0,
+   "cnf_seconds": 0.8,
+   "cnf_bytes": 10,
+   "cnf_sha256": "e160232d0ce8816f12ecdcdc7bb0e939b55fb5ca43414ae6077dfa3989655732",
+   "vccs_remaining": 0,
+   "solver": "not run",
+   "settled": "by CBMC while simplifying (no formula, no proof)",
+   "certified": false
+  },
+  {
+   "k": 32,
+   "frames": [
+    33,
+    41
+   ],
+   "mask": 92383,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "stamina",
+    "jumpGraceTimer",
+    "varJump",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing",
+    "dashDir"
+   ],
+   "cbmc": "no",
+   "cbmc_seconds": 0.8,
+   "variables": 0,
+   "clauses": 0,
+   "cnf_seconds": 0.8,
+   "cnf_bytes": 10,
+   "cnf_sha256": "e160232d0ce8816f12ecdcdc7bb0e939b55fb5ca43414ae6077dfa3989655732",
+   "vccs_remaining": 0,
+   "solver": "not run",
+   "settled": "by CBMC while simplifying (no formula, no proof)",
+   "certified": false
+  },
+  {
    "k": 33,
    "frames": [
     34,
@@ -2829,5 +2896,5 @@
    "certified": true
   }
  ],
- "finished": "2026-11-19T18:29:08+0100"
+ "finished": "2026-11-19T19:30:58+0100"
 }

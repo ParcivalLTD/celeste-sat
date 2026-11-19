@@ -114,7 +114,9 @@ def main():
             row = certify_window(bdir, k, w, mask, a.timeout, keep=True)
         except Disagreement as e:
             sys.exit(f"{name}: {e}")
-        expected = {"unsat": "UNSAT", "sat": "SAT"}.get(row["solver"], "UNKNOWN")
+        if row.get("settled"):
+            sys.exit(f"{name}: CBMC settles this window while simplifying; it has no formula to benchmark")
+        expected ={"unsat": "UNSAT", "sat": "SAT"}.get(row["solver"], "UNKNOWN")
         cnf = f"{bdir}/win_{k}.cnf"
         out = os.path.join(a.out, name + ".cnf.xz")
         strip_comments(cnf, out, [
