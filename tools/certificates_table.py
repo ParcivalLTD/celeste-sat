@@ -15,15 +15,17 @@ def main():
         rows = [r for r in d["windows"] if "disagreement" not in r]
         bad = [r for r in d["windows"] if "disagreement" in r]
         cert = [r for r in rows if r["certified"]]
+        settled = [r for r in rows if r.get("settled")]
         print(f"**{d['room']}**, route `{d['route']}` (leaves on frame {d['exit']}), W = {d['width']}: "
               f"**{len(cert)} of {len(rows)} windows certified**"
+              + (f", {len(settled)} settled by CBMC while simplifying (no formula, no proof)" if settled else "")
               + (f", {len(bad)} disagreements" if bad else "") + ".\n")
         print("| K | frames | variables | clauses | CBMC | CaDiCaL | s | proof MB | drat-trim | s |")
         print("|---|---|---|---|---|---|---|---|---|---|")
         for r in rows:
             print(f"| {r['k']} | {r['frames'][0]}–{r['frames'][1]} | {r.get('variables', 0):,} | "
                   f"{r.get('clauses', 0):,} | {r.get('cbmc', '–')} ({r.get('cbmc_seconds', 0):.0f} s) | "
-                  f"{r['solver']} | {r.get('solver_seconds', 0):.0f} | "
+                  f"{'settled by CBMC' if r.get('settled') else r['solver']} | {r.get('solver_seconds', 0):.0f} | "
                   f"{r.get('proof_bytes', 0) / 1e6:,.0f} | {r.get('checker', '–')} | {r.get('checker_seconds', 0):.0f} |")
         tot = lambda key: sum(r.get(key, 0) for r in rows)  # noqa: E731
         print(f"\nTime per step, summed over the windows: CBMC {tot('cbmc_seconds') / 60:.0f} min, CNF export {tot('cnf_seconds') / 60:.0f} min, "
