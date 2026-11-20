@@ -1,0 +1,132 @@
+{
+ "family": "celeste-window",
+ "note": "draft list: calibrate (tools/benchmark.py --calibrate 3600) and keep about 20 that take minutes",
+ "instances": [
+  {
+   "room": "rooms/ledge.txt",
+   "route": "tests/fixtures/ledge_wasted.tas",
+   "width": 4,
+   "k": 0
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "tests/fixtures/ledge_wasted.tas",
+   "width": 6,
+   "k": 0
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "tests/fixtures/ledge_wasted.tas",
+   "width": 8,
+   "k": 0
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 6,
+   "k": 0
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 6,
+   "k": 3
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 6,
+   "k": 6
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 6,
+   "k": 9
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 8,
+   "k": 0
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 8,
+   "k": 2
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 8,
+   "k": 4
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 8,
+   "k": 6
+  },
+  {
+   "room": "rooms/ledge.txt",
+   "route": "results/routes/ledge.tas",
+   "width": 8,
+   "k": 8
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 6,
+   "k": 0
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 6,
+   "k": 4
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 6,
+   "k": 8
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 6,
+   "k": 12
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 8,
+   "k": 0
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 8,
+   "k": 3
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 8,
+   "k": 6
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 8,
+   "k": 9
+  },
+  {
+   "room": "rooms/hop.txt",
+   "route": "results/routes/hop.tas",
+   "width": 8,
+   "k": 11
+  }
+ ]
+}

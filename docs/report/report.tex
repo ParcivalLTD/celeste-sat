@@ -1,0 +1,201 @@
+% celeste-sat technical report -- DRAFT.
+% Build: cd docs/report && pdflatex report && bibtex report && pdflatex report && pdflatex report
+% \TODO{} marks what is still missing (author details, citations). The Chapter 1 numbers are from results/certificates/lvl_1_w8.json.
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{amsmath}
+\newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\code}[1]{\texttt{#1}}
+% filled in from results/certificates/ledge_w8.json
+\newcommand{\LEDGEROWS}{all 9 windows ($K = 0$ to 8) are \emph{no} for CBMC, UNSAT for CaDiCaL and verified by drat-trim}
+\newcommand{\LEDGECHECK}{4 to 19 minutes}
+
+\begin{document}
+
+\title{Proving a Celeste Speedrun Locally Optimal:\\
+A Bit-Exact Model, SAT Queries and Checked Certificates}
+
+\author{\IEEEauthorblockN{\TODO{author}}
+\IEEEauthorblockA{\TODO{affiliation, e-mail}}}
+
+\maketitle
+
+\begin{abstract}
+We ask whether the community tool-assisted speedrun (TAS) of Chapter~1 of the
+platformer \emph{Celeste} can be made faster. We port the game's movement
+code to C, check it against the real game frame by frame down to the
+subpixel, and use the same code three ways: as a simulator, as a beam
+search, and as a CBMC harness in which every frame's input is free. SAT
+queries then either find a faster stretch of route or prove that none exists
+within the model. On a supercomputer campaign of about 2,300 core-hours,
+3,899 of 3,920 windows of 12, 16 and 18 frames over the chapter were proven
+impossible to shorten to the same state, and all 36 queries around the 18 room
+transitions were proven. To remove the SAT solver from the trusted base, we
+re-solve windows with CaDiCaL, emit DRAT proofs, and check them with
+drat-trim. What remains trusted is the translation of the harness to CNF and the model itself.
+\end{abstract}
+
+\section{The Question}
+Speedrunners and TAS authors optimise routes through \emph{Celeste} by hand,
+frame by frame. The community TAS of Chapter~1~\cite{celestetas} takes 2,887
+frames (0:49.079), of which 2,275 are frames of control in 19 rooms. Is it
+optimal?
+
+A game is a good testbed for bounded model checking because its physics is
+discrete and bit-precise: positions, speeds and timers are single-precision
+floats updated once per frame of $1/60$\,s, and there is ground truth to
+check any claim against, namely the game itself. The question is also hard. A room
+takes about 100 frames, each frame has about 70 distinct useful inputs, and
+the cost of a proof grows roughly $1.5\times$ per free frame. We therefore
+answer local questions: can any stretch of $W{+}1$ frames of the route be
+done in $W$ frames and reach the same state?
+
+\section{The Model and How It Is Checked}
+The model (\code{model/celeste.c}) is a port of the game's
+\code{Player.cs} and of the parts of the Monocle engine that move actors:
+running, jumps with coyote time and variable height, the 8-direction dash
+with its freeze frames, supers, hypers, wall jumps and wallbounces, climbing
+and stamina, the 5-frame input buffers, corner correction, spikes,
+jump-through platforms, springs, refills, zip movers, falling, crumble and
+dash blocks, and room transitions. It reproduces the game's single-precision
+arithmetic, including the order of operations. A \emph{literal} build keeps
+the game's float timers and pixel-by-pixel movement; an \emph{optimised}
+build, which the SAT harness uses, replaces them with integer frame counters and
+closed forms.
+
+Fidelity is checked three ways. (i)~Sixteen recordings of Chapter~1, made
+in Celeste~1.4 with CelesteTAS, match the model on every frame, subpixels
+included; the longest is 880 frames over 8 rooms and ends in a death on the
+same frame. (ii)~The whole community TAS replays in the model: every room's
+inputs leave the room on exactly their last frame, 2,275 frames in 19 rooms.
+(iii)~The literal and the optimised build agree bit for bit on 2.95 million
+fuzzed frames in random rooms, and so does every shortcut the harness takes.
+Chapter~2, which adds dream blocks, chasers and switch gates, served as a
+test: its first recordings exposed four model bugs, all since fixed.
+
+\section{The Queries}
+The same C code compiles into a CBMC~\cite{cbmc} harness whose inputs are
+nondeterministic. CBMC unrolls $W$ frames into a bit-precise formula and
+asks a SAT solver for a counterexample to an assertion.
+
+\emph{Room solve.} ``She does not leave the room within $N$ frames'':
+UNSAT proves $N$ too short.
+\emph{Windows} (\code{harness/window.c}). The run starts from the TAS's exact
+state after $K$ frames; with $W$ free frames, ``she never reaches the TAS's
+state after $K{+}W{+}1$ frames, nor the exit''. A counterexample is a route one frame faster; UNSAT
+proves that no input sequence gets from the state at $K$ to the state at
+$K{+}W{+}1$ in $W$ frames or fewer.
+\emph{Crossings} (\code{harness/cross.c}). The same question across a room
+transition: the last frames of one room and the first of the next are free.
+
+States are compared on the fields that can still change the rest of the
+route. Which fields are dead (e.g.\ a dash cooldown that runs out before the
+next dash) is found by replaying the rest of the route with each field
+changed (\code{sim/live.c}): 9--14 of 17 candidate fields in room~1. This is
+a test, not a proof; a route found with fields left out is replayed, and the
+window is asked again comparing every field if the replay is not faster.
+Symmetry-breaking rules on inputs (presses that only fill a buffer) are
+switched off in a window's last five frames.
+
+\section{Results}
+\emph{Faster stretches.} SAT found a frame the human TAS left: room~3
+(\code{lvl\_3}) can be left on frame 106 instead of 107 with a wallbounce on
+the dash's last frame. The game confirms it, but the next room's inputs fail
+from that exit state.
+
+\emph{Window proofs.} On CINECA's Leonardo (about 2,300 core-hours,
+CBMC~5.80.0), Table~\ref{tab:leonardo}: 3,899 windows were proven. All 15
+``faster'' answers are room \emph{endings}: the window counts leaving the
+room as success, and each leaves 2--5 frames sooner in a different state,
+after which the next room's TAS inputs fail. The 6 timeouts are not
+counted as proven. All 36 crossing queries (the last 6 frames of a room and
+3 of the next free, and again 10 and 8) were proven. The campaign ran before the model
+had the tiles the game copies above a room's top edge, so the 86 frames near
+room edges need re-checking.
+
+\begin{table}[t]
+\centering
+\caption{Window proofs over the community TAS (Leonardo)}
+\label{tab:leonardo}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+$W$, rooms & windows & proven & timeout & ``faster'' \\
+\midrule
+12, all 19 & 2,028 & 2,022 & 2 & 4 \\
+16, all 19 & 1,819 & 1,804 & 4 & 11 \\
+18, \code{lvl\_1} & 73 & 73 & 0 & 0 \\
+\midrule
+total & 3,920 & 3,899 & 6 & 15 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Checked certificates.} A ``no'' from CBMC means trusting CBMC's
+solver run. Following Seidl's ``never trust your solver''~\cite{seidl}, \code{tools/certify.py}
+asks CBMC for the window's formula in DIMACS instead (\code{--dimacs}), solves
+it with CaDiCaL~\cite{cadical}, which writes a DRAT proof~\cite{drat}, and
+checks the proof with drat-trim~\cite{drattrim}. CBMC's own verdict and
+CaDiCaL's must agree, or the run stops. The pipeline is first run where the
+answers are known: a demo room with a wasted frame, whose first window must
+come back SAT; the next window, which must certify; and that window's proof
+with its last tenth cut off, which drat-trim must reject. It does all three.
+
+On the demo room \code{ledge} (an 18-frame route), every window of
+$W{=}8$ certifies: \LEDGEROWS. A window's CNF has 2.1 to 3.6 million
+variables and 6.5 to 11.1 million clauses; CaDiCaL takes 3 to 9 minutes and
+writes a binary DRAT proof of 0.56 to 1.2\,GB, which drat-trim checks in
+\LEDGECHECK, about twice the solving time (CBMC~5.95.1, CaDiCaL~1.7.3, one
+4-core machine, 8.5\,GB of proofs in all). The CNF that CBMC writes is
+deterministic: a window solved by hand and again by the script gives the
+same SHA-256.
+For Chapter~1's room~1 (\code{lvl\_1}, 92 frames) at $W{=}8$, 81 of the 83
+windows certify. Their formulas have 0.3 to 3.9 million variables and up to
+11.8 million clauses, the largest proof is 1.5\,GB (76\,GB over all windows,
+deleted once checked), and CBMC, CaDiCaL and drat-trim take 16.6~hours in
+total. The remaining two windows ($K = 31, 32$) lie entirely inside a dash,
+so the inputs have no effect. CBMC proves them during simplification and
+emits an empty formula; with nothing left for the SAT solver, there is no
+proof, and these two results depend on CBMC alone.
+
+\section{What ``Proven'' Means, and What Is Open}
+Every claim is about the model and is usually conditional on the frames
+before the window. With certificates, the solver is no longer trusted. What
+stays trusted is:
+(i)~CBMC's translation of the harness into CNF (unrolling, bit-precise
+float arithmetic, the assumptions on inputs), now the largest piece;
+(ii)~the model, which is validated by recordings and fuzzing, not proven equal to the game;
+(iii)~the question itself (``the same state, one frame sooner'');
+(iv)~the field mask, which comes from a test;
+(v)~drat-trim, unless replaced by a formally verified checker of LRAT
+proofs such as cake\_lpr~\cite{cakelpr}.
+Certificates move the trust from the solver to the encoding and the model;
+the encoding is the next thing to check.
+
+Two problems are open. The \emph{seams} between rooms: faster endings that
+leave a room in a different state might pay off if the next room is
+re-routed, which local windows cannot see. And \emph{dominance between
+states}: a proof that a different state is no better than the TAS's
+(e.g.\ the same position with other subpixels) would turn ``no faster route to
+the same state'' into ``no faster route''. Room optimality needs lower bounds,
+and run optimality is out of reach for direct unrolling.
+
+\section{Related Work}
+Bounded model checking with CBMC~\cite{cbmc}; clausal proofs in DRAT and
+their checking with drat-trim~\cite{drat,drattrim}; verified checking of
+LRAT proofs~\cite{cakelpr}; the argument for checking a solver's answers
+rather than trusting it~\cite{seidl}. The community TAS and its tooling come
+from the CelesteTAS project~\cite{celestetas}.
+\TODO{Read every cited paper before submission and add only the ones read;
+check each entry's details.}
+
+\section*{Acknowledgement}
+The code was developed with AI coding agents. Computing time on Leonardo was
+provided by EuroHPC (project EUHPC\_D30\_031).
+
+\bibliographystyle{IEEEtran}
+\bibliography{report}
+
+\end{document}

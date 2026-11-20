@@ -44,6 +44,13 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   the solver can still find are faster room *endings* that leave in a
   different state and break the next room. The frames left are in the seams
   between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
+- **Checked certificates.** `tools/certify.py` re-solves a window's formula
+  with CaDiCaL and has drat-trim check the DRAT proof, so a "no" no longer
+  rests on the SAT solver. All 9 eight-frame windows of the demo room `ledge`
+  are certified, and 81 of the 83 in Chapter 1's room 1, with proofs of up to
+  1.5 GB each. The remaining two fall inside a dash: CBMC decides them on its
+  own, so there is no SAT formula and no proof
+  ([results/certificates/](results/certificates/README.md)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
   chasers, switch gates and invisible barriers, all in the fuzzer. Its first
   recordings in the game found four model bugs: three in how a dash enters
@@ -89,6 +96,9 @@ bash tools/run_tests.sh --vanilla --sat            # + recordings from the game 
 | [docs/rooms.md](docs/rooms.md) | the room format and exporting rooms from the game |
 | [docs/developing.md](docs/developing.md) | how the code fits together, the invariants, adding a mechanic |
 | [docs/history.md](docs/history.md) | the lab notebook: what was found when, and corrections |
+| [results/certificates/](results/certificates/README.md) | DRAT-checked proofs of the windows' "no" answers (`tools/certify.py`) |
+| [benchmarks/celeste-window/](benchmarks/celeste-window/README.md) | the SAT benchmark family generated from the windows (`tools/benchmark.py`) |
+| [docs/report/](docs/report/report.tex) | the technical report (draft) |
 
 ## Layout
 
@@ -97,13 +107,14 @@ model/          the port of Player.cs and the Monocle engine (celeste.h, celeste
 sim/ search/    the simulator, the beam search
 harness/        CBMC harnesses: one room, a window of a route, two rooms across a transition
 celeste_sat/    the Python library: TAS files, rooms, builds, states, transitions, CBMC, map files, recordings
-tools/          command lines: solve.py, windows.py, cross.py, chapter.py, splice_tas.py, celestetas.py, ...
+tools/          command lines: solve.py, windows.py, certify.py, cross.py, chapter.py, splice_tas.py, celestetas.py, ...
 tests/          checks with a pass/fail answer (tools/run_tests.sh runs them)
 experiments/    the scripts behind particular findings
 hpc/            Slurm scripts for cluster runs
 rooms/          demo rooms; rooms/vanilla/ for rooms exported from the game
 data/recordings/  recordings from the real game (CelesteTAS ExportGameInfo)
-results/        routes, files to play them in the game, the replay page
+results/        routes, files to play them in the game, the replay page, certificates
+benchmarks/     SAT benchmark families generated from the queries
 ```
 
 ## Credits
