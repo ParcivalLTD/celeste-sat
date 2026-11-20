@@ -6,7 +6,8 @@
 #   bash tools/run_tests.sh --vanilla    also Chapter 1 from your copy of the game (game/1-ForsakenCity.bin, see
 #                                        game/README.md): the community TAS through all 19 rooms, the recordings
 #                                        from the real game in data/recordings/, and beam searches of rooms 1-3
-#   bash tools/run_tests.sh --sat        also short SAT checks, one of them across a room transition (needs cbmc)
+#   bash tools/run_tests.sh --sat        also short SAT checks, one of them across a room transition (needs cbmc), and
+#                                        the certificate pipeline's self-check if cadical and drat-trim are there
 #   bash tools/run_tests.sh --vanilla --recordings DIR
 #                                        also the recordings CelesteTAS wrote into DIR (your Celeste folder, e.g.
 #                                        /mnt/r/SteamLibrary/steamapps/common/Celeste): every frame against the model
@@ -149,6 +150,12 @@ if [ "$SAT" = 1 ]; then
     check "windows + splice" python3 tools/splice_tas.py combine rooms/ledge.txt tests/fixtures/ledge_wasted.tas \
         build/win_ledge/windows.json -o build/win_ledge/combined.tas
     grep -q "^# .*18 frames instead of 19" build/win_ledge/combined.tas || FAILED+=("windows + splice: no 18-frame route")
+    if command -v cadical >/dev/null && command -v drat-trim >/dev/null; then
+        step "Certificates: the CNF / CaDiCaL / drat-trim pipeline where the answers are known (tools/certify.py --self-check)"
+        check "certify self-check" python3 tools/certify.py --self-check
+    else
+        step "Certificates: skipped (needs cadical and drat-trim: sudo apt install -y cadical; bash tools/get_drat_trim.sh)"
+    fi
     if [ "$VANILLA" = 1 ] && [ -f build/chain_tas/lvl_1/route.tas ]; then
         step "SAT: Chapter 1 room 1, the community TAS with frames 1-84 fixed (7 free frames)"
         python3 tools/solve.py rooms/vanilla/1a_lvl_1.txt --tas build/chain_tas/lvl_1/route.tas --from-frame 84 \

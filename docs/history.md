@@ -465,7 +465,7 @@ a much harder one. Treat the number as a placeholder until
 
 ### The merged branch, and what it brought
 
-`origin/claude/chapter2-ingame` (2 commits, +1759/−509 across 23 files) is
+The Chapter 2 in-game branch (2 commits, +1759/−509 across 23 files) is
 **merged** into `brain-and-cleanup`. It brought switch gates, touch switches,
 `CHASER_HIST_LEN` 128 → 256, `SPAWN_FACING`, `results/celestetas/2a_chase.tas`
 (an in-game test file) and, most importantly, a real Badeline:

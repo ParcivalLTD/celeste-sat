@@ -23,3 +23,11 @@ results/vanilla/
 !tests/**/*.cs
 # Everest / Celeste logs
 log.txt
+
+# LaTeX build files of the report (the final PDF is committed by hand)
+docs/report/*.aux
+docs/report/*.log
+docs/report/*.bbl
+docs/report/*.blg
+docs/report/*.out
+docs/report/report.pdf
