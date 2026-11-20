@@ -33,24 +33,30 @@ The CNF of K = 0 is bit for bit the one of the hand run.
 Time per step, summed over the windows: CBMC 27 min, CNF export 2 min, CaDiCaL 48 min, drat-trim 96 min; proofs 8.5 GB in all (checked, then deleted).
 Tools: 5.95.1 (cbmc-5.95.1); CaDiCaL 1.7.3; drat-trim binary sha256 fcc6f026604615b98830dc70e62dcea2518a0437c6df3673ffa0d41e473cd9d7.
 
-**Chapter 1, room 1** (`lvl_1`, the community TAS, 92 frames, W = 8: 83
-windows): **81 of the 83 windows certify**. The other two, K = 31 and 32
-(frames 32–40 and 33–41), start in the middle of a dash with 9 and 8 of its
-frames still to run (`coWait`), so no input can change anything inside the
-window. CBMC settles them while simplifying ("0 remaining after
-simplification", in under a second), and its `--dimacs` output is the empty
-formula `p cnf 0 0`, which CaDiCaL rightly calls satisfiable. There is no
-proof to check, so these two "no" answers rest on CBMC alone. `certify.py`
-now records such a window as **settled** (a `"settled"` field in its row, no
-solver run); at first it took the empty formula for a disagreement and
-stopped, so the run went on with `--from 33` and the two rows came last.
-Turning CBMC's simplifier off to get a formula anyway (`--no-simplify`, also
-with `--no-propagation`, or with every loop bounded at 20 and
-`--unwinding-assertions`) does not work: symbolic execution had not finished
-after 4 to 9 minutes, against under a second with it. Windows 81
-and 82 start in a dash with the same 9 and 8 frames left, yet CBMC still
-writes a formula for them (small ones: 0.3 and 0.8 million variables), and
-they certify. Why the two pairs differ has not been looked into.
+**Chapter 1, room 1** (`lvl_1`, the community TAS): the route is 92 frames
+long, which gives 83 windows at W = 8, and **81 of them certify**.
+
+The two that don't are K = 31 and 32 (frames 32–40 and 33–41). Madeline is in
+the middle of a dash at the start of both, with 9 and 8 dash frames left
+(`coWait`), so nothing pressed during the window changes what happens. CBMC
+works this out while simplifying, in under a second, and writes an empty
+formula (`p cnf 0 0`). An empty formula is satisfiable, which is what CaDiCaL
+says, so there is nothing to solve and no proof to check: for these two
+windows the "no" comes from CBMC alone. `certify.py` marks them as
+**settled** (a `"settled"` field in the row) rather than certified. The first
+version of the script took the empty formula for a disagreement and stopped,
+which is why the run carried on with `--from 33` and these two rows were
+added at the end.
+
+Forcing CBMC to produce a real formula by switching its simplifier off
+(`--no-simplify`, `--no-propagation`, or every loop bounded at 20 with
+`--unwinding-assertions`) doesn't work: symbolic execution hadn't finished
+after 4 to 9 minutes.
+
+Windows 81 and 82 are a loose end. They also start in a dash with 9 and 8
+frames left, but CBMC still writes a (small) formula for them, 0.3 and 0.8
+million variables, and they certify normally. Why they behave differently
+from 31 and 32 hasn't been looked into yet.
 
 **rooms/vanilla/1a_lvl_1.txt**, route `build/chain_tas/lvl_1/route.tas` (leaves on frame 92), W = 8: **81 of 83 windows certified**, 2 settled by CBMC while simplifying (no formula, no proof).
 

@@ -46,10 +46,10 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Checked certificates.** `tools/certify.py` re-solves a window's formula
   with CaDiCaL and has drat-trim check the DRAT proof, so a "no" no longer
-  rests on the SAT solver. On the demo room `ledge`, all 9 eight-frame windows
-  are certified; on Chapter 1's room 1, 81 of its 83, with proofs of up to
-  1.5 GB each. The other two lie inside a dash, where CBMC settles the window
-  without a SAT formula, so they have no proof
+  rests on the SAT solver. All 9 eight-frame windows of the demo room `ledge`
+  are certified, and 81 of the 83 in Chapter 1's room 1, with proofs of up to
+  1.5 GB each. The remaining two fall inside a dash: CBMC decides them on its
+  own, so there is no SAT formula and no proof
   ([results/certificates/](results/certificates/README.md)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
   chasers, switch gates and invisible barriers, all in the fuzzer. Its first
