@@ -1,7 +1,6 @@
-# One window by hand: `ledge`, K = 0, W = 8
+# One window, step by step: `ledge`, K = 0, W = 8
 
-Step 2 of the certificate plan, made once by hand before `tools/certify.py`
-existed. Machine and tools: [versions.txt](versions.txt) (CBMC 5.95.1,
+Step 2 of the certificate plan, run step by step, command by command. Machine and tools: [versions.txt](versions.txt) (CBMC 5.95.1,
 CaDiCaL 1.7.3, drat-trim built from source, 4 cores).
 
 The question: can any 8 inputs take Madeline from the `ledge` route's

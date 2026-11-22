@@ -152,8 +152,8 @@ Tools: 5.95.1 (cbmc-5.95.1); CaDiCaL 1.7.3; drat-trim binary sha256 fcc6f0266046
 Files: `<room>_w<W>.json` (one row per window: K, field mask, variables,
 clauses, every verdict and its seconds, proof size, SHA-256 of the CNF and
 the proof, tool versions), [versions.txt](versions.txt), and
-[hand_run_ledge_k0.md](hand_run_ledge_k0.md) (one window by hand, every
-command).
+[hand_run_ledge_k0.md](hand_run_ledge_k0.md) (one window run step by step,
+every command).
 
 ## The pipeline can say no
 

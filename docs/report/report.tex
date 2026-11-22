@@ -1,6 +1,6 @@
 % celeste-sat technical report -- DRAFT.
 % Build: cd docs/report && pdflatex report && bibtex report && pdflatex report && pdflatex report
-% \TODO{} marks what is still missing (author details, citations). The Chapter 1 numbers are from results/certificates/lvl_1_w8.json.
+% The Chapter 1 numbers are from results/certificates/lvl_1_w8.json; the W = 12 re-check from docs/results.md and results/edge_rerun/.
 \documentclass[conference]{IEEEtran}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
@@ -18,8 +18,9 @@
 \title{Proving a Celeste Speedrun Locally Optimal:\\
 A Bit-Exact Model, SAT Queries and Checked Certificates}
 
-\author{\IEEEauthorblockN{\TODO{author}}
-\IEEEauthorblockA{\TODO{affiliation, e-mail}}}
+\author{\IEEEauthorblockN{Julian Gabriel}
+\IEEEauthorblockA{Johannes Kepler University Linz, Austria\\
+juliangabriel570@gmail.com}}
 
 \maketitle
 
@@ -33,7 +34,10 @@ queries then either find a faster stretch of route or prove that none exists
 within the model. On a supercomputer campaign of about 2,300 core-hours,
 3,899 of 3,920 windows of 12, 16 and 18 frames over the chapter were proven
 impossible to shorten to the same state, and all 36 queries around the 18 room
-transitions were proven. To remove the SAT solver from the trusted base, we
+transitions were proven. Those proofs predate a fix to the model (the tiles the
+game keeps outside each room). Re-checked on the current model, 2,023 of the
+2,028 windows of 12 frames are proven; the windows of 16 and 18 frames and the
+transitions have not been re-checked. To remove the SAT solver from the trusted base, we
 re-solve windows with CaDiCaL, emit DRAT proofs, and check them with
 drat-trim. What remains trusted is the translation of the harness to CNF and the model itself.
 \end{abstract}
@@ -48,8 +52,10 @@ A game is a good testbed for bounded model checking because its physics is
 discrete and bit-precise: positions, speeds and timers are single-precision
 floats updated once per frame of $1/60$\,s, and there is ground truth to
 check any claim against, namely the game itself. The question is also hard. A room
-takes about 100 frames, each frame has about 70 distinct useful inputs, and
-the cost of a proof grows roughly $1.5\times$ per free frame. We therefore
+takes about 100 frames, each frame offers 486 input combinations (eight
+directions or none; Jump, Dash and Crouch Dash each off, held or pressed
+again; Grab or not), and the cost of a proof grows roughly $1.5\times$ per
+free frame. We therefore
 answer local questions: can any stretch of $W{+}1$ frames of the route be
 done in $W$ frames and reach the same state?
 
@@ -112,9 +118,21 @@ CBMC~5.80.0), Table~\ref{tab:leonardo}: 3,899 windows were proven. All 15
 room as success, and each leaves 2--5 frames sooner in a different state,
 after which the next room's TAS inputs fail. The 6 timeouts are not
 counted as proven. All 36 crossing queries (the last 6 frames of a room and
-3 of the next free, and again 10 and 8) were proven. The campaign ran before the model
-had the tiles the game copies above a room's top edge, so the 86 frames near
-room edges need re-checking.
+3 of the next free, and again 10 and 8) were proven.
+
+\emph{Re-check after a model fix.} The campaign ran before the model had the
+tiles the game keeps outside each room (wall above a room's top edge, for
+instance), so a ``no'' could fail where some input sequence reaches past an
+edge. For $W{=}12$ we re-checked every window on the current model. Running
+the model with and without the outside tiles side by side for 4 frames, and
+bounding her position by an over-approximating flood for the other 8, rules
+out an effect for 1,408 of the 2,028 windows. The other 620 were proven again
+with CBMC~5.95.1 (about 180 core-hours): 616 \emph{no}, and 4 \emph{yes}, the
+known faster endings. In all, 2,023 windows are proven on the current model,
+4 are faster endings and 1 timed out (Leonardo: 2,022, 4 and 2). The flood is
+an over-approximation by construction, checked against the exact model on 22
+windows, but not itself proven. The $W{=}16$ and $W{=}18$ windows and the
+crossings have not been re-checked; they hold for the model before the fix.
 
 \begin{table}[t]
 \centering
@@ -149,7 +167,7 @@ variables and 6.5 to 11.1 million clauses; CaDiCaL takes 3 to 9 minutes and
 writes a binary DRAT proof of 0.56 to 1.2\,GB, which drat-trim checks in
 \LEDGECHECK, about twice the solving time (CBMC~5.95.1, CaDiCaL~1.7.3, one
 4-core machine, 8.5\,GB of proofs in all). The CNF that CBMC writes is
-deterministic: a window solved by hand and again by the script gives the
+deterministic: a window run step by step and again by the script gives the
 same SHA-256.
 For Chapter~1's room~1 (\code{lvl\_1}, 92 frames) at $W{=}8$, 81 of the 83
 windows certify. Their formulas have 0.3 to 3.9 million variables and up to
@@ -183,13 +201,24 @@ the same state'' into ``no faster route''. Room optimality needs lower bounds,
 and run optimality is out of reach for direct unrolling.
 
 \section{Related Work}
-Bounded model checking with CBMC~\cite{cbmc}; clausal proofs in DRAT and
-their checking with drat-trim~\cite{drat,drattrim}; verified checking of
-LRAT proofs~\cite{cakelpr}; the argument for checking a solver's answers
-rather than trusting it~\cite{seidl}. The community TAS and its tooling come
-from the CelesteTAS project~\cite{celestetas}.
-\TODO{Read every cited paper before submission and add only the ones read;
-check each entry's details.}
+The queries are bounded model checking of C as implemented in
+CBMC~\cite{cbmc}: the program is unrolled to a fixed depth and
+the negated property becomes a satisfiability question. What is unusual here
+is not the method but the target: a program whose ground truth is a game that
+can be played, so the model can be checked against recordings rather than
+against a specification.
+
+The certificates follow the line of work on clausal proofs. DRAT proofs and
+their checking with drat-trim~\cite{drat,drattrim} let an UNSAT answer be
+checked independently of the solver that found it, and SAT Competition
+solvers such as CaDiCaL~\cite{cadical} emit them. A formally verified
+checker such as cake\_lpr~\cite{cakelpr} would remove drat-trim from the
+trusted base too. Seidl~\cite{seidl} argues that solver answers should be
+certified rather than trusted; this report applies that to a bounded model
+checking pipeline and finds that the trust then moves to the encoding.
+
+The community TAS and its tooling come from the CelesteTAS
+project~\cite{celestetas}, whose route is the reference throughout.
 
 \section*{Acknowledgement}
 The code was developed with AI coding agents. Computing time on Leonardo was

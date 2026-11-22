@@ -38,12 +38,18 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   frames of 13 of the 19 rooms saves a frame, and neither does any change
   around the first three room transitions (within the frames tested).
 - **Certificates at scale.** A campaign on the EuroHPC supercomputer
-  Leonardo (~2,300 core-hours) proved 3,826 windows over the whole community
-  TAS of Chapter 1: no 12- or 16-frame stretch of the route can be shortened
-  to reach the same state. The same goes for all 18 room transitions. What
-  the solver can still find are faster room *endings* that leave in a
-  different state and break the next room. The frames left are in the seams
-  between rooms ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
+  Leonardo (~2,300 core-hours) asked, over the whole community TAS of
+  Chapter 1, whether any 12- or 16-frame stretch of the route can be
+  shortened to reach the same state, and across all 18 room transitions.
+  Those proofs were made before the model had the tiles the game keeps
+  outside each room, so the 12-frame windows were checked again on the
+  current model: **2,023 of 2,028 are proven**, 4 are faster room *endings*
+  that leave in a different state and break the next room, and 1 timed out
+  ([docs/results.md](docs/results.md#the-w--12-certificate-against-the-tiles-outside-the-rooms-2026-10-19)).
+  **The 16-frame windows and the room transitions have not been re-checked
+  yet**; they stand only for the model before that fix. The frames left are
+  in the seams between rooms
+  ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Checked certificates.** `tools/certify.py` re-solves a window's formula
   with CaDiCaL and has drat-trim check the DRAT proof, so a "no" no longer
   rests on the SAT solver. All 9 eight-frame windows of the demo room `ledge`
