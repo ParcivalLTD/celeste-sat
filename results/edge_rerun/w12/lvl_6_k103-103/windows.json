@@ -6,7 +6,7 @@
  "windows": {
   "103": {
    "found": false,
-   "seconds": 432,
+   "seconds": 545,
    "ignored": [
     "onGround",
     "varJump",

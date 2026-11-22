@@ -6,7 +6,7 @@
  "windows": {
   "57": {
    "found": false,
-   "seconds": 950,
+   "seconds": 755,
    "ignored": [
     "onGround",
     "moveX"
@@ -14,7 +14,7 @@
   },
   "58": {
    "found": false,
-   "seconds": 1490,
+   "seconds": 1186,
    "ignored": [
     "onGround",
     "moveX"
@@ -22,7 +22,7 @@
   },
   "59": {
    "found": false,
-   "seconds": 1584,
+   "seconds": 1310,
    "ignored": [
     "onGround",
     "moveX"

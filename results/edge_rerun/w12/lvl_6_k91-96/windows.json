@@ -6,7 +6,7 @@
  "windows": {
   "91": {
    "found": false,
-   "seconds": 389,
+   "seconds": 408,
    "ignored": [
     "onGround",
     "varJump",
@@ -18,7 +18,7 @@
   },
   "92": {
    "found": false,
-   "seconds": 558,
+   "seconds": 608,
    "ignored": [
     "onGround",
     "varJump",
@@ -30,7 +30,7 @@
   },
   "93": {
    "found": false,
-   "seconds": 349,
+   "seconds": 357,
    "ignored": [
     "onGround",
     "varJump",
@@ -42,7 +42,7 @@
   },
   "94": {
    "found": false,
-   "seconds": 391,
+   "seconds": 394,
    "ignored": [
     "onGround",
     "varJump",
@@ -65,7 +65,7 @@
   },
   "96": {
    "found": false,
-   "seconds": 721,
+   "seconds": 731,
    "ignored": [
     "onGround",
     "dashRefillCooldown",

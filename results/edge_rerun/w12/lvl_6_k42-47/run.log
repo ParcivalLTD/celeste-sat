@@ -1,28 +1,28 @@
 route leaves 1a_lvl_6 on frame 117; 6 windows of 12 free frames (K = 42..47), 2 at a time
-  frames  43.. 55 in 12: no (1375s)
-  frames  44.. 56 in 12: no (1397s)
-  frames  45.. 57 in 12: no (967s)
-  frames  46.. 58 in 12: no (1716s)
-  frames  47.. 59 in 12: no (969s)
-  frames  48.. 60 in 12: no (1421s)
+  frames  43.. 55 in 12: no (1345s)
+  frames  44.. 56 in 12: no (1384s)
+  frames  45.. 57 in 12: no (953s)
+  frames  46.. 58 in 12: no (1687s)
+  frames  47.. 59 in 12: no (953s)
+  frames  48.. 60 in 12: no (1443s)
 6 windows proven, 0 timed out, 0 faster routes (results in /home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_6_k42-47/windows.json)
 	Command being timed: "python3 tools/windows.py rooms/vanilla/1a_lvl_6.txt build/chain_tas/lvl_6/route.tas --start build/chain_tas/entry_lvl_6.h --width 12 --from 42 --to 47 --jobs 2 --timeout 5400 --out build/cert/w12/lvl_6_k42-47"
-	User time (seconds): 7838.93
-	System time (seconds): 9.38
-	Percent of CPU this job got: 172%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:15:38
+	User time (seconds): 7739.97
+	System time (seconds): 21.74
+	Percent of CPU this job got: 171%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:15:17
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 4706200
+	Maximum resident set size (kbytes): 4688428
 	Average resident set size (kbytes): 0
-	Major (requiring I/O) page faults: 412
-	Minor (reclaiming a frame) page faults: 3255393
-	Voluntary context switches: 35290
-	Involuntary context switches: 35099
+	Major (requiring I/O) page faults: 407
+	Minor (reclaiming a frame) page faults: 8537696
+	Voluntary context switches: 36026
+	Involuntary context switches: 41723
 	Swaps: 0
-	File system inputs: 66424
+	File system inputs: 66392
 	File system outputs: 2368
 	Socket messages sent: 0
 	Socket messages received: 0

@@ -6,7 +6,7 @@
  "windows": {
   "0": {
    "found": false,
-   "seconds": 655,
+   "seconds": 721,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -23,7 +23,7 @@
   },
   "1": {
    "found": false,
-   "seconds": 872,
+   "seconds": 928,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -40,7 +40,7 @@
   },
   "2": {
    "found": false,
-   "seconds": 726,
+   "seconds": 771,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -57,7 +57,7 @@
   },
   "3": {
    "found": false,
-   "seconds": 908,
+   "seconds": 988,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -78,7 +78,7 @@
   },
   "4": {
    "found": false,
-   "seconds": 1081,
+   "seconds": 1185,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -99,7 +99,7 @@
   },
   "5": {
    "found": false,
-   "seconds": 718,
+   "seconds": 802,
    "ignored": [
     "onGround",
     "wallSlideTimer",

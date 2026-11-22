@@ -6,7 +6,7 @@
  "windows": {
   "6": {
    "found": false,
-   "seconds": 202,
+   "seconds": 179,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -22,7 +22,7 @@
   },
   "7": {
    "found": false,
-   "seconds": 272,
+   "seconds": 238,
    "ignored": [
     "onGround",
     "wallSlideTimer",
@@ -39,7 +39,7 @@
   },
   "8": {
    "found": false,
-   "seconds": 299,
+   "seconds": 264,
    "ignored": [
     "onGround",
     "wallSlideTimer",

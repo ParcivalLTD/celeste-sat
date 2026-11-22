@@ -6,7 +6,7 @@
  "windows": {
   "131": {
    "found": true,
-   "seconds": 1231,
+   "seconds": 895,
    "ignored": [
     "onGround",
     "wallSpeedRetention",
@@ -17,7 +17,7 @@
   },
   "132": {
    "found": true,
-   "seconds": 1428,
+   "seconds": 1044,
    "ignored": [
     "onGround",
     "wallSpeedRetention",
@@ -29,7 +29,7 @@
   },
   "133": {
    "found": true,
-   "seconds": 919,
+   "seconds": 649,
    "ignored": [
     "onGround",
     "moveX",

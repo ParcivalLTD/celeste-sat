@@ -6,7 +6,7 @@
  "windows": {
   "121": {
    "found": false,
-   "seconds": 2484,
+   "seconds": 2347,
    "ignored": [
     "onGround",
     "maxFall",
@@ -16,7 +16,7 @@
   },
   "122": {
    "found": false,
-   "seconds": 2494,
+   "seconds": 2325,
    "ignored": [
     "onGround",
     "maxFall",
@@ -26,7 +26,7 @@
   },
   "123": {
    "found": false,
-   "seconds": 2225,
+   "seconds": 2078,
    "ignored": [
     "onGround",
     "maxFall",
@@ -36,7 +36,7 @@
   },
   "124": {
    "found": false,
-   "seconds": 686,
+   "seconds": 642,
    "ignored": [
     "onGround",
     "wallSpeedRetention",
@@ -48,7 +48,7 @@
   },
   "125": {
    "found": false,
-   "seconds": 977,
+   "seconds": 886,
    "ignored": [
     "onGround",
     "moveX"

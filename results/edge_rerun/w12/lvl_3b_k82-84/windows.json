@@ -6,21 +6,21 @@
  "windows": {
   "82": {
    "found": false,
-   "seconds": 83,
+   "seconds": 73,
    "ignored": [
     "onGround"
    ]
   },
   "83": {
    "found": false,
-   "seconds": 114,
+   "seconds": 98,
    "ignored": [
     "onGround"
    ]
   },
   "84": {
    "found": true,
-   "seconds": 208,
+   "seconds": 172,
    "ignored": [
     "onGround"
    ]

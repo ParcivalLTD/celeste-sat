@@ -6,7 +6,7 @@
  "windows": {
   "84": {
    "found": false,
-   "seconds": 278,
+   "seconds": 197,
    "ignored": [
     "onGround",
     "jumpGraceTimer",
@@ -16,7 +16,7 @@
   },
   "85": {
    "found": false,
-   "seconds": 461,
+   "seconds": 322,
    "ignored": [
     "onGround",
     "moveX"
@@ -24,7 +24,7 @@
   },
   "86": {
    "found": false,
-   "seconds": 542,
+   "seconds": 390,
    "ignored": [
     "onGround",
     "moveX"
@@ -32,7 +32,7 @@
   },
   "87": {
    "found": false,
-   "seconds": 611,
+   "seconds": 433,
    "ignored": [
     "onGround",
     "moveX"
@@ -40,7 +40,7 @@
   },
   "88": {
    "found": false,
-   "seconds": 545,
+   "seconds": 380,
    "ignored": [
     "onGround",
     "moveX",
@@ -49,7 +49,7 @@
   },
   "89": {
    "found": false,
-   "seconds": 626,
+   "seconds": 432,
    "ignored": [
     "onGround",
     "moveX",
