@@ -1,0 +1,79 @@
+{
+ "room": "rooms/vanilla/1a_lvl_6.txt",
+ "route": "build/chain_tas/lvl_6/route.tas",
+ "exit": 117,
+ "width": 12,
+ "windows": {
+  "91": {
+   "found": false,
+   "seconds": 389,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "92": {
+   "found": false,
+   "seconds": 558,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "moveX",
+    "facing"
+   ]
+  },
+  "93": {
+   "found": false,
+   "seconds": 349,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "94": {
+   "found": false,
+   "seconds": 391,
+   "ignored": [
+    "onGround",
+    "varJump",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "95": {
+   "found": false,
+   "seconds": 359,
+   "ignored": [
+    "onGround",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  },
+  "96": {
+   "found": false,
+   "seconds": 721,
+   "ignored": [
+    "onGround",
+    "dashRefillCooldown",
+    "moveX",
+    "facing",
+    "hopWaitX"
+   ]
+  }
+ },
+ "better": []
+}

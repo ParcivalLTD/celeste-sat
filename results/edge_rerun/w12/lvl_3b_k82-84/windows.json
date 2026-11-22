@@ -1,0 +1,37 @@
+{
+ "room": "rooms/vanilla/1a_lvl_3b.txt",
+ "route": "build/chain_tas/lvl_3b/route.tas",
+ "exit": 98,
+ "width": 12,
+ "windows": {
+  "82": {
+   "found": false,
+   "seconds": 83,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "83": {
+   "found": false,
+   "seconds": 114,
+   "ignored": [
+    "onGround"
+   ]
+  },
+  "84": {
+   "found": true,
+   "seconds": 208,
+   "ignored": [
+    "onGround"
+   ]
+  }
+ },
+ "better": [
+  {
+   "k": 84,
+   "exit": 96,
+   "route": "/home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_3b_k82-84/win_84_better.tas",
+   "same_exit": false
+  }
+ ]
+}

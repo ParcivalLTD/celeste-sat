@@ -1,0 +1,59 @@
+{
+ "room": "rooms/vanilla/1a_lvl_5.txt",
+ "route": "build/chain_tas/lvl_5/route.tas",
+ "exit": 139,
+ "width": 12,
+ "windows": {
+  "121": {
+   "found": false,
+   "seconds": 2484,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "122": {
+   "found": false,
+   "seconds": 2494,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "123": {
+   "found": false,
+   "seconds": 2225,
+   "ignored": [
+    "onGround",
+    "maxFall",
+    "autoJump",
+    "moveX"
+   ]
+  },
+  "124": {
+   "found": false,
+   "seconds": 686,
+   "ignored": [
+    "onGround",
+    "wallSpeedRetention",
+    "maxFall",
+    "autoJump",
+    "moveX",
+    "hopWaitX"
+   ]
+  },
+  "125": {
+   "found": false,
+   "seconds": 977,
+   "ignored": [
+    "onGround",
+    "moveX"
+   ]
+  }
+ },
+ "better": []
+}

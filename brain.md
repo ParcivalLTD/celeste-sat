@@ -17,21 +17,24 @@ Last updated: 2026-10-18.
   to a death on the same frame. Chapter 2: 3 recordings, the longest 851
   frames over 5 rooms to a death, the switch gate's position included. The
   community 1A TAS replays exactly (2,275 frames of control, 19 rooms).
-- **The certificate holds** (Leonardo, Oct 2026): no 12- or 16-frame window
+- **The certificate holds for the model of 9e3dd4f** (Leonardo, Oct 2026): no 12- or 16-frame window
   of the community 1A TAS can be shortened to the same state, and the same
   holds across all 18 room transitions (3,826 windows proven, 6 timeouts).
-  It was computed before the model had the tiles outside the rooms, so 86
-  frames near room edges need re-checking (step 3 below).
+  It was computed before the model had the tiles outside the rooms; the
+  re-check (step 2 below) is done for W = 12: 2,023 of 2,028 proven on the
+  current model, 4 faster endings, 1 timeout; W = 16 and the transitions are not.
 - **Nothing is faster than the community TAS yet.** The record is
   **0:49.079** (2,887 frames, VampireFlower/CelesteTAS `1A.tas`). The
   118-frame `lvl_6a` lead is void: the game has wall above the room. The
   "faster" Leonardo windows are faster room *endings* in another exit state,
   and the next room's inputs fail after each.
 - **Chapter 2 routes are all void.** They were made with model bugs, fixed
-  since. They must be solved again (step 2 below).
+  since. They must be solved again (step 1 below).
 - **No compute cluster.** The Leonardo account expired on 2026-10-12. Long
   searches run on the PC.
-- Open PR: **#8** (the touch switch fix and this file). Merge it on GitHub.
+- PR #8 is merged (main = 0529303). WSL on the PC is set up (Ubuntu 24.04,
+  12 cores, **7.9 GB RAM**); `game/` has both map files. All checks green on
+  2026-10-18 (quick tests, the community TAS, all 19 recordings).
 
 ## Setting up the Windows PC
 
@@ -72,12 +75,14 @@ bash tools/run_tests.sh --vanilla --sat        # everything; takes a while
 
 ## Next steps, in order
 
-### 1. Merge PR #8 and `git pull`
+### 1. Solve the Chapter 2 chase again (hours; on the PC)
 
-The touch switch fix and this file. Afterwards `git status` should be clean,
-apart from leftovers listed in "Cleanup on the PC" below.
-
-### 2. Solve the Chapter 2 chase again (hours; on the PC)
+**In progress (paused 2026-10-18, 23:30).** Rooms 1-5 are solved and cached
+(`build/2a_lvl_*/solved_from.h`): `2a_lvl_3` 104, `2a_lvl_4` 115,
+`2a_lvl_5` 139, `2a_lvl_6` 222, `2a_lvl_7` 244 frames (3-50 min each at
+beam width 100,000). `2a_lvl_8` was running when it was stopped. Restart the
+same command: it skips the cached rooms. Run it in the background with a log
+(`nohup ... > build/chain_chapter2.log 2>&1 &`); about 5 h for the 7 left.
 
 Every Chapter 2 route was made with at least one of the four bugs the
 recordings found. With the model now matching the game:
@@ -102,18 +107,33 @@ Then turn on the run_tests step again: it is skipped until the route is
 re-solved (`CHASE_ROUTE_FIXED=1 bash tools/run_tests.sh`, then remove the
 skip in `tools/run_tests.sh`).
 
-### 3. Re-check the Chapter 1 certificate near room edges (an evening)
+### 2. Re-check the Chapter 1 certificate near room edges (W = 12 done)
 
-The Leonardo windows were proven before the model had the map's tiles
-around each room (`; outside`). New walls can only add options (a wall jump
-off an extended wall, say), so a proof might not survive. Only 86 of the
-2,275 frames come within reach of a room edge, mostly the last frames
-before a transition and 22 in `lvl_6b`. Re-run the windows that cover those
-frames with `tools/windows.py`, at W = 12 (`hpc/make_tasks.py` shows how a
-room is cut into windows). If all are still "no", the certificate stands
-for the current model. Say so in `docs/results.md`.
+**Done for W = 12 (2026-10-19): 2,023 of 2,028 windows are proven for the
+current model, 4 are the known faster endings, 1 timed out** (Leonardo: 2,022
+/ 4 / 2). Details, method and numbers in `docs/results.md` ("The W = 12
+certificate against the tiles outside the rooms"). Short version:
+`experiments/edge_windows.py --exact 4` cleared 1,408 windows (the model
+with and without the outside tiles run side by side for 4 frames, a flood
+for the rest); the other 620 were re-proven with CBMC on GitHub Actions
+(`.github/workflows/edge-windows.yml`, pushed to the branch `edge-windows-run`;
+rooms come from the repository secret `CH1_ROOMS_B64`, never from git).
+`hpc/run_flagged.sh` does the same on any Linux machine.
 
-### 4. The faster endings (the record attempt; weeks)
+**Still open:** the same check for the **W = 16** windows (1,819) and the
+**18 room transitions**, which stand for the model of 9e3dd4f. Plan: run
+`edge_windows.py --width 16 --exact 4` (cheap, hours on the PC), cut
+`hpc/edge_flagged_w16.json` from what it flags and run those through the
+same workflow (a W = 16 query is bigger than 7.2 GB: measure before launch).
+
+Traps from this (also in the docstrings): a sound bound must cover where
+she can be *within* a frame, not at its end (the model clamps to the room
+only at the end of it); the reference build (`-DREFERENCE`) reads `sim -s`
+state headers wrongly (timers in seconds), so exact explorers use the
+solver build; Azure for Students gives 0 vCPU for every VM family and
+refuses quota requests, a 16 GB GitHub runner holds 2 queries.
+
+### 3. The faster endings (the record attempt; weeks)
 
 The only frames left in Chapter 1 are in the seams between rooms. The
 candidates: `lvl_6a` −5, `lvl_12` −4, `lvl_9b` −3, `lvl_3b` −2 (faster room
@@ -146,7 +166,7 @@ done
 Anything faster is a candidate, not a result: check the next room, then the
 whole chapter, then play it in the game.
 
-### 5. The community 2A TAS through the model (a day)
+### 4. The community 2A TAS through the model (a day)
 
 The cheapest strong check of Chapter 2, the same one that made Chapter 1
 believable. The first try failed in `2a_lvl_4`, before the dream-block
@@ -155,7 +175,7 @@ fixes. Generalise `tests/chain_tas.py` to a chapter argument (ROADMAP step
 the chaser history runs on across rooms). Every room's inputs must leave it
 on their last frame.
 
-### 6. The paper (start now, in parallel)
+### 5. The paper (start now, in parallel)
 
 ROADMAP step 4 has the outline and what may and may not be claimed. The
 story is stronger than it was a week ago: the recordings found seven model
@@ -164,7 +184,7 @@ dream-dash ones, the touch switch) plus the tiles outside rooms, each one
 pinned to a frame. That list is the fidelity section, and it shows the
 checks have teeth.
 
-### 7. Before pointing people at the repository
+### 6. Before pointing people at the repository
 
 - Licence: done (MIT, 2026-10-13).
 - The git history still has game content and decompiled game code
