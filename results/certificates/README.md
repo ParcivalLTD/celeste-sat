@@ -46,7 +46,8 @@ windows the "no" comes from CBMC alone. `certify.py` marks them as
 **settled** (a `"settled"` field in the row) rather than certified. The first
 version of the script took the empty formula for a disagreement and stopped,
 which is why the run carried on with `--from 33` and these two rows were
-added at the end.
+added at the end. The empty formula contradicts CBMC's own verdict, which is now
+reported upstream as [diffblue/cbmc#9548](https://github.com/diffblue/cbmc/issues/9548).
 
 Forcing CBMC to produce a real formula by switching its simplifier off
 (`--no-simplify`, `--no-propagation`, or every loop bounded at 20 with
