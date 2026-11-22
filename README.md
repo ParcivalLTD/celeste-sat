@@ -133,5 +133,7 @@ Madeline's movement is ported from Celeste's published `Player.cs`
 the current game (v1.4) from the official changelogs. Mods that patch these
 methods and recordings of the game filled in the rest. The community TAS by
 VampireFlower and the Celeste TAS community is the reference route. It is
-downloaded at a pinned commit, not copied here. Nothing from the game itself
-is in this repository. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+downloaded at a pinned commit, not copied here. The game's own files are not
+in this repository; the exception is Chapter 2's room layouts, exported from
+the map so that work can be reproduced. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
