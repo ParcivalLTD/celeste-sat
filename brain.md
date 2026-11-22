@@ -187,10 +187,14 @@ checks have teeth.
 ### 6. Before pointing people at the repository
 
 - Licence: done (MIT, 2026-10-13).
-- The git history still has game content and decompiled game code
-  (`1-ForsakenCity.bin`, `LevelLoader.cs`, `Switch.cs`, `SwitchGate.cs`, an
-  Everest log). ROADMAP step 5 has the `git filter-repo` line. It rewrites
-  every commit, so do it once, deliberately, before anyone forks.
+- History cleaned (2026-11-22): `git filter-repo` removed `1-ForsakenCity.bin`,
+  the decompiled `LevelLoader.cs`, `Switch.cs` and `SwitchGate.cs`, the
+  Everest log and the community TAS copies (`recordings/1A*.tas`,
+  `results/celestetas/celeste-sat-community-1a.tas`) from every commit of
+  every branch, and all branches were force-pushed. Old clones must be
+  re-cloned. GitHub still serves the old commits through the closed PRs'
+  refs until GitHub Support purges them. Still open: the Chapter 2 room
+  exports (`rooms/vanilla/2a_*.txt`) are game-derived.
 
 ## How to play a route in the game and check it
 

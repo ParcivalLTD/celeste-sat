@@ -165,20 +165,14 @@ game files can't be included. Say so and document `game/README.md`.
 - **Choose a licence** for your own code (MIT, matching the ported
   `Player.cs`, is the natural one). The repository has none, which legally
   means nobody may reuse it. `THIRD_PARTY_NOTICES.md` stays as it is.
-- **Game content in the git history.** This cleanup removed
-  `1-ForsakenCity.bin` (the game's map file) and the community TAS copies
-  from the tree, but they are still in the history of a public repository.
-  So are the ILSpy outputs committed on 2026-10-13 (`LevelLoader.cs`,
-  `Switch.cs`, `SwitchGate.cs`, decompiled game code, the most clearly not
-  ours) and `data/recordings/log.txt` (an Everest log with local paths).
-  Rewrite the history (`git filter-repo --invert-paths --path
-  1-ForsakenCity.bin --path LevelLoader.cs --path Switch.cs --path
-  SwitchGate.cs --path data/recordings/log.txt`, likewise
-  `recordings/1A*.tas` and `results/celestetas/celeste-sat-community-1a.tas`)
-  and force-push. It is destructive and changes every commit hash, so decide
-  deliberately and do it before anyone forks. The Chapter 2 room exports
-  (`rooms/vanilla/2a_*.txt`) are game-derived too. Consider keeping only
-  `tools/import_chapter2.py` and its `EXIT_FIXES`.
+- **Game content in the git history: done (2026-11-22).** `git filter-repo`
+  removed the game's map file, the decompiled `LevelLoader.cs`, `Switch.cs`
+  and `SwitchGate.cs`, `data/recordings/log.txt` and the community TAS
+  copies from every commit, and every branch was force-pushed. Left: ask
+  GitHub Support to purge the old commits still reachable through the
+  closed PRs, and decide about the Chapter 2 room exports
+  (`rooms/vanilla/2a_*.txt`), which are game-derived too. Consider keeping
+  only `tools/import_chapter2.py` and its `EXIT_FIXES`.
 - **Show it.** A 30-second video of the record attempt playing in the game,
   next to the model's trace (`tools/render.py` makes the replay page), at the
   top of the README. A short write-up or blog post that tells the story, with
