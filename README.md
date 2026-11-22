@@ -125,6 +125,9 @@ benchmarks/     SAT benchmark families generated from the queries
 
 ## Credits
 
+I build this code with AI coding agents; many of the commits are authored
+or co-authored by Claude.
+
 Madeline's movement is ported from Celeste's published `Player.cs`
 ([NoelFB/Celeste](https://github.com/NoelFB/Celeste), MIT) and brought up to
 the current game (v1.4) from the official changelogs. Mods that patch these
