@@ -1,0 +1,27 @@
+route leaves 1a_lvl_6b on frame 110; 2 windows of 12 free frames (K = 40..41), 2 at a time
+  frames  41.. 53 in 12: no (1476s)
+  frames  42.. 54 in 12: no (2396s)
+2 windows proven, 0 timed out, 0 faster routes (results in /home/runner/work/celeste-sat/celeste-sat/build/cert/w12/lvl_6b_k40-41/windows.json)
+	Command being timed: "python3 tools/windows.py rooms/vanilla/1a_lvl_6b.txt build/chain_tas/lvl_6b/route.tas --start build/chain_tas/entry_lvl_6b.h --width 12 --from 40 --to 41 --jobs 2 --timeout 5400 --out build/cert/w12/lvl_6b_k40-41"
+	User time (seconds): 3867.48
+	System time (seconds): 5.98
+	Percent of CPU this job got: 161%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 39:59.69
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6162136
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 389
+	Minor (reclaiming a frame) page faults: 3580501
+	Voluntary context switches: 17444
+	Involuntary context switches: 14917
+	Swaps: 0
+	File system inputs: 65040
+	File system outputs: 2552
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
