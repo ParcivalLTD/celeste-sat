@@ -55,7 +55,9 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   rests on the SAT solver. All 9 eight-frame windows of the demo room `ledge`
   are certified, and 81 of the 83 in Chapter 1's room 1, with proofs of up to
   1.5 GB each. The remaining two fall inside a dash: CBMC decides them on its
-  own, so there is no SAT formula and no proof
+  own and exports an empty formula, which contradicts its own verdict
+  (reported as [diffblue/cbmc#9548](https://github.com/diffblue/cbmc/issues/9548)),
+  so there is no proof to check
   ([results/certificates/](results/certificates/README.md)).
 - **Chapter 2** (the Badeline chase) is modelled: dream blocks, Badeline
   chasers, switch gates and invisible barriers, all in the fuzzer. Its first
