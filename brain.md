@@ -81,6 +81,26 @@ python3 tests/recordings.py data/recordings    # "MATCH"
 bash tools/run_tests.sh --vanilla --sat        # everything; takes a while
 ```
 
+The same checks run on GitHub Actions (`.github/workflows/game-checks.yml`,
+on every push to main and every pull request). The game's files reach CI
+only as repository secrets, never through git. With `CH1_MAP_B64` set, CI
+runs everything above. With only `CH1_ROOMS_B64` (the exported rooms, also
+used by `edge-windows.yml`), it runs `tests/chain_tas.py` with the room
+names given instead of read from the map, then the recordings; the beam
+searches and the Chapter 1 SAT checks need the map. To set the map secret,
+run on the PC with the GitHub CLI logged in:
+
+```bash
+gzip -9c game/1-ForsakenCity.bin | base64 -w0 > /tmp/map.b64; wc -c /tmp/map.b64
+gh secret set CH1_MAP_B64 < /tmp/map.b64       # if it is under 48,000 bytes; otherwise:
+# split -b 45000 /tmp/map.b64 /tmp/map.part.
+# gh secret set CH1_MAP_B64 < /tmp/map.part.aa; gh secret set CH1_MAP_B64_2 < /tmp/map.part.ab
+rm /tmp/map.b64 /tmp/map.part.* 2>/dev/null
+```
+
+The same workflow builds `docs/report/report.tex` with the real IEEEtran
+class and keeps the PDF as the artifact `report-pdf`.
+
 ## Next steps, in order
 
 ### 1. Solve the Chapter 2 chase again (hours; on the PC)

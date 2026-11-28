@@ -1,0 +1,181 @@
+# The checks that need the game's data, and the technical report's build.
+#
+# game-data: the game's files come from repository secrets, never from git.
+#   CH1_MAP_B64    gzip + base64 of game/1-ForsakenCity.bin. A secret holds at most
+#   CH1_MAP_B64_2  48 KB, so a second part is appended if it is set (brain.md has
+#                  the commands to make them).
+#   CH1_ROOMS_B64  Chapter 1's exported rooms (tar.gz + base64, as edge-windows.yml).
+# With the map:  tools/run_tests.sh --vanilla --sat -- the community TAS through all
+#                19 rooms, every recording in data/recordings/, the celeste-rl
+#                recording, beam searches of rooms 1-3 and the Chapter 1 SAT checks.
+# With only the rooms: tests/chain_tas.py (the community TAS through all 19 rooms,
+#                each entered as the room before leaves her) with the room names
+#                given instead of read from the map, then the recordings.
+# Either way a recording that is skipped (room not exported, entry state missing)
+# fails the job: tests/recordings.py counts those as a match.
+# Nothing derived from the game is uploaded, only the test log.
+#
+# report: builds docs/report/report.tex with the real IEEEtran class and uploads
+# the PDF.
+name: game data and report
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  game-data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gcc and CBMC
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc cbmc
+      - name: Unpack the game data from the secrets
+        id: data
+        shell: bash
+        env:
+          CH1_MAP_B64: ${{ secrets.CH1_MAP_B64 }}
+          CH1_MAP_B64_2: ${{ secrets.CH1_MAP_B64_2 }}
+          CH1_ROOMS_B64: ${{ secrets.CH1_ROOMS_B64 }}
+        run: |
+          mkdir -p game rooms/vanilla
+          if [ -n "$CH1_MAP_B64" ]; then
+            printf '%s%s' "$CH1_MAP_B64" "$CH1_MAP_B64_2" | base64 -d | gunzip > game/1-ForsakenCity.bin
+            echo "mode=map" >> "$GITHUB_OUTPUT"
+            echo "map: $(wc -c < game/1-ForsakenCity.bin) bytes"
+          elif [ -n "$CH1_ROOMS_B64" ]; then
+            echo "$CH1_ROOMS_B64" | base64 -d | tar -xzf - -C rooms/vanilla
+            echo "mode=rooms" >> "$GITHUB_OUTPUT"
+            echo "rooms: $(ls rooms/vanilla/1a_*.txt | wc -l) Chapter 1 room files"
+          else
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Everything, from the map (tools/run_tests.sh --vanilla --sat)
+        if: steps.data.outputs.mode == 'map'
+        shell: bash
+        run: |
+          set +e
+          bash tools/run_tests.sh --vanilla --sat
+          status=$?
+          set -e
+          log=build/run_tests.log
+          {
+            echo "### Game data: everything, from the map"
+            echo '```'
+            grep -E "frames of the community TAS played exactly|MISMATCH after|^  (MATCH|MISMATCH)$|^  SAT|^  (proven|not settled)|^  room [123]:|FAILED|all checks passed" "$log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          line=$(grep -E "frames of the community TAS played exactly|MISMATCH after" "$log" | tail -1 | sed 's/^ *//')
+          echo "::notice title=Community TAS::${line:-no result line}"
+          if grep -qE "is not exported, stopping there|run tests/chain_tas.py first" "$log"; then
+            echo "::error title=Recordings::some recordings were skipped, not checked"
+            grep -E "is not exported, stopping there|run tests/chain_tas.py first" "$log"
+            status=1
+          fi
+          exit $status
+
+      - name: The community TAS and the recordings, from the exported rooms
+        if: steps.data.outputs.mode == 'rooms'
+        shell: bash
+        run: |
+          # tests/chain_tas.py reads the map for two things: to export rooms that are
+          # missing (here they all come from the secret) and for the room names that
+          # split 1A.tas into rooms. Those names are Chapter 1's 19 rooms plus lvl_end
+          # (1A.tas's other labels, Start and 1SH0G, are not rooms); split with them,
+          # every room's inputs equal results/leonardo/chain_tas/<room>/route.tas.
+          mkdir -p build
+          set +e
+          python3 - <<'EOF' 2>&1 | tee build/chain_tas.log
+          import sys
+          sys.path[:0] = ["tests", "."]
+          import chain_tas
+          from celeste_sat.community import CH1_ORDER
+          chain_tas.room_names = lambda _map: set(CH1_ORDER) | {"lvl_end"}
+          chain_tas.find_map = lambda _name: "(no map: the rooms come from CH1_ROOMS_B64)"
+          sys.argv = ["tests/chain_tas.py"]
+          sys.exit(chain_tas.main())
+          EOF
+          chain=${PIPESTATUS[0]}
+          python3 tests/recordings.py data/recordings 2>&1 | tee build/recordings.log
+          rec=${PIPESTATUS[0]}
+          set -e
+          n=$(grep -cE '^  (celeste-sat|community)-' build/recordings.log)
+          verdict=$(tail -1 build/recordings.log)
+          case "$verdict" in MATCH|MISMATCH) ;; *) verdict="no verdict (crashed, see the log)" ;; esac
+          {
+            echo "### Game data: from the exported rooms (no map secret)"
+            echo '```'
+            cat build/chain_tas.log
+            echo
+            cat build/recordings.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Community TAS::$(tail -1 build/chain_tas.log)"
+          echo "::notice title=Recordings::$n recordings compared, verdict: $verdict"
+          status=0
+          [ "$chain" = 0 ] || status=1
+          [ "$rec" = 0 ] || status=1
+          if grep -qE "is not exported, stopping there|run tests/chain_tas.py first|^-- " build/recordings.log; then
+            echo "::error title=Recordings::some recordings were skipped, not checked"
+            status=1
+          fi
+          exit $status
+
+      - name: No game data
+        if: steps.data.outputs.mode == 'none'
+        run: |
+          echo "::warning title=Game data::no secrets (CH1_MAP_B64 or CH1_ROOMS_B64): nothing that needs the game was checked"
+          echo "### Game data: not checked (no secrets; forks never get them)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the log
+        if: always() && steps.data.outputs.mode != 'none'
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-data-log
+          path: |
+            build/run_tests.log
+            build/chain_tas.log
+            build/recordings.log
+          if-no-files-found: ignore
+
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install TeX Live (IEEEtran.cls is in texlive-publishers)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends texlive-latex-base texlive-latex-recommended \
+            texlive-publishers texlive-fonts-recommended cm-super
+      - name: Build docs/report/report.tex
+        working-directory: docs/report
+        shell: bash
+        run: |
+          pdflatex -interaction=nonstopmode -halt-on-error report > /dev/null || { tail -40 report.log; exit 1; }
+          bibtex report
+          pdflatex -interaction=nonstopmode -halt-on-error report > /dev/null
+          pdflatex -interaction=nonstopmode -halt-on-error report > /dev/null
+          if grep -E "Reference .* undefined|Citation .* undefined|There were undefined|Rerun to get" report.log; then
+            echo "::error title=Report::undefined references or citations (see above)"
+            exit 1
+          fi
+          pages=$(grep -oE "Output written on report.pdf \([0-9]+ pages?" report.log | grep -oE "[0-9]+ pages?")
+          grep -E "Overfull" report.log | head -20 || true
+          echo "::notice title=Report::built with IEEEtran, $pages, $(grep -c Overfull report.log || true) overfull boxes"
+          echo "### Report: $pages (artifact report-pdf)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: report-pdf
+          path: docs/report/report.pdf
