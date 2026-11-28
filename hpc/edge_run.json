@@ -1,1 +1,1 @@
-{"size": 6, "limit": 0, "parallel": 2, "timeout": 5400}
+{"width": 16, "rooms": ["lvl_4"], "size": 1, "limit": 1, "parallel": 1, "timeout": 14400}
