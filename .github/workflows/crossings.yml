@@ -1,0 +1,103 @@
+# The 18 room transitions of the community TAS on the current model: for each room
+# change, tools/cross.py frees the last BEFORE frames of the room and asks whether
+# she can be in the TAS's exact state AFTER frames into the next room one frame
+# sooner (what experiments/tas_crossings.py and hpc/crossings.sbatch do). Both
+# settings of the Leonardo campaign, 6 + 3 and 10 + 8: 36 jobs. The results go to
+# a branch named crossings-results-<run id>, under results/crossings/.
+#
+# Push to a branch named crossings-run or crossings-run-<anything> to start a run.
+# Chapter 1's rooms come from the repository secret CH1_ROOMS_B64 (see
+# edge-windows.yml); only result.json and the log of each transition are uploaded.
+name: crossings
+
+on:
+  push:
+    branches: [crossings-run, "crossings-run-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        seam: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        setting: ["6 3", "10 8"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CBMC
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq cbmc && cbmc --version
+      - name: Rooms from the secret, the community TAS through the model
+        shell: bash
+        env:
+          CH1_ROOMS_B64: ${{ secrets.CH1_ROOMS_B64 }}
+        run: |
+          [ -n "$CH1_ROOMS_B64" ] || { echo "the secret CH1_ROOMS_B64 is not set"; exit 1; }
+          echo "$CH1_ROOMS_B64" | base64 -d | tar -xzf - -C rooms/vanilla
+          python3 tests/chain_tas.py --no-map | tail -1
+      - name: The transition
+        id: cross
+        shell: bash
+        run: |
+          read -r BEFORE AFTER <<< "${{ matrix.setting }}"
+          read -r A B <<< "$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.community import CH1_ORDER as o; i = ${{ matrix.seam }}; print(o[i], o[i + 1])")"
+          N=$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.tas import read_tas; print(len(read_tas('build/chain_tas/$A/route.tas')))")
+          if [ "$BEFORE" -le 6 ]; then JOBS=$(nproc); TIMEOUT=3600; else JOBS=2; TIMEOUT=14400; fi
+          NAME="${A}_${B}_b${BEFORE}a${AFTER}"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          START=()
+          [ -f "build/chain_tas/entry_$A.h" ] && START=(--start "build/chain_tas/entry_$A.h")
+          mkdir -p out
+          /usr/bin/time -v python3 tools/cross.py "rooms/vanilla/1a_$A.txt" "build/chain_tas/$A/route.tas" \
+            "rooms/vanilla/1a_$B.txt" "build/chain_tas/$B/route.tas" "${START[@]}" \
+            --keep $((N - BEFORE)) --target "$AFTER" --timeout "$TIMEOUT" --jobs "$JOBS" \
+            --out "build/cross_$NAME" 2>&1 | tee out/run.log
+          cp "build/cross_$NAME/result.json" out/
+          cp "build/cross_$NAME/better.tas" out/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-${{ matrix.seam }}-${{ steps.cross.outputs.name || matrix.seam }}
+          path: out/
+          retention-days: 14
+
+  collect:
+    needs: cross
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: cross-*
+      - name: Summarise and push
+        shell: bash
+        run: |
+          mkdir -p results/crossings
+          {
+            echo "| transition | setting | answer |"
+            echo "|---|---|---|"
+            for d in artifacts/cross-*/; do
+              n=$(basename "$d"); n=${n#cross-*-}
+              mkdir -p "results/crossings/$n"
+              cp "$d"/* "results/crossings/$n/" 2>/dev/null || true
+              last=$(grep -E "^(proven|route|not settled)" "$d/run.log" 2>/dev/null | tail -1)
+              echo "| ${n%_b*} | ${n##*_} | ${last:-no result} |"
+            done
+            echo
+            echo "largest single process: $(grep -h 'Maximum resident' artifacts/cross-*/run.log | awk '{print $NF}' | sort -n | tail -1) kB"
+          } | tee results/crossings/summary.md >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "crossings"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "crossings-results-${{ github.run_id }}"
+          git add results/crossings
+          git commit -q -m "The 18 room transitions on the current model (run ${{ github.run_id }})"
+          git push origin "crossings-results-${{ github.run_id }}"

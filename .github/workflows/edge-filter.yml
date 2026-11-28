@@ -1,0 +1,96 @@
+# experiments/edge_windows.py on GitHub Actions: which windows of width W can the
+# tiles outside the rooms change? One job per Chapter 1 room, then one job that
+# merges them, adds the windows Leonardo never finished (hpc/missing_windows.py)
+# and pushes hpc/edge_flagged_w<W>.json to a branch named edge-filter-results-<run id>.
+# Feed that file to .github/workflows/edge-windows.yml.
+#
+# Set "width" and "exact" in hpc/edge_filter.json and push it to a branch named
+# edge-filter-run or edge-filter-run-<anything>. Chapter 1's rooms come from the
+# repository secret CH1_ROOMS_B64 (see edge-windows.yml); only the filter's
+# {room: [K, ...]} lists and logs are uploaded, nothing derived from the game.
+name: edge-filter
+
+on:
+  push:
+    branches: [edge-filter-run, "edge-filter-run-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  filter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        room: [lvl_1, lvl_2, lvl_3, lvl_4, lvl_3b, lvl_5, lvl_6, lvl_6a, lvl_6b, lvl_6c, lvl_7,
+               lvl_8, lvl_8b, lvl_9, lvl_9b, lvl_10a, lvl_11, lvl_12, lvl_12a]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rooms from the secret, the community TAS through the model
+        shell: bash
+        env:
+          CH1_ROOMS_B64: ${{ secrets.CH1_ROOMS_B64 }}
+        run: |
+          [ -n "$CH1_ROOMS_B64" ] || { echo "the secret CH1_ROOMS_B64 is not set"; exit 1; }
+          echo "$CH1_ROOMS_B64" | base64 -d | tar -xzf - -C rooms/vanilla
+          python3 tests/chain_tas.py --no-map | tail -1
+      - name: Filter the windows of ${{ matrix.room }}
+        shell: bash
+        run: |
+          W=$(python3 -c "import json; print(json.load(open('hpc/edge_filter.json'))['width'])")
+          E=$(python3 -c "import json; print(json.load(open('hpc/edge_filter.json')).get('exact', 4))")
+          mkdir -p out
+          /usr/bin/time -v python3 experiments/edge_windows.py --width "$W" --exact "$E" --rooms ${{ matrix.room }} \
+            --jobs "$(nproc)" --json out/${{ matrix.room }}.json 2>&1 | tee out/${{ matrix.room }}.log
+          test -s out/${{ matrix.room }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-filter-${{ matrix.room }}
+          path: out/
+          retention-days: 14
+
+  merge:
+    needs: filter
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: edge-filter-*
+      - name: Merge, add the missing windows, push
+        shell: bash
+        run: |
+          W=$(python3 -c "import json; print(json.load(open('hpc/edge_filter.json'))['width'])")
+          python3 - "$W" <<'EOF'
+          import glob, json, sys
+          sys.path.insert(0, ".")
+          from celeste_sat.community import CH1_ORDER
+          w = int(sys.argv[1])
+          got = {}
+          for f in glob.glob("artifacts/edge-filter-*/*.json"):
+              got.update(json.load(open(f)))
+          missing = [r for r in CH1_ORDER if r not in got]
+          if missing:
+              sys.exit(f"no filter result for {missing}")
+          json.dump({r: got[r] for r in CH1_ORDER}, open(f"edge_w{w}.json", "w"), indent=1)
+          print(f"W={w}: {sum(map(len, got.values()))} windows flagged in {len(got)} rooms")
+          EOF
+          python3 hpc/missing_windows.py --width "$W" --merge "edge_w$W.json" --json "hpc/edge_flagged_w$W.json" | tee summary.txt
+          mkdir -p "results/edge_filter"
+          cp "edge_w$W.json" "results/edge_filter/flagged_w$W.json"
+          cat artifacts/edge-filter-*/*.log | grep -E "windows \(flood alone|can reach a check|Maximum resident|Elapsed" > "results/edge_filter/log_w$W.txt" || true
+          { echo '```'; cat summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "edge-filter"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "edge-filter-results-${{ github.run_id }}"
+          git add "hpc/edge_flagged_w$W.json" results/edge_filter
+          git commit -q -m "Edge filter at W=$W (run ${{ github.run_id }})"
+          git push origin "edge-filter-results-${{ github.run_id }}"
