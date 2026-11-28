@@ -47,7 +47,9 @@ SAT: can she leave by frame 17? (9 free frames) ... no -> 18 is optimal (224s)
   that leave in a different state and break the next room, and 1 timed out
   ([docs/results.md](docs/results.md#the-w--12-certificate-against-the-tiles-outside-the-rooms-2026-10-19)).
   **The 16-frame windows and the room transitions have not been re-checked
-  yet**; they stand only for the model before that fix. The frames left are
+  yet**; they stand only for the model before that fix. The 16-frame run is
+  also incomplete: 1,819 of its 1,952 windows have a result, and the other
+  133 were in Slurm tasks that hit their time limit. The frames left are
   in the seams between rooms
   ([docs/results.md](docs/results.md#the-leonardo-campaign-october-2026)).
 - **Checked certificates.** `tools/certify.py` re-solves a window's formula

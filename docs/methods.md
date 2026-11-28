@@ -216,8 +216,8 @@ tiers, from what this project has to what it can never have:
 
 | tier | claim | status |
 |---|---|---|
-| **A. Fidelity** | the model reproduces the game frame for frame, subpixels included, on every room of the route | Chapter 1: done (the community TAS and the recordings, [verification.md](verification.md)); Chapter 2: not recorded yet |
-| **B. Local optimality** | no stretch of W+1 frames of this route can be done in W frames and reach the same state (`tools/windows.py`); no ending of a room gets into the next room's state sooner (`tools/cross.py`) | W = 8 on Chapter 1 room 1 here; W = 12/16 over all of Chapter 1 on Leonardo, results not yet committed |
+| **A. Fidelity** | the model reproduces the game frame for frame, subpixels included, on every room of the route | Chapter 1: done (the community TAS and the recordings, [verification.md](verification.md)); Chapter 2: three recordings match on every frame, but the community 2A TAS does not replay yet ([verification.md](verification.md#chapter-2-one-recording-so-far)) |
+| **B. Local optimality** | no stretch of W+1 frames of this route can be done in W frames and reach the same state (`tools/windows.py`); no ending of a room gets into the next room's state sooner (`tools/cross.py`) | W = 8 on Chapter 1 room 1 here, with checked DRAT certificates for 81 of its 83 windows ([results/certificates/](../results/certificates/README.md)); W = 12 over all of Chapter 1 on the current model, 2,023 of 2,028 proven (`results/edge_rerun/`); W = 16 (1,819 of 1,952 windows run) and the 18 room transitions on the model before the outside tiles only (`results/leonardo/`); see [results.md](results.md#the-leonardo-campaign-october-2026) |
 | **C. Room optimality** | no route through this room, from this entry, is faster | only for demo rooms and for the last ~10-17 frames of a room ("given frames 1..K"); needs lower bounds ([ROADMAP.md](../ROADMAP.md)) |
 | **D. Run optimality** | no route through the chapter is faster | out of reach: proof cost grows ~1.5x per free frame |
 

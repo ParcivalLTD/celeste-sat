@@ -15,14 +15,15 @@ They are the same work. Goal 1 gives the paper its headline result, and the
 paper and the record together are what a CV can point to. So the plan below
 is one sequence, and every step says which goal it serves.
 
-## Where things stand (2026-10-13)
+## Where things stand (2026-11-28)
 
 | | status | evidence |
 |---|---|---|
 | Chapter 1 model | **verified**: the community TAS (19 rooms, 2,275 frames of control) plays exactly; 16 recordings from Celeste 1.4 match on every frame, subpixels included (the longest 880 frames, 8 rooms, to a death); the map's tiles outside the rooms are in the model | `tests/chain_tas.py`, `tests/recordings.py data/recordings` |
 | Model self-consistency | **verified**: 2.95 M fuzzed frames bit-identical between the literal and the solver build; the SAT harnesses' input rules (2.0 M checks) and state comparison (6.8 M) fuzzed too | `tests/diff.sh` |
 | SAT finds frames humans left | **one confirmed in the game** (`lvl_3`, 107 → 106), but it costs the next room its setup; five more room endings faster in the model, all costing the next room | [docs/results.md](docs/results.md) |
-| Local optimality (Tier B) | **W = 12 over all of Chapter 1 on the current model: 2,023 of 2,028 proven** (4 faster endings, 1 timeout). W = 16, W = 18 over room 1 and the 18 room transitions were proven on Leonardo for the model before the outside tiles (3,826 windows in all, 6 timeouts) and **have not been re-checked** | `results/leonardo/`, `results/edge_rerun/`, `hpc/summary.py` |
+| Local optimality (Tier B) | **W = 12 over all of Chapter 1 on the current model: 2,023 of 2,028 proven** (4 faster endings, 1 timeout). On Leonardo, for the model before the outside tiles: W = 16 has 1,804 proven, 4 timeouts and 11 faster endings, but only 1,819 of its 1,952 windows were run (133 were in tasks that hit the time limit); W = 18 over room 1 has 73 of 73 proven; the 18 room transitions have all 36 queries proven. None of these **has been re-checked** on the current model | `results/leonardo/`, `results/edge_rerun/`, `hpc/summary.py` |
+| Checked certificates | **DRAT proofs checked by drat-trim** for all 9 W = 8 windows of `ledge` and 81 of the 83 of Chapter 1's `lvl_1`; the other two are settled by CBMC alone, because its `--dimacs` writes an empty formula for them ([diffblue/cbmc#9548](https://github.com/diffblue/cbmc/issues/9548)) | `tools/certify.py`, [results/certificates/](results/certificates/README.md) |
 | Faster than the community TAS | **nothing yet.** The 15 "faster" Leonardo windows are faster room *endings* in a different state; after each, the next room's TAS inputs fail. The `lvl_6a` lead (118 frames instead of 161, over the top of the room) **fails in the game**: there is wall above the room, now in the model too | [docs/results.md](docs/results.md#the-leonardo-campaign-october-2026) |
 | Chapter 2 model | dream blocks, chasers, switch gates, barriers modelled and fuzzed. **Three recordings match on every frame** (the longest 851 frames over 5 rooms, to a death in `2a_lvl_7`, the switch gate's position included), after four fixes found with them: the dream-dash entry and exit frames, the 1.4 dream-block exit push, and the touch switch's 16 × 16 box | [docs/verification.md](docs/verification.md#chapter-2-one-recording-so-far) |
 | Chapter 2 routes | made with the dream-block bug, so **all to be re-solved**: `results/routes/2a_chase.tas` dies in `2a_lvl_4` in the fixed model. Before the fix the project's own search was ~9 % behind the community TAS over the chase (rooms 4-12: 2,429 vs 2,221 frames) | `tools/chain_chapter2.py` |
@@ -122,8 +123,10 @@ human world-record TAS and (b) find the places where one does, verified in
 the game.*
 
 **What it may claim** (see [docs/methods.md](docs/methods.md#what-proven-means)):
-Tier A (fidelity) for Chapter 1, and Tier B (local optimality, W = 12/16,
-all room transitions) for the whole chapter. That is already a result: the
+Tier A (fidelity) for Chapter 1, and Tier B (local optimality) for the
+whole chapter: W = 12 on the current model now; W = 16 and all room
+transitions once they are re-checked on it and the 133 W = 16 windows that
+never ran have been run. That is already a result: the
 human world record has no local slack the solver can find. Add N frames
 saved in the game once step 2 delivers them. **What it must not claim**:
 optimality of a room or a run (Tier C/D), or any number that has not been
@@ -162,9 +165,8 @@ game files can't be included. Say so and document `game/README.md`.
 
 ## Step 5 -- before you point people at the repository (days; goal 3)
 
-- **Choose a licence** for your own code (MIT, matching the ported
-  `Player.cs`, is the natural one). The repository has none, which legally
-  means nobody may reuse it. `THIRD_PARTY_NOTICES.md` stays as it is.
+- **Licence: done (MIT, 2026-10-13)**, matching the ported `Player.cs`.
+  `THIRD_PARTY_NOTICES.md` stays as it is.
 - **Game content in the git history: done (2026-11-22).** `git filter-repo`
   removed the game's map file, the decompiled `LevelLoader.cs`, `Switch.cs`
   and `SwitchGate.cs`, `data/recordings/log.txt` and the community TAS
@@ -180,7 +182,8 @@ game files can't be included. Say so and document `game/README.md`.
 - **On the CV**, the strongest true lines: *built a frame-exact model of
   Celeste's physics in C, validated against the real game to the subpixel;
   used CBMC/SAT to certify local optimality of the human world-record TAS
-  over ~4,300 windows on EuroHPC Leonardo (~2,300 core-hours); found N
+  (2,023 of 2,028 12-frame windows proven on the current model; a EuroHPC
+  Leonardo campaign of ~2,300 core-hours before it); found N
   frames the record missed, verified in the game*. N and "verified" only
   once step 2 is done.
 

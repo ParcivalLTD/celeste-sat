@@ -5,6 +5,54 @@ README and the other docs describe the project as it is; this is how it got
 there. Entries before 2026-10-12 come from `brain.md`, the working notes of
 the time, and describe the code as it was then (file names included).
 
+## 2026-11-28: a docs audit; the W = 16 run is incomplete
+
+The docs had fallen behind the work. `docs/methods.md` still called the
+Leonardo results "not yet committed" and Chapter 2 "not recorded", the
+roadmap still asked for a licence, and `brain.md` still named an old main.
+Counting the windows each room has (`hpc/make_tasks.py`: frames − W − 1)
+against what `hpc/summary.py` finds in `results/leonardo/` shows that W = 12
+is complete (2,028 of 2,028) and so is W = 18 over `lvl_1` (73 of 73), but
+W = 16 is not: 1,819 of 1,952 windows have a result. The other 133 are
+spread over `lvl_4`, `lvl_6b`, `lvl_8`, `lvl_8b`, `lvl_9` and `lvl_12`, in
+array tasks that Slurm cancelled at their time limit (12 logs end in
+`CANCELLED ... DUE TO TIME LIMIT`). They are neither proven nor timeouts.
+The README, `ROADMAP.md`, `brain.md`, `docs/results.md`, `docs/methods.md`
+and the report now say so; the W = 16 re-check has to run them too.
+
+## 2026-11-17 to 11-22: checked certificates, a benchmark family, a clean history
+
+`tools/certify.py` takes CBMC's formula for a window (`--dimacs`), solves it
+with CaDiCaL, and has drat-trim check the DRAT proof, so a "no" no longer
+rests on the solver. It is first run where the answers are known: a window
+with a wasted frame must come back SAT, the next one must certify, and that
+proof with its last tenth cut off must be rejected. One `ledge` window was
+certified by hand (K = 0, `s VERIFIED`), then all 9 W = 8 windows of
+`ledge`, then 81 of the 83 of `lvl_1` (16.6 hours, proofs up to 1.5 GB,
+deleted once checked). The last two (K = 31, 32) lie inside a dash: CBMC
+settles them while simplifying and writes an empty formula, which is
+satisfiable and so contradicts its own verdict. `certify.py` now records
+these as settled by CBMC alone, and the CBMC bug is reported as
+[diffblue/cbmc#9548](https://github.com/diffblue/cbmc/issues/9548).
+`tools/benchmark.py` generates the windows as a SAT Competition benchmark
+family (`benchmarks/celeste-window/`, demo rooms only), and the technical
+report got its first draft (`docs/report/`). On 11-22 the W = 12 re-check
+(below) was merged, the README says that the code is built with AI coding
+agents, and `git filter-repo` removed the game's files from every commit.
+
+## 2026-10-18 and 10-19: the W = 12 certificate against the tiles outside the rooms
+
+The Leonardo proofs predate the tiles outside the rooms, so each "no" was
+checked again. A sound edge check (a flood of where she can be) first
+flagged 1,721 of the 2,028 W = 12 windows. Running the model with and
+without the outside tiles side by side for the first 4 frames of each window
+(`experiments/edge_windows.py --exact 4`) cut that to 620. Those were
+proven again with CBMC 5.95.1 on GitHub Actions (run 39244071132, about 180
+core-hours, at most 7.2 GB per query): 616 no and 4 yes, the known faster
+endings. In all, 2,023 windows are proven on the current model, 4 are faster
+endings and 1 timed out (`docs/results.md`). The same days, the Chapter 2
+chase was being solved again on the PC (rooms 3-7 cached, paused).
+
 ## 2026-10-13 (evening): the touch switch, corrected; Chapter 2 matches
 
 The recording with the switch gate's position (`celeste-sat-2a-gate.txt`,

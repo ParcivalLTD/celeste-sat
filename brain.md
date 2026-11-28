@@ -7,7 +7,7 @@ happened when is [docs/history.md](docs/history.md), and the measurements are
 [docs/results.md](docs/results.md). Update this file at the end of every
 working session: the state, the next step, anything you learnt the hard way.
 
-Last updated: 2026-10-18.
+Last updated: 2026-11-28.
 
 ## The state in ten lines
 
@@ -17,12 +17,19 @@ Last updated: 2026-10-18.
   to a death on the same frame. Chapter 2: 3 recordings, the longest 851
   frames over 5 rooms to a death, the switch gate's position included. The
   community 1A TAS replays exactly (2,275 frames of control, 19 rooms).
-- **The certificate holds for the model of 9e3dd4f** (Leonardo, Oct 2026): no 12- or 16-frame window
-  of the community 1A TAS can be shortened to the same state, and the same
-  holds across all 18 room transitions (3,826 windows proven, 6 timeouts).
-  It was computed before the model had the tiles outside the rooms; the
-  re-check (step 2 below) is done for W = 12: 2,023 of 2,028 proven on the
-  current model, 4 faster endings, 1 timeout; W = 16 and the transitions are not.
+- **The certificate: W = 12 holds on the current model** (2,023 of 2,028
+  windows proven, 4 faster endings, 1 timeout; step 2 below). The Leonardo
+  campaign (Oct 2026, model of 9e3dd4f, before the tiles outside the rooms)
+  also proved 1,804 W = 16 windows and all 36 queries across the 18 room
+  transitions. Those are not re-checked yet, and W = 16 is incomplete: only
+  1,819 of its 1,952 windows ran (133 were in tasks that hit the time limit).
+- **Checked certificates** (2026-11-17 to 11-20): `tools/certify.py` has
+  drat-trim check CaDiCaL's DRAT proof of a window's "no". All 9 W = 8
+  windows of `ledge` and 81 of the 83 of `lvl_1` are certified. The other two
+  are settled by CBMC alone: its `--dimacs` writes an empty formula for them
+  ([diffblue/cbmc#9548](https://github.com/diffblue/cbmc/issues/9548), open).
+  `tools/benchmark.py` turns windows into a SAT Competition benchmark family
+  (`benchmarks/celeste-window/`, a draft for 2027).
 - **Nothing is faster than the community TAS yet.** The record is
   **0:49.079** (2,887 frames, VampireFlower/CelesteTAS `1A.tas`). The
   118-frame `lvl_6a` lead is void: the game has wall above the room. The
@@ -32,9 +39,10 @@ Last updated: 2026-10-18.
   since. They must be solved again (step 1 below).
 - **No compute cluster.** The Leonardo account expired on 2026-10-12. Long
   searches run on the PC.
-- PR #8 is merged (main = 0529303). WSL on the PC is set up (Ubuntu 24.04,
-  12 cores, **7.9 GB RAM**); `game/` has both map files. All checks green on
-  2026-10-18 (quick tests, the community TAS, all 19 recordings).
+- WSL on the PC is set up (Ubuntu 24.04, 12 cores, **7.9 GB RAM**); `game/`
+  has both map files. The quick tests pass on a fresh clone without the
+  game's files (2026-11-28); the community TAS and all 19 recordings were
+  last checked green on 2026-10-18.
 
 ## Setting up the Windows PC
 
@@ -72,6 +80,26 @@ python3 tests/chain_tas.py                     # "2275 frames of the community T
 python3 tests/recordings.py data/recordings    # "MATCH"
 bash tools/run_tests.sh --vanilla --sat        # everything; takes a while
 ```
+
+The same checks run on GitHub Actions (`.github/workflows/game-checks.yml`,
+on every push to main and every pull request). The game's files reach CI
+only as repository secrets, never through git. With `CH1_MAP_B64` set, CI
+runs everything above. With only `CH1_ROOMS_B64` (the exported rooms, also
+used by `edge-windows.yml`), it runs `tests/chain_tas.py` with the room
+names given instead of read from the map, then the recordings; the beam
+searches and the Chapter 1 SAT checks need the map. To set the map secret,
+run on the PC with the GitHub CLI logged in:
+
+```bash
+gzip -9c game/1-ForsakenCity.bin | base64 -w0 > /tmp/map.b64; wc -c /tmp/map.b64
+gh secret set CH1_MAP_B64 < /tmp/map.b64       # if it is under 48,000 bytes; otherwise:
+# split -b 45000 /tmp/map.b64 /tmp/map.part.
+# gh secret set CH1_MAP_B64 < /tmp/map.part.aa; gh secret set CH1_MAP_B64_2 < /tmp/map.part.ab
+rm /tmp/map.b64 /tmp/map.part.* 2>/dev/null
+```
+
+The same workflow builds `docs/report/report.tex` with the real IEEEtran
+class and keeps the PDF as the artifact `report-pdf`.
 
 ## Next steps, in order
 
@@ -120,11 +148,18 @@ for the rest); the other 620 were re-proven with CBMC on GitHub Actions
 rooms come from the repository secret `CH1_ROOMS_B64`, never from git).
 `hpc/run_flagged.sh` does the same on any Linux machine.
 
-**Still open:** the same check for the **W = 16** windows (1,819) and the
+**Still open:** the same check for the **W = 16** windows and the
 **18 room transitions**, which stand for the model of 9e3dd4f. Plan: run
 `edge_windows.py --width 16 --exact 4` (cheap, hours on the PC), cut
-`hpc/edge_flagged_w16.json` from what it flags and run those through the
+`hpc/edge_flagged_w16.json` from what it flags, **add the 133 W = 16
+windows Leonardo never finished** (their tasks hit the time limit; rooms and
+K in `docs/results.md`, "The Leonardo campaign"), and run those through the
 same workflow (a W = 16 query is bigger than 7.2 GB: measure before launch).
+`hpc/edge_chunks.py`, `hpc/edge_collect.py`, `hpc/run_flagged.sh` and the
+workflow still hard-code W = 12. The transitions are cheap at 6 + 3 free
+frames (about 3 core-hours on Leonardo in all) and can run on the PC:
+`python3 experiments/tas_crossings.py --before 6 --after 3`; at 10 + 8 they
+took about 50 core-hours.
 
 Traps from this (also in the docstrings): a sound bound must cover where
 she can be *within* a frame, not at its end (the model clamps to the room

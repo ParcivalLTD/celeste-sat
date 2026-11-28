@@ -221,7 +221,8 @@ class Recordings(unittest.TestCase):
         self.assertEqual(rows[1]["entities"], "Wind: 0, 0")
 
     def test_every_model_state_has_the_game_name(self):
-        text = open(os.path.join(ROOT, "model", "celeste.h")).read()
+        with open(os.path.join(ROOT, "model", "celeste.h")) as f:
+            text = f.read()
         for name, value in re.findall(r"#define (ST_\w+)\s+(\d+)", text):
             self.assertIn(int(value), STATE_NAMES, name)
 
