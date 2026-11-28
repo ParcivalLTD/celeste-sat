@@ -1,1 +1,1 @@
-{"size": 6, "limit": 0, "parallel": 2, "timeout": 5400}
+{"width": 16, "size": 1, "skip": 750, "limit": 250, "parallel": 1, "timeout": 19000}
