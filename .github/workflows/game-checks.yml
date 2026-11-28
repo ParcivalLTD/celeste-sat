@@ -56,7 +56,7 @@ jobs:
           elif [ -n "$CH1_ROOMS_B64" ]; then
             echo "$CH1_ROOMS_B64" | base64 -d | tar -xzf - -C rooms/vanilla
             echo "mode=rooms" >> "$GITHUB_OUTPUT"
-            echo "rooms: $(ls rooms/vanilla/1a_*.txt | wc -l) Chapter 1 room files"
+            echo "rooms: $(find rooms/vanilla -name '1a_*.txt' | wc -l) Chapter 1 room files"
           else
             echo "mode=none" >> "$GITHUB_OUTPUT"
           fi

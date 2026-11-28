@@ -1,9 +1,11 @@
-# Re-proves the W = 12 window proofs of the Chapter 1 certificate that the
-# tiles outside the rooms could affect (hpc/edge_flagged_w12.json, found by
-# experiments/edge_windows.py), on the current model, in parallel.
+# Re-proves the window proofs of the Chapter 1 certificate that the tiles
+# outside the rooms could affect (hpc/edge_flagged_w<W>.json, found by
+# experiments/edge_windows.py; for W = 16 plus the windows Leonardo never
+# finished, hpc/missing_windows.py --merge), on the current model, in parallel.
 #
-# Edit hpc/edge_run.json (which rooms, how many jobs, how many queries at once)
-# and push this branch to start a run. The results go to a branch named
+# Edit hpc/edge_run.json (the width W, which rooms, how many jobs, how many
+# queries at once) and push it to a branch named edge-windows-run or
+# edge-windows-run-<anything> to start a run. The results go to a branch named
 # edge-results-<run id>. The routes and entry states are in the repository
 # (results/leonardo/chain_tas, hpc/entry_states/ch1). Chapter 1's rooms are
 # exported from the game's map and never committed: they come from the
@@ -13,7 +15,7 @@ name: edge-windows
 
 on:
   push:
-    branches: [edge-windows-run]
+    branches: [edge-windows-run, "edge-windows-run-*"]
   workflow_dispatch:
 
 jobs:
@@ -58,16 +60,16 @@ jobs:
           fi
           free -g | sed -n 2p
           /usr/bin/time -v python3 tools/windows.py "rooms/vanilla/1a_$R.txt" "build/chain_tas/$R/route.tas" \
-            "${START[@]}" --width 12 --from ${{ matrix.k0 }} --to ${{ matrix.k1 }} \
+            "${START[@]}" --width ${{ matrix.width }} --from ${{ matrix.k0 }} --to ${{ matrix.k1 }} \
             --jobs ${{ matrix.parallel }} --timeout ${{ matrix.timeout }} \
-            --out "build/cert/w12/${{ matrix.name }}" 2>&1 | tee run.log
+            --out "build/cert/w${{ matrix.width }}/${{ matrix.name }}" 2>&1 | tee run.log
       - name: Collect
         if: always()
         shell: bash
         run: |
           mkdir -p out
           cp run.log out/ 2>/dev/null || true
-          D="build/cert/w12/${{ matrix.name }}"
+          D="build/cert/w${{ matrix.width }}/${{ matrix.name }}"
           cp "$D/windows.json" out/ 2>/dev/null || true
           cp "$D"/win_*_better*.tas out/ 2>/dev/null || true
       - uses: actions/upload-artifact@v4
@@ -78,7 +80,7 @@ jobs:
           retention-days: 14
 
   collect:
-    needs: prove
+    needs: [plan, prove]
     if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
@@ -92,11 +94,12 @@ jobs:
       - name: Summarise and push the results
         shell: bash
         run: |
-          python3 hpc/edge_collect.py artifacts results/edge_rerun | tee summary.md
+          W=$(python3 -c "import json; print(json.load(open('hpc/edge_run.json')).get('width', 12))")
+          python3 hpc/edge_collect.py artifacts results/edge_rerun "$W" | tee summary.md
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
           git config user.name "edge-windows"
           git config user.email "actions@users.noreply.github.com"
           git checkout -b "edge-results-${{ github.run_id }}"
           git add results/edge_rerun
-          git commit -q -m "Edge re-run of the flagged W=12 windows (run ${{ github.run_id }})"
+          git commit -q -m "Edge re-run of the flagged W=$W windows (run ${{ github.run_id }})"
           git push origin "edge-results-${{ github.run_id }}"

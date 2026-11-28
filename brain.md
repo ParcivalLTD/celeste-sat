@@ -150,13 +150,15 @@ rooms come from the repository secret `CH1_ROOMS_B64`, never from git).
 
 **Still open:** the same check for the **W = 16** windows and the
 **18 room transitions**, which stand for the model of 9e3dd4f. Plan: run
-`edge_windows.py --width 16 --exact 4` (cheap, hours on the PC), cut
-`hpc/edge_flagged_w16.json` from what it flags, **add the 133 W = 16
-windows Leonardo never finished** (their tasks hit the time limit; rooms and
-K in `docs/results.md`, "The Leonardo campaign"), and run those through the
-same workflow (a W = 16 query is bigger than 7.2 GB: measure before launch).
-`hpc/edge_chunks.py`, `hpc/edge_collect.py`, `hpc/run_flagged.sh` and the
-workflow still hard-code W = 12. The transitions are cheap at 6 + 3 free
+`edge_windows.py --width 16 --exact 4 --json build/edge_w16.json` (cheap,
+hours on the PC), then make `hpc/edge_flagged_w16.json` from what it flags
+**plus the 133 W = 16 windows Leonardo never finished** (their tasks hit the
+time limit): `python3 hpc/missing_windows.py --width 16 --merge
+build/edge_w16.json --json hpc/edge_flagged_w16.json`. Run those with
+`WIDTH=16 bash hpc/run_flagged.sh` or the workflow with `"width": 16` in
+`hpc/edge_run.json` (a W = 16 query is bigger than 7.2 GB: run one window
+first and set `GB_PER_QUERY`; `hpc/README.md` has the commands). The
+transitions are cheap at 6 + 3 free
 frames (about 3 core-hours on Leonardo in all) and can run on the PC:
 `python3 experiments/tas_crossings.py --before 6 --after 3`; at 10 + 8 they
 took about 50 core-hours.
