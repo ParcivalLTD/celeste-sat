@@ -1,0 +1,26 @@
+route leaves 1a_lvl_4 on frame 91; 1 windows of 16 free frames (K = 41..41), 1 at a time
+  frames  42.. 58 in 16: no (8976s)
+1 windows proven, 0 timed out, 0 faster routes (results in /home/runner/work/celeste-sat/celeste-sat/build/cert/w16/lvl_4_k41-41/windows.json)
+	Command being timed: "python3 tools/windows.py rooms/vanilla/1a_lvl_4.txt build/chain_tas/lvl_4/route.tas --start build/chain_tas/entry_lvl_4.h --width 16 --from 41 --to 41 --jobs 1 --timeout 14400 --out build/cert/w16/lvl_4_k41-41"
+	User time (seconds): 8971.88
+	System time (seconds): 4.49
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:29:39
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 7577808
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 379
+	Minor (reclaiming a frame) page faults: 2528891
+	Voluntary context switches: 7139
+	Involuntary context switches: 40756
+	Swaps: 0
+	File system inputs: 64776
+	File system outputs: 2264
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

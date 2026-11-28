@@ -1,0 +1,20 @@
+{
+ "lvl_4": {
+  "41": {
+   "found": false,
+   "seconds": 8976,
+   "ignored": [
+    "onGround",
+    "wallSlideTimer",
+    "jumpGraceTimer",
+    "dashCooldown",
+    "dashRefillCooldown",
+    "dashAttack",
+    "maxFall",
+    "moveX",
+    "facing",
+    "dashDir"
+   ]
+  }
+ }
+}
