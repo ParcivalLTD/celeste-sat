@@ -1,0 +1,76 @@
+lvl_1     42 of  75 windows (flood alone: 54)  [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74]
+W=16: 42 of 75 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:13.17
+	Maximum resident set size (kbytes): 300836
+lvl_10a   38 of 187 windows (flood alone: 55)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 161, 162, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186]
+W=16: 38 of 187 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:16.42
+	Maximum resident set size (kbytes): 336096
+lvl_11    37 of 144 windows (flood alone: 59)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143]
+W=16: 37 of 144 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:32.61
+	Maximum resident set size (kbytes): 330060
+lvl_12    67 of 130 windows (flood alone: 95)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129]
+W=16: 67 of 130 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:16.14
+	Maximum resident set size (kbytes): 424784
+lvl_12a   82 of 124 windows (flood alone: 105)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123]
+W=16: 82 of 124 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:59.28
+	Maximum resident set size (kbytes): 148376
+lvl_2     42 of 101 windows (flood alone: 63)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100]
+W=16: 42 of 101 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:54.59
+	Maximum resident set size (kbytes): 342600
+lvl_3     45 of  90 windows (flood alone: 75)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89]
+W=16: 45 of 90 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:26.68
+	Maximum resident set size (kbytes): 219896
+lvl_3b    53 of  81 windows (flood alone: 66)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
+W=16: 53 of 81 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:48.37
+	Maximum resident set size (kbytes): 321352
+lvl_4     47 of  74 windows (flood alone: 74)  [0, 1, 2, 3, 4, 5, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73]
+W=16: 47 of 74 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:43.25
+	Maximum resident set size (kbytes): 273736
+lvl_5     81 of 122 windows (flood alone: 97)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50, 51, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121]
+W=16: 81 of 122 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:09.92
+	Maximum resident set size (kbytes): 301220
+lvl_6     66 of 100 windows (flood alone: 91)  [0, 1, 2, 3, 4, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
+W=16: 66 of 100 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:59.47
+	Maximum resident set size (kbytes): 266644
+lvl_6a    82 of 144 windows (flood alone: 104)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143]
+W=16: 82 of 144 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:46.80
+	Maximum resident set size (kbytes): 121724
+lvl_6b    75 of  93 windows (flood alone: 93)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92]
+W=16: 75 of 93 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:04.38
+	Maximum resident set size (kbytes): 142028
+lvl_6c    50 of  93 windows (flood alone: 78)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 24, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92]
+W=16: 50 of 93 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:04.01
+	Maximum resident set size (kbytes): 296696
+lvl_7     70 of  86 windows (flood alone: 86)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85]
+W=16: 70 of 86 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:11.34
+	Maximum resident set size (kbytes): 322736
+lvl_8     46 of  90 windows (flood alone: 79)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89]
+W=16: 46 of 90 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:47.44
+	Maximum resident set size (kbytes): 173144
+lvl_8b    66 of  82 windows (flood alone: 79)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81]
+W=16: 66 of 82 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:01.08
+	Maximum resident set size (kbytes): 112884
+lvl_9     67 of  80 windows (flood alone: 80)  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+W=16: 67 of 80 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:21.09
+	Maximum resident set size (kbytes): 437952
+lvl_9b    47 of  56 windows (flood alone: 56)  [0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
+W=16: 47 of 56 windows can reach a check the outside tiles decide
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:52.58
+	Maximum resident set size (kbytes): 317792
