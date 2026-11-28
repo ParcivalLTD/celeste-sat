@@ -6,6 +6,9 @@
 # a branch named crossings-results-<run id>, under results/crossings/.
 #
 # Push to a branch named crossings-run or crossings-run-<anything> to start a run.
+# hpc/crossings_run.json picks the transitions: "seams" (indices into Chapter 1's
+# room order, 0 = lvl_1 -> lvl_2; default all 18) and "settings" ([BEFORE, AFTER]
+# pairs; default both).
 # Chapter 1's rooms come from the repository secret CH1_ROOMS_B64 (see
 # edge-windows.yml); only result.json and the log of each transition are uploaded.
 name: crossings
@@ -19,15 +22,30 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          cfg = json.load(open("hpc/crossings_run.json")) if os.path.exists("hpc/crossings_run.json") else {}
+          seams = cfg.get("seams", list(range(18)))
+          settings = [f"{b} {a}" for b, a in cfg.get("settings", [[6, 3], [10, 8]])]
+          print("matrix=" + json.dumps({"seam": seams, "setting": settings}))
+          EOF
+
   cross:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
       fail-fast: false
       max-parallel: 20
-      matrix:
-        seam: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-        setting: ["6 3", "10 8"]
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - name: Install CBMC
@@ -47,7 +65,10 @@ jobs:
           read -r BEFORE AFTER <<< "${{ matrix.setting }}"
           read -r A B <<< "$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.community import CH1_ORDER as o; i = ${{ matrix.seam }}; print(o[i], o[i + 1])")"
           N=$(python3 -c "import sys; sys.path.insert(0, '.'); from celeste_sat.tas import read_tas; print(len(read_tas('build/chain_tas/$A/route.tas')))")
-          if [ "$BEFORE" -le 6 ]; then JOBS=$(nproc); TIMEOUT=3600; else JOBS=2; TIMEOUT=14400; fi
+          # 10 + 8: one query at a time. Two at once ran a 16 GB runner out of memory
+          # (lvl_3b -> lvl_5 and lvl_5 -> lvl_6 ended with exit 143 after 1.5 hours);
+          # on Leonardo the slowest of these transitions took 3.8 hours in all.
+          if [ "$BEFORE" -le 6 ]; then JOBS=$(nproc); TIMEOUT=3600; else JOBS=1; TIMEOUT=14400; fi
           NAME="${A}_${B}_b${BEFORE}a${AFTER}"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           START=()
