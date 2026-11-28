@@ -110,3 +110,26 @@ rsync -avm --include='*/' --include='*.json' --include='*.tas' --include='*.out'
 
 Check spend with `saldo -b` (it is updated about once a day) and
 `sacct -S today -X --format=JobID,JobName,Elapsed,AllocCPUS,State`.
+
+## Re-checking windows on the current model
+
+A model change can void a window's proof. `experiments/edge_windows.py` sorts
+out which windows the tiles outside the rooms could affect; only those are
+proven again. The same files serve any width W:
+
+```bash
+python3 experiments/edge_windows.py --width 16 --exact 4 --json build/edge_w16.json   # on the PC, hours
+python3 hpc/missing_windows.py --width 16 --merge build/edge_w16.json \
+    --json hpc/edge_flagged_w16.json             # + the 133 windows Leonardo never finished
+WIDTH=16 GB_PER_QUERY=12 LIMIT=1 bash hpc/run_flagged.sh ch1_rooms.b64 1   # one window: time and peak RAM
+WIDTH=16 GB_PER_QUERY=12 bash hpc/run_flagged.sh ch1_rooms.b64             # all of them, resumable
+```
+
+`hpc/missing_windows.py --width W` lists the windows with no result in
+`results/leonardo/` (each room has frames − W − 1). At W = 16 there are 133,
+in tasks that hit their time limit. They are also in
+`hpc/leonardo_missing_w16.json`. On GitHub Actions the same run is
+`.github/workflows/edge-windows.yml`: set `"width"` in `hpc/edge_run.json`
+and push it to a branch named `edge-windows-run-<anything>`. Results land in
+`results/edge_rerun/w<W>/`. Set `GB_PER_QUERY` from the one-window run; at
+W = 12 the largest query took 7.2 GB.
