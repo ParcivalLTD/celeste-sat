@@ -16,7 +16,9 @@ The config file (hpc/edge_run.json) has:
     width     the window width W (default 12): reads hpc/edge_flagged_w<W>.json
     rooms     list of rooms to run (default: all)
     size      windows per job (default 6)
-    limit     only the first N jobs, 0 for all (default 0)
+    skip      leave out the first N jobs (default 0), to split a list over several
+              runs: GitHub runs at most 256 jobs of one matrix
+    limit     only the first N jobs (after skip), 0 for all (default 0)
     parallel  CBMC queries at once in a job (default 2: about 16 GB of RAM per runner;
               a W = 16 query can take more than 7.2 GB, so measure before using 2)
     timeout   seconds per query (default 5400)
@@ -51,6 +53,7 @@ def main():
     if unknown:
         sys.exit(f"unknown rooms: {unknown}")
     jobs = chunks(flagged, rooms, cfg.get("size", 6))
+    jobs = jobs[cfg.get("skip", 0):]
     if cfg.get("limit"):
         jobs = jobs[:cfg["limit"]]
     for j in jobs:

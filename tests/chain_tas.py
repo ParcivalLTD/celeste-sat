@@ -3,7 +3,7 @@
 chain_tas.py -- play the community TAS of Chapter 1 through the model, room
 after room, from its first room, as far as it goes.
 
-    python3 tests/chain_tas.py [--last ROOM] [--from ROOM --entry ENTRY.h] [--map MAP] [--tas 1A.tas]
+    python3 tests/chain_tas.py [--last ROOM] [--from ROOM --entry ENTRY.h] [--map MAP | --no-map] [--tas 1A.tas]
 
 This is the strongest check of the model there is: the community TAS has
 been played in the real game, and a room's inputs only leave the room on
@@ -43,10 +43,19 @@ def main():
     ap.add_argument("--map", help="1-ForsakenCity.bin (default: see celeste_sat/paths.py)")
     ap.add_argument("--tas", help="a copy of the community 1A.tas (default: download it at the pinned commit)")
     ap.add_argument("--rooms", default=VANILLA, help="where the exported rooms go (default rooms/vanilla)")
+    ap.add_argument("--no-map", action="store_true",
+                    help="no map file (CI): every room must already be in --rooms, and the TAS is split at "
+                         "Chapter 1's 19 rooms and lvl_end, the room names among 1A.tas's labels")
     a = ap.parse_args()
 
-    map_path = a.map or find_map("1-ForsakenCity.bin")
-    secs, order = sections(community.fetch("1A.tas", a.tas), room_names(map_path))
+    if a.no_map:
+        # 1A.tas's other labels (Start, 1SH0G) are not rooms; split this way, every room's
+        # inputs equal results/leonardo/chain_tas/<room>/route.tas, which the map split
+        map_path, names = None, set(community.CH1_ORDER) | {"lvl_end"}
+    else:
+        map_path = a.map or find_map("1-ForsakenCity.bin")
+        names = room_names(map_path)
+    secs, order = sections(community.fetch("1A.tas", a.tas), names)
     work = os.path.join(BUILD, "chain_tas")
     os.makedirs(work, exist_ok=True)
     os.makedirs(a.rooms, exist_ok=True)
@@ -55,6 +64,8 @@ def main():
         """rooms/vanilla/1a_<order[i]>.txt, exported with the next room as the goal if missing"""
         path = os.path.join(a.rooms, f"1a_{order[i]}.txt")
         if not os.path.exists(path) and i + 1 < len(order):
+            if map_path is None:
+                sys.exit(f"{path} missing, and --no-map cannot export it")
             export_room(map_path, order[i], path, [order[i + 1]])
         return path
 
