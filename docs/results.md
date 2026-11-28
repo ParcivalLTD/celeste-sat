@@ -197,14 +197,23 @@ game.
 ## The Leonardo campaign (October 2026)
 
 About 2,300 core-hours on CINECA's Leonardo Booster (`hpc/`). The output is
-in `results/leonardo/` (provenance: commit 9e3dd4f, CBMC 5.80.0; Chapter 1's
-model is unchanged from it to now). `python3 hpc/summary.py` tallies it:
+in `results/leonardo/` (provenance: commit 9e3dd4f, CBMC 5.80.0; since then
+Chapter 1's model has changed only by the tiles outside the rooms, see
+[below](#the-w--12-certificate-against-the-tiles-outside-the-rooms-2026-10-19)).
+`python3 hpc/summary.py` tallies it:
 
-| window proofs over the chained community TAS | windows | proven ("no") | timeouts | "faster" |
-|---|---|---|---|---|
-| W = 12, all 19 rooms | 2,028 | 2,022 | 2 | 4 |
-| W = 16, all 19 rooms | 1,819 | 1,804 | 4 | 11 |
-| W = 18, `lvl_1` | 73 | 73 | 0 | 0 |
+| window proofs over the chained community TAS | windows with a result | of | proven ("no") | timeouts | "faster" |
+|---|---|---|---|---|---|
+| W = 12, all 19 rooms | 2,028 | 2,028 | 2,022 | 2 | 4 |
+| W = 16, all 19 rooms | 1,819 | 1,952 | 1,804 | 4 | 11 |
+| W = 18, `lvl_1` | 73 | 73 | 73 | 0 | 0 |
+
+"Of" is the number of windows in the route (`hpc/make_tasks.py`: frames − W − 1
+per room). W = 16 is incomplete: 133 windows have no result because their
+Slurm tasks hit the time limit (`CANCELLED ... DUE TO TIME LIMIT` in 12 of the
+`results/leonardo/logs/win_*.out` logs). They are `lvl_4` K = 41-42,
+`lvl_6b` (40 windows), `lvl_8` (29), `lvl_8b` K = 64-73, `lvl_9` (40) and
+`lvl_12` (12). They are neither proven nor timeouts, and they need to be run.
 
 **What the proofs say.** For 3,899 windows: no input sequence gets from the
 TAS's state at frame K to its state at frame K + W + 1 (on the compared
@@ -283,9 +292,9 @@ check answer differently.
 | timeout | 2 | 1 |
 
 So the local-optimality certificate at W = 12 holds for the current model,
-bar one window that timed out. **W = 16 (1,819 windows) and the 18 room
-transitions have not been re-checked** against the outside tiles; they
-stand for the model of 9e3dd4f.
+bar one window that timed out. **W = 16 (1,819 of 1,952 windows run, see
+above), W = 18 over `lvl_1` and the 18 room transitions have not been
+re-checked** against the outside tiles; they stand for the model of 9e3dd4f.
 
 ## Chapter 2: the Badeline chase
 

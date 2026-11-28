@@ -32,7 +32,8 @@ subpixel, and use the same code three ways: as a simulator, as a beam
 search, and as a CBMC harness in which every frame's input is free. SAT
 queries then either find a faster stretch of route or prove that none exists
 within the model. On a supercomputer campaign of about 2,300 core-hours,
-3,899 of 3,920 windows of 12, 16 and 18 frames over the chapter were proven
+3,920 of the chapter's 4,053 windows of 12, 16 and 18 frames were run (133
+windows of 16 frames were cut off by the time limit), 3,899 of them were proven
 impossible to shorten to the same state, and all 36 queries around the 18 room
 transitions were proven. Those proofs predate a fix to the model (the tiles the
 game keeps outside each room). Re-checked on the current model, 2,023 of the
@@ -113,7 +114,10 @@ the dash's last frame. The game confirms it, but the next room's inputs fail
 from that exit state.
 
 \emph{Window proofs.} On CINECA's Leonardo (about 2,300 core-hours,
-CBMC~5.80.0), Table~\ref{tab:leonardo}: 3,899 windows were proven. All 15
+CBMC~5.80.0), Table~\ref{tab:leonardo}: 3,899 windows were proven. The
+$W{=}16$ run is incomplete: 133 of its 1,952 windows were in array tasks that
+hit their time limit and have no answer, so they count as neither proven nor
+timed out. All 15
 ``faster'' answers are room \emph{endings}: the window counts leaving the
 room as success, and each leaves 2--5 frames sooner in a different state,
 after which the next room's TAS inputs fail. The 6 timeouts are not
@@ -138,15 +142,15 @@ crossings have not been re-checked; they hold for the model before the fix.
 \centering
 \caption{Window proofs over the community TAS (Leonardo)}
 \label{tab:leonardo}
-\begin{tabular}{@{}lrrrr@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-$W$, rooms & windows & proven & timeout & ``faster'' \\
+$W$, rooms & windows & run & proven & timeout & ``faster'' \\
 \midrule
-12, all 19 & 2,028 & 2,022 & 2 & 4 \\
-16, all 19 & 1,819 & 1,804 & 4 & 11 \\
-18, \code{lvl\_1} & 73 & 73 & 0 & 0 \\
+12, all 19 & 2,028 & 2,028 & 2,022 & 2 & 4 \\
+16, all 19 & 1,952 & 1,819 & 1,804 & 4 & 11 \\
+18, \code{lvl\_1} & 73 & 73 & 73 & 0 & 0 \\
 \midrule
-total & 3,920 & 3,899 & 6 & 15 \\
+total & 4,053 & 3,920 & 3,899 & 6 & 15 \\
 \bottomrule
 \end{tabular}
 \end{table}
